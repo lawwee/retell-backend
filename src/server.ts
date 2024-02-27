@@ -3,7 +3,7 @@ import { RawData, WebSocket } from "ws";
 import { createServer, Server as HTTPServer } from "http";
 import cors from "cors";
 import expressWs from "express-ws";
-import { DemoLlmClient } from "./llm_azure_openai";
+// import { DemoLlmClient } from "./llm_azure_openai";
 import { TwilioClient } from "./twilio_api";
 import { RetellClient } from "retell-sdk";
 import {
@@ -11,13 +11,13 @@ import {
   AudioEncoding,
 } from "retell-sdk/models/components";
 import { LLMDummyMock } from "./llm_dummy_mock";
-import { FunctionCallingLlmClient } from "./llm_azure_openai_func_call";
+import { DemoLlmClient } from "./llm_openai";
 import { RetellRequest } from "./types";
 
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
-  private llmClient: FunctionCallingLlmClient;
+  private llmClient: DemoLlmClient;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
 
@@ -31,7 +31,7 @@ export class Server {
     this.handleRetellLlmWebSocket();
     this.handleRegisterCallAPI();
 
-    this.llmClient = new FunctionCallingLlmClient();
+    this.llmClient = new DemoLlmClient();
 
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
