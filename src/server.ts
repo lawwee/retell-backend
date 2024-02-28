@@ -13,7 +13,9 @@ import {
 import { LLMDummyMock } from "./llm_dummy_mock";
 import { DemoLlmClient } from "./llm_openai";
 import { RetellRequest } from "./types";
-
+import { createContact, deleteOneContact, getAllContact } from "./contacts/contact_controller";
+import { connectDb, contactModel } from "./contacts/contact_model";
+connectDb()
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -28,8 +30,13 @@ export class Server {
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
 
+    
     this.handleRetellLlmWebSocket();
     this.handleRegisterCallAPI();
+    this.handleContactSaving()
+    this.handlecontactDelete()
+    this.handlecontactGet()
+    
 
     this.llmClient = new DemoLlmClient();
 
@@ -52,16 +59,17 @@ export class Server {
       "/register-call-on-your-server",
       async (req: Request, res: Response) => {
         // Extract agentId from request body; apiKey should be securely stored and not passed from the client
-        const { agentId } = req.body;
+        const { agentId, id } = req.body;
 
         try {
           const callResponse = await this.retellClient.registerCall({
             agentId: agentId,
             audioWebsocketProtocol: AudioWebsocketProtocol.Web,
             audioEncoding: AudioEncoding.S16le,
-            sampleRate: 24000,
+            sampleRate: 24000
           });
           // Send back the successful response to the client
+          await contactModel.findByIdAndUpdate(id, {callId: callResponse.callDetail.callId}, {new: true})
           res.json(callResponse.callDetail);
         } catch (error) {
           console.error("Error registering call:", error);
@@ -80,7 +88,7 @@ export class Server {
         console.log("Handle llm ws for: ", callId);
 
         // Start sending the begin message to signal the client is ready.
-        this.llmClient.BeginMessage(ws);
+        this.llmClient.BeginMessage(ws, callId);
 
         ws.on("error", (err) => {
           console.error("Error received in LLM websocket client: ", err);
@@ -106,4 +114,35 @@ export class Server {
       },
     );
   }
+
+  handleContactSaving() {
+    this.app.post("/test", async (req: Request, res: Response) => {
+      const { firstname, lastname, email, phone } = req.body;
+      try {
+        const result = await createContact(firstname, lastname, email, phone);
+        res.json({ result });
+      } catch (error) {}
+    });
+  }
+
+  handlecontactGet() {
+    this.app.get("/fetchusers", async (req: Request, res: Response) => {
+      try {
+        const result = await getAllContact();
+        res.json({ result });
+      } catch (error) {}
+    });
+  }
+  handlecontactDelete() {
+    this.app.patch("/deleteTest", async (req: Request, res: Response) => {
+      const { id } = req.body;
+      try {
+        const result = await deleteOneContact(id);
+        res.json({ result });
+      } catch (error) {}
+    });
+  }
+
+
+
 }

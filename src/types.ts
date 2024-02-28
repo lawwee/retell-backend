@@ -15,3 +15,14 @@ export interface RetellResponse {
   content_complete: boolean;
   end_call: boolean;
 }
+
+export interface IContact {
+  firstname: string;
+  lastname: string;
+  email: string;
+  phone: Number;
+  isusercalled: boolean;
+  isDeleted: boolean;
+  callId: string
+}
+
