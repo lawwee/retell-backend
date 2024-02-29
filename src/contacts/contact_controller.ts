@@ -6,7 +6,7 @@ export const createContact = async (
   firstname: string,
   lastname: string,
   email: string,
-  phone: number,
+  phone: string,
 ): Promise<IContact | null> => {
   try {
     if (!firstname || !lastname || !email || !phone) {

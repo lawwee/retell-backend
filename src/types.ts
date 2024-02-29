@@ -20,7 +20,7 @@ export interface IContact {
   firstname: string;
   lastname: string;
   email: string;
-  phone: Number;
+  phone: string;
   isusercalled: boolean;
   isDeleted: boolean;
   callId: string

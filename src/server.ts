@@ -116,7 +116,7 @@ export class Server {
   }
 
   handleContactSaving() {
-    this.app.post("/test", async (req: Request, res: Response) => {
+    this.app.post("/users/create", async (req: Request, res: Response) => {
       const { firstname, lastname, email, phone } = req.body;
       try {
         const result = await createContact(firstname, lastname, email, phone);
@@ -126,7 +126,7 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.get("/fetchusers", async (req: Request, res: Response) => {
+    this.app.get("/users", async (req: Request, res: Response) => {
       try {
         const result = await getAllContact();
         res.json({ result });
@@ -134,7 +134,7 @@ export class Server {
     });
   }
   handlecontactDelete() {
-    this.app.patch("/deleteTest", async (req: Request, res: Response) => {
+    this.app.patch("/users/delete", async (req: Request, res: Response) => {
       const { id } = req.body;
       try {
         const result = await deleteOneContact(id);

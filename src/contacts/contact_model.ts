@@ -13,7 +13,7 @@ const ContactSchema =new Schema<IContact>({
         type: String
     },
     phone: {
-        type: Number
+        type: String
     },
     isusercalled:{
         type: Boolean,
