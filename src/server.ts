@@ -13,9 +13,13 @@ import {
 import { LLMDummyMock } from "./llm_dummy_mock";
 import { DemoLlmClient } from "./llm_openai";
 import { RetellRequest } from "./types";
-import { createContact, deleteOneContact, getAllContact } from "./contacts/contact_controller";
+import {
+  createContact,
+  deleteOneContact,
+  getAllContact,
+} from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
-connectDb()
+connectDb();
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -30,13 +34,11 @@ export class Server {
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
 
-    
     this.handleRetellLlmWebSocket();
     this.handleRegisterCallAPI();
-    this.handleContactSaving()
-    this.handlecontactDelete()
-    this.handlecontactGet()
-    
+    this.handleContactSaving();
+    this.handlecontactDelete();
+    this.handlecontactGet();
 
     this.llmClient = new DemoLlmClient();
 
@@ -44,8 +46,8 @@ export class Server {
       apiKey: process.env.RETELL_API_KEY,
     });
 
-    // this.twilioClient = new TwilioClient();
-    // this.twilioClient.ListenTwilioVoiceWebhook(this.app);
+    this.twilioClient = new TwilioClient();
+    this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
 
   listen(port: number): void {
@@ -66,10 +68,14 @@ export class Server {
             agentId: agentId,
             audioWebsocketProtocol: AudioWebsocketProtocol.Web,
             audioEncoding: AudioEncoding.S16le,
-            sampleRate: 24000
+            sampleRate: 24000,
           });
           // Send back the successful response to the client
-          await contactModel.findByIdAndUpdate(id, {callId: callResponse.callDetail.callId}, {new: true})
+          await contactModel.findByIdAndUpdate(
+            id,
+            { callId: callResponse.callDetail.callId },
+            { new: true },
+          );
           res.json(callResponse.callDetail);
         } catch (error) {
           console.error("Error registering call:", error);
@@ -142,7 +148,4 @@ export class Server {
       } catch (error) {}
     });
   }
-
-
-
 }
