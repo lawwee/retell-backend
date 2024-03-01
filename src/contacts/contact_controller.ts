@@ -28,7 +28,9 @@ export const createContact = async (
 type ContactDocument = Omit<Document & IContact, "_id">;
 export const getAllContact = async (): Promise<ContactDocument[] | null> => {
   try {
-    const foundContacts = await contactModel.find().sort({createdAt: "desc"})
+    const foundContacts = await contactModel
+      .find({ isDeleted: { $ne: true } })
+      .sort({ createdAt: "desc" });
     return foundContacts;
   } catch (error) {
     console.error("Error fetching all contacts:", error);
