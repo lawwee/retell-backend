@@ -124,13 +124,13 @@ export class TwilioClient {
       async (req: Request, res: Response) => {
         const agentId = req.params.agent_id;
         const answeredBy = req.body.AnsweredBy;
+        const { fromNumber, toNumber } = req.body;
         try {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
             return;
           }
-
           const callResponse = await this.retellClient.registerCall({
             agentId: agentId,
             audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
@@ -141,6 +141,13 @@ export class TwilioClient {
             // Start phone call websocket
             const response = new VoiceResponse();
             const start = response.connect();
+            const result2 = await this.RegisterPhoneAgent(fromNumber, agentId);
+            console.log("this is the result 2 :", result2);
+            await this.CreatePhoneCall(
+              fromNumber,
+              toNumber,
+              agentId,
+            );
             const stream = start.stream({
               url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
             });
