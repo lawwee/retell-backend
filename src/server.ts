@@ -1,25 +1,23 @@
-import express, { Request, Response } from "express";
-import { RawData, WebSocket } from "ws";
-import { createServer, Server as HTTPServer } from "http";
 import cors from "cors";
+import express, { Request, Response } from "express";
 import expressWs from "express-ws";
-// import { DemoLlmClient } from "./llm_azure_openai";
-import { TwilioClient } from "./twilio_api";
+import { Server as HTTPServer, createServer } from "http";
+import { RawData, WebSocket } from "ws";
 import { RetellClient } from "retell-sdk";
 import {
-  AudioWebsocketProtocol,
   AudioEncoding,
+  AudioWebsocketProtocol,
 } from "retell-sdk/models/components";
-import { LLMDummyMock } from "./llm_dummy_mock";
-import { DemoLlmClient } from "./llm_openai";
-import { RetellRequest } from "./types";
+import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import {
   createContact,
   deleteOneContact,
   getAllContact,
 } from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
-import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
+import { DemoLlmClient } from "./llm_openai";
+import { TwilioClient } from "./twilio_api";
+import { RetellRequest } from "./types";
 connectDb();
 export class Server {
   private httpServer: HTTPServer;
@@ -40,6 +38,7 @@ export class Server {
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
+    this.createPhoneCall();
 
     this.llmClient = new DemoLlmClient();
 
@@ -153,11 +152,11 @@ export class Server {
 
   ListenTwilioVoiceWebhook = () => {
     this.app.post(
-      "/twilio-voice-webhook/:agent_id",
+      "/twilio-voice-webhook/:agentId/:userId",
       async (req: Request, res: Response) => {
-        const agentId = req.params.agent_id;
-        const answeredBy = req.body.AnsweredBy;
-        const { fromNumber, toNumber, id } = req.body;
+        const { agentId, userId } = req.params;
+        const { answeredBy } = req.body;
+
         try {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
@@ -170,24 +169,22 @@ export class Server {
             audioEncoding: AudioEncoding.Mulaw,
             sampleRate: 8000,
           });
-          await contactModel.findByIdAndUpdate(
-            id,
-            { callId: callResponse.callDetail.callId },
-            { new: true },
-          );
+
           if (callResponse.callDetail) {
+            await contactModel.findByIdAndUpdate(
+              userId,
+              { callId: callResponse.callDetail.callId },
+              { new: true },
+            );
+
             // Start phone call websocket
             const response = new VoiceResponse();
             const start = response.connect();
-            // await this.RegisterPhoneAgent(fromNumber, agentId);
-            const result = await this.twilioClient.CreatePhoneCall(
-              fromNumber,
-              toNumber,
-              agentId,
-            );
+
             const stream = start.stream({
               url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
             });
+
             res.set("Content-Type", "text/xml");
             res.send(response.toString());
           }
@@ -232,4 +229,25 @@ export class Server {
       },
     );
   }
+  createPhoneCall  ()  {
+    this.app.post(
+      "/create-phone-call/:agent_id",
+      async (req: Request, res: Response) => {
+        const { fromNumber, toNumber, id } = req.body;
+        const agentId = req.params.agent_id;
+        if(!agentId || !fromNumber || !toNumber || !id) {return res.json({ status: "error", message: "Invalid request"})}
+         try { await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId)
+          const result = await this.twilioClient.CreatePhoneCall(fromNumber,toNumber,agentId,id,
+          );
+          res.json({ result });
+        } catch (error) {
+          console.log(error);
+          res.json({
+            status: "error",
+            message: "Error while creating phone call",
+          });
+        }
+      },
+    );
+  };
 }
