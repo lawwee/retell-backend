@@ -20,6 +20,7 @@ export class DemoLlmClient {
 
   // First sentence requested
   async BeginMessage(ws: WebSocket, callId: string) {
+    console.log(callId)
     const user = await contactModel.findOne({ callId });
     const firstname = user.firstname
     console.log(firstname);

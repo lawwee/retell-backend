@@ -19,6 +19,7 @@ import {
   getAllContact,
 } from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
+import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 connectDb();
 export class Server {
   private httpServer: HTTPServer;
@@ -47,7 +48,7 @@ export class Server {
     });
 
     this.twilioClient = new TwilioClient();
-    this.twilioClient.ListenTwilioVoiceWebhook(this.app);
+    this.ListenTwilioVoiceWebhook();
   }
 
   listen(port: number): void {
@@ -139,6 +140,7 @@ export class Server {
       } catch (error) {}
     });
   }
+
   handlecontactDelete() {
     this.app.patch("/users/delete", async (req: Request, res: Response) => {
       const { id } = req.body;
@@ -147,5 +149,87 @@ export class Server {
         res.json({ result });
       } catch (error) {}
     });
+  }
+
+  ListenTwilioVoiceWebhook = () => {
+    this.app.post(
+      "/twilio-voice-webhook/:agent_id",
+      async (req: Request, res: Response) => {
+        const agentId = req.params.agent_id;
+        const answeredBy = req.body.AnsweredBy;
+        const { fromNumber, toNumber, id } = req.body;
+        try {
+          // Respond with TwiML to hang up the call if its machine
+          if (answeredBy && answeredBy === "machine_start") {
+            this.twilioClient.EndCall(req.body.CallSid);
+            return;
+          }
+          const callResponse = await this.retellClient.registerCall({
+            agentId: agentId,
+            audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
+            audioEncoding: AudioEncoding.Mulaw,
+            sampleRate: 8000,
+          });
+          await contactModel.findByIdAndUpdate(
+            id,
+            { callId: callResponse.callDetail.callId },
+            { new: true },
+          );
+          if (callResponse.callDetail) {
+            // Start phone call websocket
+            const response = new VoiceResponse();
+            const start = response.connect();
+            // await this.RegisterPhoneAgent(fromNumber, agentId);
+            const result = await this.twilioClient.CreatePhoneCall(
+              fromNumber,
+              toNumber,
+              agentId,
+            );
+            const stream = start.stream({
+              url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
+            });
+            res.set("Content-Type", "text/xml");
+            res.send(response.toString());
+          }
+        } catch (err) {
+          console.error("Error in twilio voice webhook:", err);
+          res.status(500).send();
+        }
+      },
+    );
+  };
+  handleRetellLlPhoneSocket() {
+    this.app.ws(
+      "wss://api.retellai.com/audio-websocket/:call_id",
+      async (ws: WebSocket, req: Request) => {
+        const callId = req.params.call_id;
+        console.log("Handle llm ws for: ", callId);
+
+        // Start sending the begin message to signal the client is ready.
+        this.llmClient.BeginMessage(ws, callId);
+
+        ws.on("error", (err) => {
+          console.error("Error received in LLM websocket client: ", err);
+        });
+        ws.on("close", (err) => {
+          console.error("Closing llm ws for: ", callId, err);
+        });
+
+        ws.on("message", async (data: RawData, isBinary: boolean) => {
+          console.log(data.toString());
+          if (isBinary) {
+            console.error("Got binary message instead of text in websocket.");
+            ws.close(1002, "Cannot find corresponding Retell LLM.");
+          }
+          try {
+            const request: RetellRequest = JSON.parse(data.toString());
+            this.llmClient.DraftResponse(request, ws);
+          } catch (err) {
+            console.error("Error in parsing LLM websocket message: ", err);
+            ws.close(1002, "Cannot parse incoming message.");
+          }
+        });
+      },
+    );
   }
 }
