@@ -41,7 +41,6 @@ export class Server {
     this.createPhoneCall();
 
     this.llmClient = new DemoLlmClient();
-
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -85,7 +84,6 @@ export class Server {
       },
     );
   }
-
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -120,7 +118,6 @@ export class Server {
       },
     );
   }
-
   handleContactSaving() {
     this.app.post("/users/create", async (req: Request, res: Response) => {
       const { firstname, lastname, email, phone } = req.body;
@@ -130,7 +127,6 @@ export class Server {
       } catch (error) {}
     });
   }
-
   handlecontactGet() {
     this.app.get("/users", async (req: Request, res: Response) => {
       try {
@@ -139,7 +135,6 @@ export class Server {
       } catch (error) {}
     });
   }
-
   handlecontactDelete() {
     this.app.patch("/users/delete", async (req: Request, res: Response) => {
       const { id } = req.body;
@@ -149,8 +144,7 @@ export class Server {
       } catch (error) {}
     });
   }
-
-  ListenTwilioVoiceWebhook = () => {
+  ListenTwilioVoiceWebhook () {
     this.app.post(
       "/twilio-voice-webhook/:agentId/:userId",
       async (req: Request, res: Response) => {
@@ -229,15 +223,22 @@ export class Server {
       },
     );
   }
-  createPhoneCall  ()  {
+  createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agent_id",
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, id } = req.body;
         const agentId = req.params.agent_id;
-        if(!agentId || !fromNumber || !toNumber || !id) {return res.json({ status: "error", message: "Invalid request"})}
-         try { await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId)
-          const result = await this.twilioClient.CreatePhoneCall(fromNumber,toNumber,agentId,id,
+        if (!agentId || !fromNumber || !toNumber || !id) {
+          return res.json({ status: "error", message: "Invalid request" });
+        }
+        try {
+          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          const result = await this.twilioClient.CreatePhoneCall(
+            fromNumber,
+            toNumber,
+            agentId,
+            id,
           );
           res.json({ result });
         } catch (error) {
@@ -249,5 +250,5 @@ export class Server {
         }
       },
     );
-  };
+  }
 }
