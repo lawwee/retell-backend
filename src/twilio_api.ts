@@ -64,7 +64,7 @@ export class TwilioClient {
   };
 
   // Create an outbound call
-CreatePhoneCall = async (
+  CreatePhoneCall = async (
     fromNumber: string,
     toNumber: string,
     agentId: string,
@@ -110,5 +110,4 @@ CreatePhoneCall = async (
       console.error("Twilio transfer error: ", error);
     }
   };
-
 }

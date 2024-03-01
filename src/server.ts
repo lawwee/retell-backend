@@ -144,7 +144,7 @@ export class Server {
       } catch (error) {}
     });
   }
-  ListenTwilioVoiceWebhook () {
+  ListenTwilioVoiceWebhook() {
     this.app.post(
       "/twilio-voice-webhook/:agentId/:userId",
       async (req: Request, res: Response) => {
@@ -188,7 +188,7 @@ export class Server {
         }
       },
     );
-  };
+  }
   handleRetellLlPhoneSocket() {
     this.app.ws(
       "wss://api.retellai.com/audio-websocket/:call_id",
