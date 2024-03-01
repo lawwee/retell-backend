@@ -71,6 +71,10 @@ export class TwilioClient {
     userId: string,
   ) => {
     try {
+      console.log("this is the from number", fromNumber, "this is the to number", toNumber, "this is agent id", agentId, "this is the user id", userId)
+      console.log(
+        `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`,
+      );
       const result = await this.twilio.calls.create({
         machineDetection: "Enable", // detects if the other party is IVR
         machineDetectionTimeout: 8,
