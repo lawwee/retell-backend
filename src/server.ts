@@ -13,6 +13,7 @@ import {
   createContact,
   deleteOneContact,
   getAllContact,
+  updateOneContact,
 } from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
 import { DemoLlmClient } from "./llm_openai";
@@ -39,6 +40,7 @@ export class Server {
     this.handlecontactDelete();
     this.handlecontactGet();
     this.createPhoneCall();
+    this.handleContactUpdate()
 
     this.llmClient = new DemoLlmClient();
     this.retellClient = new RetellClient({
@@ -142,6 +144,24 @@ export class Server {
         const result = await deleteOneContact(id);
         res.json({ result });
       } catch (error) {}
+    });
+  }
+  handleContactUpdate() {
+    this.app.patch("/users/update", async (req: Request, res: Response) => {
+      const { id, ...fields } = req.body;
+      if(!fields){
+         return res
+           .status(400)
+           .json({ error: "No fields to update provided." });
+      }
+      try {
+        const result = await updateOneContact(id, fields);
+        res.json({ result });
+      } catch (error) {
+        res
+          .status(500)
+          .json({ error: "An error occurred while updating contact." });
+      }
     });
   }
   ListenTwilioVoiceWebhook() {

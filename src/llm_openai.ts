@@ -19,12 +19,10 @@ export class DemoLlmClient {
 
   // First sentence requested
   async BeginMessage(ws: WebSocket, callId: string) {
-    console.log(callId);
     const user = await contactModel.findOne({ callId });
     console.log(user.firstname);
     beginSentence = `Hi, may I speak with ${user.firstname}, please?" (If the response is yes, proceed to step 2. If no, politely ask if you can be connected or a suitable time to call back. If "wrong number" say: "my apologies, have a good day.)`;
     // Your agent prompt.
-
     agentPrompt = `
 ## Background
 You are calling on behalf of Virtual Help Desk, a company that specializes in providing expert virtual assistants for various business needs. Our services range from administrative tasks, voice services, online research, brand management, to content creation, and more, ensuring a comprehensive support system for business process management.

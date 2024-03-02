@@ -51,3 +51,17 @@ export const deleteOneContact = async (id: string) => {
     return null
   }
 };
+
+export const updateOneContact = async (id: string, updateFields: object) => {
+  try {
+    const updatedContact = await contactModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true } }, 
+      { $set: updateFields }, 
+      { new: true },
+    );
+    return updatedContact;
+  } catch (error) {
+    console.error("Error updating contact:", error);
+    return null;
+  }
+};
