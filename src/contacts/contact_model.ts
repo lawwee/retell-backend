@@ -2,6 +2,13 @@ import  { Schema, model } from 'mongoose';
 import mongoose from "mongoose"
 import { IContact } from '../types';
 
+
+enum status {
+    CALLED  = "Called",
+    NOT_CALLED = "Not called",
+    CALLING = "Calling",
+    VOICEMAIL = "Voicemail"
+}
 const ContactSchema =new Schema<IContact>({
     firstname: {
         type: String
@@ -25,6 +32,10 @@ const ContactSchema =new Schema<IContact>({
     },
     callId:{
         type: String
+    },
+    status:{
+        type: String,
+        enum: Object.values(status)
     }
 }, {timestamps: true})
 

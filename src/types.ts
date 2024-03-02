@@ -23,6 +23,7 @@ export interface IContact {
   phone: string;
   isusercalled: boolean;
   isDeleted: boolean;
-  callId: string
+  callId: string,
+  status: string
 }
 
