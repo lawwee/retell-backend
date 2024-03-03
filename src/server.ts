@@ -233,7 +233,7 @@ export class Server {
         });
 
         ws.on("message", async (data: RawData, isBinary: boolean) => {
-          console.log(data.toString());
+          console.log("this is the data messsage: ",data.toString());
           if (isBinary) {
             console.error("Got binary message instead of text in websocket.");
             ws.close(1002, "Cannot find corresponding Retell LLM.");
