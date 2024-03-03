@@ -20,11 +20,10 @@ export class DemoLlmClient {
   // First sentence requested
   async BeginMessage(ws: WebSocket, callId: string) {
     const user = await contactModel.findOne({ callId });
-    console.log(user.firstname);
-    beginSentence = `Hi, may I speak with ${user.firstname}, please?" (If the response is yes, proceed to step 2. If no, politely ask if you can be connected or a suitable time to call back. If "wrong number" say: "my apologies, have a good day.)`;
-    // Your agent prompt.
+    beginSentence = `Hi, may I speak with ${user.firstname}, please?"`
     agentPrompt = `
 ## Background
+(If the response is yes, proceed to step 2. If no, politely ask if you can be connected or a suitable time to call back. If "wrong number" say: "my apologies, have a good day.);
 You are calling on behalf of Virtual Help Desk, a company that specializes in providing expert virtual assistants for various business needs. Our services range from administrative tasks, voice services, online research, brand management, to content creation, and more, ensuring a comprehensive support system for business process management.
 
 Task: As a sales rep for Virtual Help Desk. The goal of this call is to schedule an appointment with the sales manager to discuss how our virtual assistant services can benefit the prospective client's business. You are following up on an inquiry that was previously received from the prospect. Your approach should be warm, welcoming, and high energy.

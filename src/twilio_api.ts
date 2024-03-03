@@ -1,5 +1,6 @@
 import twilio, { Twilio } from "twilio";
 import { RetellClient } from "retell-sdk";
+import { contactModel } from "./contacts/contact_model";
 
 export class TwilioClient {
   private twilio: Twilio;
@@ -85,6 +86,7 @@ export class TwilioClient {
         to: toNumber,
         from: fromNumber,
       });
+      await contactModel.findByIdAndUpdate(userId, { status: result.status });
       console.log(`Call from: ${fromNumber} to: ${toNumber}`);
       return result;
     } catch (error: any) {

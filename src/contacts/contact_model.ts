@@ -1,14 +1,20 @@
 import  { Schema, model } from 'mongoose';
 import mongoose from "mongoose"
-import { IContact } from '../types';
+import { IContact, callstatusenum } from '../types';
 
 
 enum status {
-    CALLED  = "Called",
-    NOT_CALLED = "Not called",
-    CALLING = "Calling",
-    VOICEMAIL = "Voicemail"
+    QUEUED = "queued" ,
+    RINGING = "ringing",
+    IN_PROGRESS = "on call",
+    COMPLETED =  "completed", 
+    BUSY =  "busy",
+    FAILED =  "failed",
+    NO_ANSWER =  "no answer" ,
+    CANCELED = "canceled",
+    NOT_CALLED = "not called"
 }
+
 const ContactSchema =new Schema<IContact>({
     firstname: {
         type: String
@@ -35,8 +41,8 @@ const ContactSchema =new Schema<IContact>({
     },
     status:{
         type: String,
-        enum: Object.values(status),
-        default: status.NOT_CALLED
+        enum: Object.values(callstatusenum),
+        default: callstatusenum.NOT_CALLED
     }
 }, {timestamps: true})
 

@@ -27,3 +27,14 @@ export interface IContact {
   status: string
 }
 
+export enum callstatusenum {
+  QUEUED = "queued",
+  RINGING = "ringing",
+  IN_PROGRESS = "in-progress",
+  COMPLEETED = "completed",
+  BUSY = "busy",
+  FAILED = "failed",
+  NO_ANSWER = "no-answer",
+  CANCELED = "canceled",
+  NOT_CALLED = "not-called",
+}

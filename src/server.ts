@@ -19,6 +19,7 @@ import { connectDb, contactModel } from "./contacts/contact_model";
 import { DemoLlmClient } from "./llm_openai";
 import { TwilioClient } from "./twilio_api";
 import { RetellRequest } from "./types";
+import { callstatusenum } from "./types";
 connectDb();
 export class Server {
   private httpServer: HTTPServer;
@@ -40,7 +41,7 @@ export class Server {
     this.handlecontactDelete();
     this.handlecontactGet();
     this.createPhoneCall();
-    this.handleContactUpdate()
+    this.handleContactUpdate();
 
     this.llmClient = new DemoLlmClient();
     this.retellClient = new RetellClient({
@@ -148,16 +149,23 @@ export class Server {
   }
   handleContactUpdate() {
     this.app.patch("/users/update", async (req: Request, res: Response) => {
-      const { id, ...fields } = req.body;
-      if(!fields){
-         return res
-           .status(400)
-           .json({ error: "No fields to update provided." });
-      }
       try {
+        const { id, fields } = req.body;
+        //  if (fields && typeof fields === "object") {
+        //    console.log(...fields);
+        //  } else {
+        //    console.log("Fields:", fields);
+        //  }
+
+        if (!fields) {
+          return res
+            .status(400)
+            .json({ error: "No fields to update provided." });
+        }
         const result = await updateOneContact(id, fields);
         res.json({ result });
       } catch (error) {
+        console.log(error);
         res
           .status(500)
           .json({ error: "An error occurred while updating contact." });
@@ -176,20 +184,20 @@ export class Server {
           if (answeredBy && answeredBy === "machine_start") {
             this.twilioClient.EndCall(req.body.CallSid);
             await contactModel.findByIdAndUpdate(
-              req.body.contactId, // Assuming you have a field named contactId in req.body to identify the contact
-              { status: "Voicemail" },
+              userId,
+              { status: callstatusenum.NO_ANSWER },
               { new: true },
             );
 
             return;
           }
+          
           const callResponse = await this.retellClient.registerCall({
             agentId: agentId,
             audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
             audioEncoding: AudioEncoding.Mulaw,
             sampleRate: 8000,
           });
-
           if (callResponse.callDetail) {
             await contactModel.findByIdAndUpdate(
               userId,
@@ -200,7 +208,11 @@ export class Server {
             // Start phone call websocket
             const response = new VoiceResponse();
             const start = response.connect();
-
+            const callresult = await contactModel.findByIdAndUpdate(
+              userId,
+              { status:"ringing" },
+              { new: true },
+            );
             const stream = start.stream({
               url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
             });
@@ -221,25 +233,44 @@ export class Server {
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
-
         // Start sending the begin message to signal the client is ready.
         this.llmClient.BeginMessage(ws, callId);
 
         ws.on("error", (err) => {
           console.error("Error received in LLM websocket client: ", err);
         });
-        ws.on("close", (err) => {
+        ws.on("close", async (err) => {
+          try {
+             await contactModel.findOneAndUpdate(
+               { callId },
+               { status: "called" },
+               { new: true },
+             );
+          } catch (error) {
+            console.log("this is why it is not being called:" ,error)
+          }
+          await contactModel.findOneAndUpdate(
+            { callId },
+            { status: "called" },
+            { new: true },
+          );
           console.error("Closing llm ws for: ", callId, err);
         });
 
         ws.on("message", async (data: RawData, isBinary: boolean) => {
-          console.log("this is the data messsage: ",data.toString());
+          console.log("this is the data messsage: ", data.toString());
           if (isBinary) {
             console.error("Got binary message instead of text in websocket.");
             ws.close(1002, "Cannot find corresponding Retell LLM.");
           }
           try {
+           
+            
             const request: RetellRequest = JSON.parse(data.toString());
+             await contactModel.findOneAndUpdate(
+              { callId },
+              { status: "on call" },
+              { new: true })
             this.llmClient.DraftResponse(request, ws);
           } catch (err) {
             console.error("Error in parsing LLM websocket message: ", err);
