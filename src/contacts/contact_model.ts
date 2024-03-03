@@ -35,7 +35,8 @@ const ContactSchema =new Schema<IContact>({
     },
     status:{
         type: String,
-        enum: Object.values(status)
+        enum: Object.values(status),
+        default: status.NOT_CALLED
     }
 }, {timestamps: true})
 

@@ -175,6 +175,12 @@ export class Server {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
             this.twilioClient.EndCall(req.body.CallSid);
+            await contactModel.findByIdAndUpdate(
+              req.body.contactId, // Assuming you have a field named contactId in req.body to identify the contact
+              { status: "Voicemail" },
+              { new: true },
+            );
+
             return;
           }
           const callResponse = await this.retellClient.registerCall({
