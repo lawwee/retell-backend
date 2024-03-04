@@ -49,7 +49,7 @@ export class Server {
     });
 
     this.twilioClient = new TwilioClient();
-    this.ListenTwilioVoiceWebhook();
+    this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
 
   listen(port: number): void {
@@ -73,11 +73,6 @@ export class Server {
             sampleRate: 24000,
           });
           // Send back the successful response to the client
-          await contactModel.findByIdAndUpdate(
-            id,
-            { callId: callResponse.callDetail.callId },
-            { new: true },
-          );
           res.json(callResponse.callDetail);
         } catch (error) {
           console.error("Error registering call:", error);
@@ -92,6 +87,7 @@ export class Server {
       "/llm-websocket/:call_id",
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
+        console.log("the call id for the reached websocket is: ", callId);
         console.log("Handle llm ws for: ", callId);
 
         // Start sending the begin message to signal the client is ready.
@@ -100,11 +96,16 @@ export class Server {
         ws.on("error", (err) => {
           console.error("Error received in LLM websocket client: ", err);
         });
-        ws.on("close", (err) => {
+        ws.on("close", async (err) => {
+          await contactModel.findOneAndUpdate(
+            { callId },
+            { status: "called" },
+          );
           console.error("Closing llm ws for: ", callId);
         });
 
         ws.on("message", async (data: RawData, isBinary: boolean) => {
+          await contactModel.findOneAndUpdate({callId}, {status: "on call"})
           console.log(data.toString());
           if (isBinary) {
             console.error("Got binary message instead of text in websocket.");
@@ -151,12 +152,6 @@ export class Server {
     this.app.patch("/users/update", async (req: Request, res: Response) => {
       try {
         const { id, fields } = req.body;
-        //  if (fields && typeof fields === "object") {
-        //    console.log(...fields);
-        //  } else {
-        //    console.log("Fields:", fields);
-        //  }
-
         if (!fields) {
           return res
             .status(400)
@@ -172,121 +167,14 @@ export class Server {
       }
     });
   }
-  ListenTwilioVoiceWebhook() {
-    this.app.post(
-      "/twilio-voice-webhook/:agentId/:userId",
-      async (req: Request, res: Response) => {
-        const { agentId, userId } = req.params;
-        const { answeredBy } = req.body;
-
-        try {
-          // Respond with TwiML to hang up the call if its machine
-          if (answeredBy && answeredBy === "machine_start") {
-            this.twilioClient.EndCall(req.body.CallSid);
-            await contactModel.findByIdAndUpdate(
-              userId,
-              { status: callstatusenum.NO_ANSWER },
-              { new: true },
-            );
-
-            return;
-          }
-          
-          const callResponse = await this.retellClient.registerCall({
-            agentId: agentId,
-            audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
-            audioEncoding: AudioEncoding.Mulaw,
-            sampleRate: 8000,
-          });
-          if (callResponse.callDetail) {
-            await contactModel.findByIdAndUpdate(
-              userId,
-              { callId: callResponse.callDetail.callId },
-              { new: true },
-            );
-
-            // Start phone call websocket
-            const response = new VoiceResponse();
-            const start = response.connect();
-            const callresult = await contactModel.findByIdAndUpdate(
-              userId,
-              { status:"ringing" },
-              { new: true },
-            );
-            const stream = start.stream({
-              url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
-            });
-
-            res.set("Content-Type", "text/xml");
-            res.send(response.toString());
-          }
-        } catch (err) {
-          console.error("Error in twilio voice webhook:", err);
-          res.status(500).send();
-        }
-      },
-    );
-  }
-  handleRetellLlPhoneSocket() {
-    this.app.ws(
-      "wss://api.retellai.com/audio-websocket/:call_id",
-      async (ws: WebSocket, req: Request) => {
-        const callId = req.params.call_id;
-        console.log("Handle llm ws for: ", callId);
-        // Start sending the begin message to signal the client is ready.
-        this.llmClient.BeginMessage(ws, callId);
-
-        ws.on("error", (err) => {
-          console.error("Error received in LLM websocket client: ", err);
-        });
-        ws.on("close", async (err) => {
-          try {
-             await contactModel.findOneAndUpdate(
-               { callId },
-               { status: "called" },
-               { new: true },
-             );
-          } catch (error) {
-            console.log("this is why it is not being called:" ,error)
-          }
-          await contactModel.findOneAndUpdate(
-            { callId },
-            { status: "called" },
-            { new: true },
-          );
-          console.error("Closing llm ws for: ", callId, err);
-        });
-
-        ws.on("message", async (data: RawData, isBinary: boolean) => {
-          console.log("this is the data messsage: ", data.toString());
-          if (isBinary) {
-            console.error("Got binary message instead of text in websocket.");
-            ws.close(1002, "Cannot find corresponding Retell LLM.");
-          }
-          try {
-           
-            
-            const request: RetellRequest = JSON.parse(data.toString());
-             await contactModel.findOneAndUpdate(
-              { callId },
-              { status: "on call" },
-              { new: true })
-            this.llmClient.DraftResponse(request, ws);
-          } catch (err) {
-            console.error("Error in parsing LLM websocket message: ", err);
-            ws.close(1002, "Cannot parse incoming message.");
-          }
-        });
-      },
-    );
-  }
+  
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agent_id",
       async (req: Request, res: Response) => {
-        const { fromNumber, toNumber, id } = req.body;
+        const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agent_id;
-        if (!agentId || !fromNumber || !toNumber || !id) {
+        if (!agentId || !fromNumber || !toNumber || !userId) {
           return res.json({ status: "error", message: "Invalid request" });
         }
         try {
@@ -295,7 +183,7 @@ export class Server {
             fromNumber,
             toNumber,
             agentId,
-            id,
+            userId,
           );
           res.json({ result });
         } catch (error) {

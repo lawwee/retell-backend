@@ -30,11 +30,18 @@ export interface IContact {
 export enum callstatusenum {
   QUEUED = "queued",
   RINGING = "ringing",
-  IN_PROGRESS = "in-progress",
+  IN_PROGRESS = "in progress",
   COMPLEETED = "completed",
   BUSY = "busy",
   FAILED = "failed",
-  NO_ANSWER = "no-answer",
+  NO_ANSWER = "no answer",
   CANCELED = "canceled",
-  NOT_CALLED = "not-called",
+  NOT_CALLED = "not called",
 }
+
+// export interface FunctionCall {
+//   id: string
+//   FuncName: string
+//   arguments: Record <string, any>
+//   result?: string
+// }

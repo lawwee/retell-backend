@@ -1,6 +1,10 @@
 import twilio, { Twilio } from "twilio";
+import { Request, Response } from "express";
 import { RetellClient } from "retell-sdk";
 import { contactModel } from "./contacts/contact_model";
+import expressWs from "express-ws";
+import { AudioEncoding, AudioWebsocketProtocol } from "retell-sdk/models/components";
+import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 
 export class TwilioClient {
   private twilio: Twilio;
@@ -73,7 +77,16 @@ export class TwilioClient {
     userId: string,
   ) => {
     try {
-      console.log("this is the from number", fromNumber, "this is the to number", toNumber, "this is agent id", agentId, "this is the user id", userId)
+      console.log(
+        "this is the from number",
+        fromNumber,
+        "this is the to number",
+        toNumber,
+        "this is agent id",
+        agentId,
+        "this is the user id",
+        userId,
+      );
       console.log(
         `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`,
       );
@@ -116,5 +129,47 @@ export class TwilioClient {
     } catch (error) {
       console.error("Twilio transfer error: ", error);
     }
+  };
+
+  ListenTwilioVoiceWebhook = (app: expressWs.Application) => {
+    app.post(
+      "/twilio-voice-webhook/:agent_id/:userId",
+      async (req: Request, res: Response) => {
+        const agentId = req.params.agent_id;
+        const userId = req.params.userId
+        console.log(userId)
+        const answeredBy = req.body.AnsweredBy;
+        try {
+          // Respond with TwiML to hang up the call if its machine
+          if (answeredBy && answeredBy === "machine_start") {
+            this.EndCall(req.body.CallSid);
+            return;
+          } else if (answeredBy) {
+            return;
+          }
+
+          const callResponse = await this.retellClient.registerCall({
+            agentId: agentId,
+            audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
+            audioEncoding: AudioEncoding.Mulaw,
+            sampleRate: 8000,
+          });
+          await contactModel.findByIdAndUpdate(userId, {callId: callResponse.callDetail.callId, status: "ringing"})
+          if (callResponse.callDetail) {
+            // Start phone call websocket
+            const response = new VoiceResponse();
+            const start = response.connect();
+            const stream = start.stream({
+              url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
+            });
+            res.set("Content-Type", "text/xml");
+            res.send(response.toString());
+          }
+        } catch (err) {
+          console.error("Error in twilio voice webhook:", err);
+          res.status(500).send();
+        }
+      },
+    );
   };
 }
