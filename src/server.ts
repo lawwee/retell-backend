@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import expressWs from "express-ws";
 import { Server as HTTPServer, createServer } from "http";
 import { RawData, WebSocket } from "ws";
@@ -17,16 +17,29 @@ import {
 } from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
 import { DemoLlmClient } from "./llm_openai";
-import { TwilioClient } from "./twilio_api";
+import { TwilioClient } from "./twilio_api"; 
 import { RetellRequest } from "./types";
-import { callstatusenum } from "./types";
+import * as Papa from "papaparse"
+import fs from "fs"
+import multer from "multer"
 connectDb();
+
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
   private llmClient: DemoLlmClient;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
+
+  //multer for file upload
+  storage = multer.diskStorage({
+    destination: "public/", // Destination directory for uploaded files
+    filename: function (req, file, cb) {
+      cb(null, file.originalname); // Use original file name
+    },
+  });
+
+  upload = multer({ storage: this.storage });
 
   constructor() {
     this.app = expressWs(express()).app;
@@ -42,6 +55,7 @@ export class Server {
     this.handlecontactGet();
     this.createPhoneCall();
     this.handleContactUpdate();
+    this.uploadcsvToDb();
 
     this.llmClient = new DemoLlmClient();
     this.retellClient = new RetellClient({
@@ -97,15 +111,15 @@ export class Server {
           console.error("Error received in LLM websocket client: ", err);
         });
         ws.on("close", async (err) => {
-          await contactModel.findOneAndUpdate(
-            { callId },
-            { status: "called" },
-          );
+          await contactModel.findOneAndUpdate({ callId }, { status: "called" });
           console.error("Closing llm ws for: ", callId);
         });
 
         ws.on("message", async (data: RawData, isBinary: boolean) => {
-          await contactModel.findOneAndUpdate({callId}, {status: "on call"})
+          await contactModel.findOneAndUpdate(
+            { callId },
+            { status: "on call" },
+          );
           console.log(data.toString());
           if (isBinary) {
             console.error("Got binary message instead of text in websocket.");
@@ -167,7 +181,6 @@ export class Server {
       }
     });
   }
-  
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agent_id",
@@ -196,4 +209,39 @@ export class Server {
       },
     );
   }
+
+uploadcsvToDb() {
+  this.app.post(
+    "/upload",
+    this.upload.single("csvFile"),
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded" });
+        }
+        const csvFile = req.file;
+        const csvData = fs.readFileSync(csvFile.path, 'utf8');
+        Papa.parse(csvData, {
+          header: true,
+          complete: async (results) => {
+            const jsonArrayObj = results.data;
+            const result = await contactModel.insertMany(jsonArrayObj);
+            console.log("Upload successful");
+            res.status(200).json({ message: "Upload successful", result });
+          },
+          error: (err: Error) => {
+            console.error("Error parsing CSV:", err);
+            res.status(500).json({ message: "Failed to parse CSV data" });
+          }
+        });
+      } catch (err) {
+        console.error("Error:", err);
+        res
+          .status(500)
+          .json({ message: "Failed to upload CSV data to database" });
+      }
+    },
+  );
+}
+
 }

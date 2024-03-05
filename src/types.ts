@@ -24,7 +24,7 @@ export interface IContact {
   isusercalled: boolean;
   isDeleted: boolean;
   callId: string,
-  status: string
+  status: string,
 }
 
 export enum callstatusenum {
@@ -38,10 +38,3 @@ export enum callstatusenum {
   CANCELED = "canceled",
   NOT_CALLED = "not called",
 }
-
-// export interface FunctionCall {
-//   id: string
-//   FuncName: string
-//   arguments: Record <string, any>
-//   result?: string
-// }

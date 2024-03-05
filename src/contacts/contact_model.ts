@@ -48,6 +48,7 @@ const ContactSchema =new Schema<IContact>({
 
 export const contactModel  = model<IContact>("Retell", ContactSchema)
 const db = process.env.URL
+
 export const connectDb = async (): Promise<void> => {
 	try {
 		const conn = await mongoose.connect(db);
