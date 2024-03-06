@@ -18,7 +18,7 @@ import {
 import { connectDb, contactModel } from "./contacts/contact_model";
 import { DemoLlmClient } from "./llm_openai";
 import { TwilioClient } from "./twilio_api"; 
-import { RetellRequest } from "./types";
+import { IContact, RetellRequest } from "./types";
 import * as Papa from "papaparse"
 import fs from "fs"
 import multer from "multer"
@@ -210,38 +210,50 @@ export class Server {
     );
   }
 
-uploadcsvToDb() {
-  this.app.post(
-    "/upload",
-    this.upload.single("csvFile"),
-    async (req: Request, res: Response) => {
-      try {
-        if (!req.file) {
-          return res.status(400).json({ message: "No file uploaded" });
-        }
-        const csvFile = req.file;
-        const csvData = fs.readFileSync(csvFile.path, 'utf8');
-        Papa.parse(csvData, {
-          header: true,
-          complete: async (results) => {
-            const jsonArrayObj = results.data;
-            const result = await contactModel.insertMany(jsonArrayObj);
-            console.log("Upload successful");
-            res.status(200).json({ message: "Upload successful", result });
-          },
-          error: (err: Error) => {
-            console.error("Error parsing CSV:", err);
-            res.status(500).json({ message: "Failed to parse CSV data" });
+  uploadcsvToDb() {
+    this.app.post(
+      "/upload",
+      this.upload.single("csvFile"),
+      async (req: Request, res: Response) => {
+        try {
+          if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded" });
           }
-        });
-      } catch (err) {
-        console.error("Error:", err);
-        res
-          .status(500)
-          .json({ message: "Failed to upload CSV data to database" });
-      }
-    },
-  );
-}
-
+          const csvFile = req.file;
+          const csvData = fs.readFileSync(csvFile.path, "utf8");
+          Papa.parse(csvData, {
+            header: true,
+            complete: async (results) => {
+              const jsonArrayObj : IContact[] = results.data as IContact[]
+              const insertedUsers = [];
+              for (const user of jsonArrayObj) {
+                // Check if the user already exists in the database
+                const existingUser = await contactModel.findOne({
+                  email: user.email,
+                }); // Assuming email is unique
+                if (!existingUser) {
+                  // If user doesn't exist, insert them into the database
+                  const insertedUser = await contactModel.create(user);
+                  insertedUsers.push(insertedUser);
+                }
+              }
+              console.log("Upload successful");
+              res
+                .status(200)
+                .json({ message: "Upload successful", insertedUsers });
+            },
+            error: (err: Error) => {
+              console.error("Error parsing CSV:", err);
+              res.status(500).json({ message: "Failed to parse CSV data" });
+            },
+          });
+        } catch (err) {
+          console.error("Error:", err);
+          res
+            .status(500)
+            .json({ message: "Failed to upload CSV data to database" });
+        }
+      },
+    );
+  }
 }
