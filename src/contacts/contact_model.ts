@@ -39,6 +39,9 @@ const ContactSchema =new Schema<IContact>({
     callId:{
         type: String
     },
+    agentId: {
+        type: String
+    },
     status:{
         type: String,
         enum: Object.values(callstatusenum),

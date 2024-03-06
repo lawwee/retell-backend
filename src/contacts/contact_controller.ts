@@ -7,6 +7,7 @@ export const createContact = async (
   lastname: string,
   email: string,
   phone: string,
+  agentId: string
 ): Promise<IContact | null> => {
   try {
     if (!firstname || !lastname || !email || !phone) {
@@ -17,6 +18,7 @@ export const createContact = async (
       lastname,
       email,
       phone,
+      agentId
     });
     return createdContact;
   } catch (error) {
@@ -26,10 +28,10 @@ export const createContact = async (
 };
 
 type ContactDocument = Omit<Document & IContact, "_id">;
-export const getAllContact = async (): Promise<ContactDocument[] | null> => {
+export const getAllContact = async (agentId: string): Promise<ContactDocument[] | null> => {
   try {
     const foundContacts = await contactModel
-      .find({ isDeleted: { $ne: true } })
+      .find({ agentId, isDeleted: { $ne: true } })
       .sort({ createdAt: "desc" });
     return foundContacts;
   } catch (error) {

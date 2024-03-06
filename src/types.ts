@@ -25,6 +25,7 @@ export interface IContact {
   isDeleted: boolean;
   callId: string,
   status: string,
+  agentId: string
 }
 
 export enum callstatusenum {

@@ -138,17 +138,18 @@ export class Server {
   }
   handleContactSaving() {
     this.app.post("/users/create", async (req: Request, res: Response) => {
-      const { firstname, lastname, email, phone } = req.body;
+      const { firstname, lastname, email, phone, agentId } = req.body;
       try {
-        const result = await createContact(firstname, lastname, email, phone);
+        const result = await createContact(firstname, lastname, email, phone, agentId);
         res.json({ result });
       } catch (error) {}
     });
   }
   handlecontactGet() {
     this.app.get("/users", async (req: Request, res: Response) => {
+      const {agentId} = req.body
       try {
-        const result = await getAllContact();
+        const result = await getAllContact(agentId);
         res.json({ result });
       } catch (error) {}
     });
