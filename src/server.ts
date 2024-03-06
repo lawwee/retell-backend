@@ -56,6 +56,7 @@ export class Server {
     this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
+    // this.updateCurentdb()
 
     this.llmClient = new DemoLlmClient();
     this.retellClient = new RetellClient({
@@ -257,4 +258,16 @@ export class Server {
       },
     );
   }
+
+  // updateCurentdb() {
+  //   this.app.patch("/update", async (req:Request, res: Response) => {
+  //     try {
+  //       const {agentId} = req.body
+  //       const result = await update(agentId)
+  //       res.json({result})
+  //     } catch (error) {
+  //       console.log(error)
+  //     }
+  //   })
+  // }
 }
