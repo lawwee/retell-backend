@@ -86,7 +86,6 @@ export class Server {
             audioWebsocketProtocol: AudioWebsocketProtocol.Web,
             audioEncoding: AudioEncoding.S16le,
             sampleRate: 24000,
-            
           });
           // Send back the successful response to the client
           res.json(callResponse.callDetail);
@@ -112,7 +111,10 @@ export class Server {
           console.error("Error received in LLM websocket client: ", err);
         });
         ws.on("close", async (err) => {
-          await contactModel.findOneAndUpdate({ callId }, { status: callstatusenum.CALLED });
+          await contactModel.findOneAndUpdate(
+            { callId },
+            { status: callstatusenum.CALLED },
+          );
           console.error("Closing llm ws for: ", callId);
         });
 
@@ -141,14 +143,20 @@ export class Server {
     this.app.post("/users/create", async (req: Request, res: Response) => {
       const { firstname, lastname, email, phone, agentId } = req.body;
       try {
-        const result = await createContact(firstname, lastname, email, phone, agentId);
+        const result = await createContact(
+          firstname,
+          lastname,
+          email,
+          phone,
+          agentId,
+        );
         res.json({ result });
       } catch (error) {}
     });
   }
   handlecontactGet() {
     this.app.get("/users/:agentId", async (req: Request, res: Response) => {
-      const agentId = req.params.agentId
+      const agentId = req.params.agentId;
       try {
         const result = await getAllContact(agentId);
         res.json({ result });
@@ -214,7 +222,7 @@ export class Server {
 
   uploadcsvToDb() {
     this.app.post(
-      "/upload",
+      "/upload/:agentId", 
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         try {
@@ -226,16 +234,19 @@ export class Server {
           Papa.parse(csvData, {
             header: true,
             complete: async (results) => {
-              const jsonArrayObj : IContact[] = results.data as IContact[]
+              const jsonArrayObj: IContact[] = results.data as IContact[];
               const insertedUsers = [];
+              const agentId = req.params.agentId; 
               for (const user of jsonArrayObj) {
-                // Check if the user already exists in the database
+              
                 const existingUser = await contactModel.findOne({
                   email: user.email,
-                }); // Assuming email is unique
+                }); 
                 if (!existingUser) {
-                  // If user doesn't exist, insert them into the database
-                  const insertedUser = await contactModel.create(user);
+                  const userWithAgentId = { ...user, agentId };
+                  const insertedUser = await contactModel.create(
+                    userWithAgentId,
+                  );
                   insertedUsers.push(insertedUser);
                 }
               }
