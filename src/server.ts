@@ -148,7 +148,7 @@ export class Server {
   }
   handlecontactGet() {
     this.app.get("/users/:agentId", async (req: Request, res: Response) => {
-      const {agentId} = req.params.agentId
+      const agentId = req.params.agentId
       try {
         const result = await getAllContact(agentId);
         res.json({ result });
