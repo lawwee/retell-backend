@@ -225,6 +225,7 @@ export class Server {
       "/upload/:agentId", 
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
+        console.log("reached here")
         try {
           if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
@@ -245,12 +246,13 @@ export class Server {
                 if (!existingUser) {
                   const userWithAgentId = { ...user, agentId };
                   const insertedUser = await contactModel.create(
-                    userWithAgentId,
+                    userWithAgentId
                   );
                   insertedUsers.push(insertedUser);
                 }
               }
               console.log("Upload successful");
+              console.log("this  is the inserted user", insertedUsers)
               res
                 .status(200)
                 .json({ message: "Upload successful", insertedUsers });
