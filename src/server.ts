@@ -18,7 +18,7 @@ import {
 import { connectDb, contactModel } from "./contacts/contact_model";
 import { DemoLlmClient } from "./llm_openai";
 import { TwilioClient } from "./twilio_api"; 
-import { IContact, RetellRequest } from "./types";
+import { IContact, RetellRequest, callstatusenum } from "./types";
 import * as Papa from "papaparse"
 import fs from "fs"
 import multer from "multer"
@@ -86,6 +86,7 @@ export class Server {
             audioWebsocketProtocol: AudioWebsocketProtocol.Web,
             audioEncoding: AudioEncoding.S16le,
             sampleRate: 24000,
+            
           });
           // Send back the successful response to the client
           res.json(callResponse.callDetail);
@@ -102,7 +103,6 @@ export class Server {
       "/llm-websocket/:call_id",
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
-        console.log("the call id for the reached websocket is: ", callId);
         console.log("Handle llm ws for: ", callId);
 
         // Start sending the begin message to signal the client is ready.
@@ -112,7 +112,7 @@ export class Server {
           console.error("Error received in LLM websocket client: ", err);
         });
         ws.on("close", async (err) => {
-          await contactModel.findOneAndUpdate({ callId }, { status: "called" });
+          await contactModel.findOneAndUpdate({ callId }, { status: callstatusenum.CALLED });
           console.error("Closing llm ws for: ", callId);
         });
 
@@ -147,8 +147,8 @@ export class Server {
     });
   }
   handlecontactGet() {
-    this.app.get("/users", async (req: Request, res: Response) => {
-      const {agentId} = req.body
+    this.app.get("/users/:agentId", async (req: Request, res: Response) => {
+      const {agentId} = req.params.agentId
       try {
         const result = await getAllContact(agentId);
         res.json({ result });

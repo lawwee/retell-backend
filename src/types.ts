@@ -32,10 +32,10 @@ export enum callstatusenum {
   QUEUED = "queued",
   RINGING = "ringing",
   IN_PROGRESS = "in progress",
-  COMPLEETED = "completed",
+  CALLED = "called-answered",
   BUSY = "busy",
   FAILED = "failed",
-  NO_ANSWER = "no answer",
+  VOICEMAIL = "called-NA-VM",
   CANCELED = "canceled",
   NOT_CALLED = "not called",
 }

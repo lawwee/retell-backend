@@ -3,8 +3,9 @@ import { Request, Response } from "express";
 import { RetellClient } from "retell-sdk";
 import { contactModel } from "./contacts/contact_model";
 import expressWs from "express-ws";
-import { AudioEncoding, AudioWebsocketProtocol } from "retell-sdk/models/components";
+import { AudioEncoding, AudioWebsocketProtocol, CallStatus } from "retell-sdk/models/components";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
+import { callstatusenum } from "./types";
 
 export class TwilioClient {
   private twilio: Twilio;
@@ -87,6 +88,7 @@ export class TwilioClient {
         from: fromNumber,
       });
       console.log(`Call from: ${fromNumber} to: ${toNumber}`);
+      console.log(result)
       return result;
     } catch (error: any) {
       console.error("failed to retrieve caller information: ", error);
@@ -123,23 +125,27 @@ export class TwilioClient {
       async (req: Request, res: Response) => {
         const agentId = req.params.agent_id;
         const userId = req.params.userId
-        console.log(userId)
         const answeredBy = req.body.AnsweredBy;
+        console.log("this is the body", req.body)
         try {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
+            await contactModel.findByIdAndUpdate(userId, {status: callstatusenum.VOICEMAIL })
             return;
           } else if (answeredBy) {
             return;
           }
 
-          const callResponse = await this.retellClient.registerCall({
-            agentId: agentId,
-            audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
-            audioEncoding: AudioEncoding.Mulaw,
-            sampleRate: 8000,
-          });
+          const callResponse = await this.retellClient.registerCall(
+            {
+              agentId: agentId,
+              audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
+              audioEncoding: AudioEncoding.Mulaw,
+              sampleRate: 8000,
+            },
+          );
+          console.log("this is the call reponse", callResponse)
           await contactModel.findByIdAndUpdate(userId, {callId: callResponse.callDetail.callId, status: "ringing"})
           if (callResponse.callDetail) {
             // Start phone call websocket
