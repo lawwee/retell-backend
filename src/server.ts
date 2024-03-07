@@ -196,7 +196,7 @@ export class Server {
       "/create-phone-call/:agentId",
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
-        const agentId = req.params.agent_id;
+        const agentId = req.params.agentId;
         if (!agentId || !fromNumber || !toNumber || !userId) {
           return res.json({ status: "error", message: "Invalid request" });
         }
