@@ -133,10 +133,7 @@ export class TwilioClient {
             this.EndCall(req.body.CallSid);
             await contactModel.findByIdAndUpdate(userId, {status: callstatusenum.VOICEMAIL })
             return;
-          } else if (answeredBy) {
-            return;
           }
-
           const callResponse = await this.retellClient.registerCall(
             {
               agentId: agentId,
