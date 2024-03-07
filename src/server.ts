@@ -222,10 +222,9 @@ export class Server {
 
   uploadcsvToDb() {
     this.app.post(
-      "/upload/:agentId", 
+      "/upload/:agentId",
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
-        console.log("reached here")
         try {
           if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
@@ -237,22 +236,24 @@ export class Server {
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
               const insertedUsers = [];
-              const agentId = req.params.agentId; 
+              const agentId = req.params.agentId;
               for (const user of jsonArrayObj) {
-              
+                // Check if a user with the same email exists for the current agent
                 const existingUser = await contactModel.findOne({
                   email: user.email,
-                }); 
+                  agentId: agentId,
+                });
                 if (!existingUser) {
+                  // If user doesn't exist for the current agent, insert them
                   const userWithAgentId = { ...user, agentId };
                   const insertedUser = await contactModel.create(
-                    userWithAgentId
+                    userWithAgentId,
                   );
                   insertedUsers.push(insertedUser);
                 }
               }
               console.log("Upload successful");
-              console.log("this  is the inserted user", insertedUsers)
+              console.log("Inserted users:", insertedUsers);
               res
                 .status(200)
                 .json({ message: "Upload successful", insertedUsers });
