@@ -193,7 +193,7 @@ export class Server {
   }
   createPhoneCall() {
     this.app.post(
-      "/create-phone-call/:agent_id",
+      "/create-phone-call/:agentId",
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agent_id;
