@@ -121,9 +121,9 @@ export class TwilioClient {
 
   ListenTwilioVoiceWebhook = (app: expressWs.Application) => {
     app.post(
-      "/twilio-voice-webhook/:agent_id/:userId",
+      "/twilio-voice-webhook/:agentId/:userId",
       async (req: Request, res: Response) => {
-        const agentId = req.params.agent_id;
+        const agentId = req.params.agentId;
         const userId = req.params.userId
         const answeredBy = req.body.AnsweredBy;
         console.log("this is the body", req.body)
@@ -133,6 +133,8 @@ export class TwilioClient {
             this.EndCall(req.body.CallSid);
             await contactModel.findByIdAndUpdate(userId, {status: callstatusenum.VOICEMAIL })
             return;
+          }else if (answeredBy){
+            return
           }
           const callResponse = await this.retellClient.registerCall(
             {
