@@ -39,3 +39,7 @@ export enum callstatusenum {
   CANCELED = "canceled",
   NOT_CALLED = "not called",
 }
+
+export interface Itranscript {
+  transcript: string
+}
