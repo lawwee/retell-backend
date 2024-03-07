@@ -238,18 +238,27 @@ export class Server {
               const insertedUsers = [];
               const agentId = req.params.agentId;
               for (const user of jsonArrayObj) {
-                // Check if a user with the same email exists for the current agent
+                // Check if a user with the same email exists for any agent
                 const existingUser = await contactModel.findOne({
                   email: user.email,
-                  agentId: agentId,
                 });
                 if (!existingUser) {
-                  // If user doesn't exist for the current agent, insert them
+                  // If user doesn't exist for any agent, insert them
                   const userWithAgentId = { ...user, agentId };
                   const insertedUser = await contactModel.create(
                     userWithAgentId,
                   );
                   insertedUsers.push(insertedUser);
+                } else {
+                  // If user exists, check if it's associated with the current agent
+                  if (existingUser.agentId !== agentId) {
+                    // If not associated with the current agent, insert them
+                    const userWithAgentId = { ...user, agentId };
+                    const insertedUser = await contactModel.create(
+                      userWithAgentId,
+                    );
+                    insertedUsers.push(insertedUser);
+                  }
                 }
               }
               console.log("Upload successful");
