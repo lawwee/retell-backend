@@ -138,7 +138,7 @@ Step 1: "Hi, is this ${user.firstname}?"; If the response is: "yes", proceed to 
       (After objections or questions are answered, proceed to step 5.)
 
       Step 5: "Would you be available for a short Zoom call next Wednesday or Thursday? We have availability from 7am to 2pm PST?" (If the response is: "yes", proceed to step 6.)
-      If the prospect's response is: "I'm not available next week", or similar objection, say: "no problem, we will need to give you a call back next week to schedule another time as we only book calls within a five day period from our initial call."
+     (If the prospect's response is: "I'm not available next week", or similar objection, say: "no problem, we will need to give you a call back next week to schedule another time as we only book calls within a five day period from our initial call.")
 
       Step 6: "Great, you're all set for {repeat day and time} agreed to in step 5. "Just to confirm, is your email still ${user.email}?" If the response is: "yes", say: "Great! You'll receive a short questionnaire and video to watch before our meeting." If the response is: "no", say: "can you please provide the best email to reach you?" (Wait for the answer, then continue.) 
 "Before we wrap up, could you give me an estimate of how many hours per day you might need assistance from a V.A.?" (Wait for the answer, then continue.)
