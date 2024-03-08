@@ -113,8 +113,10 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId); 
         const user = await contactModel.findOne({callId})
-
+        console.log("this is the agent id", user.agentId)
         // Start sending the begin message to signal the client is ready.
+
+
         if (user.agentId === "214e92da684138edf44368d371da764c"){
           console.log("Call started with olivia")
           this.oliviaClient.oliviaBeginMessage(ws, callId)
@@ -150,9 +152,14 @@ export class Server {
            });
           
         }
+
+
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
           this.chloeClient.chloeBeginMessage(ws, callId);
+          ws.on("error", (err) => {
+            console.error("Error received in LLM websocket client: ", err);
+           });
           ws.on("close", async (err) => {
             await contactModel.findOneAndUpdate(
               { callId },
@@ -182,6 +189,9 @@ export class Server {
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
           this.emilyClient.emilyBeginMessage(ws, callId);
+          ws.on("error", (err) => {
+            console.error("Error received in LLM websocket client: ", err);
+           });
           ws.on("close", async (err) => {
             await contactModel.findOneAndUpdate(
               { callId },
