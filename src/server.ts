@@ -111,10 +111,11 @@ export class Server {
       "/llm-websocket/:call_id",
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
-        console.log("Handle llm ws for: ", callId);
+        console.log("Handle llm ws for: ", callId); 
+        const user = await contactModel.findOne({callId})
 
         // Start sending the begin message to signal the client is ready.
-        if (callId === "214e92da684138edf44368d371da764c"){
+        if (user.agentId === "214e92da684138edf44368d371da764c"){
           console.log("Call started with olivia")
           this.oliviaClient.oliviaBeginMessage(ws, callId)
           ws.on("error", (err) => {
@@ -149,67 +150,63 @@ export class Server {
            });
           
         }
-        if (callId === "0411eeeb12d17a340941e91a98a766d0"){
+        if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          this.chloeClient.chloeBeginMessage(ws, callId)
-           ws.on("close", async (err) => {
-             await contactModel.findOneAndUpdate(
-               { callId },
-               { status: callstatusenum.CALLED },
-             );
-             console.error("Closing llm ws for: ", callId);
-           });
-           ws.on("message", async (data: RawData, isBinary: boolean) => {
-             await contactModel.findOneAndUpdate(
-               { callId },
-               { status: "on call" },
-             );
-             console.log(data.toString());
-             if (isBinary) {
-               console.error(
-                 "Got binary message instead of text in websocket.",
-               );
-               ws.close(1002, "Cannot find corresponding Retell LLM.");
-             }
-             try {
-               const request: RetellRequest = JSON.parse(data.toString());
-               this.chloeClient.DraftResponse(request, ws);
-             } catch (err) {
-               console.error("Error in parsing LLM websocket message: ", err);
-               ws.close(1002, "Cannot parse incoming message.");
-             }
-           });
+          this.chloeClient.chloeBeginMessage(ws, callId);
+          ws.on("close", async (err) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: callstatusenum.CALLED },
+            );
+            console.error("Closing llm ws for: ", callId);
+          });
+          ws.on("message", async (data: RawData, isBinary: boolean) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: "on call" },
+            );
+            console.log(data.toString());
+            if (isBinary) {
+              console.error("Got binary message instead of text in websocket.");
+              ws.close(1002, "Cannot find corresponding Retell LLM.");
+            }
+            try {
+              const request: RetellRequest = JSON.parse(data.toString());
+              this.chloeClient.DraftResponse(request, ws);
+            } catch (err) {
+              console.error("Error in parsing LLM websocket message: ", err);
+              ws.close(1002, "Cannot parse incoming message.");
+            }
+          });
         }
-        if (callId === "86f0db493888f1da69b7d46bfaecd360"){
+        if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          this.emilyClient.emilyBeginMessage(ws, callId)
-           ws.on("close", async (err) => {
-             await contactModel.findOneAndUpdate(
-               { callId },
-               { status: callstatusenum.CALLED },
-             );
-             console.error("Closing llm ws for: ", callId);
-           });
-           ws.on("message", async (data: RawData, isBinary: boolean) => {
-             await contactModel.findOneAndUpdate(
-               { callId },
-               { status: "on call" },
-             );
-             console.log(data.toString());
-             if (isBinary) {
-               console.error(
-                 "Got binary message instead of text in websocket.",
-               );
-               ws.close(1002, "Cannot find corresponding Retell LLM.");
-             }
-             try {
-               const request: RetellRequest = JSON.parse(data.toString());
-               this.emilyClient.DraftResponse(request, ws);
-             } catch (err) {
-               console.error("Error in parsing LLM websocket message: ", err);
-               ws.close(1002, "Cannot parse incoming message.");
-             }
-           });
+          this.emilyClient.emilyBeginMessage(ws, callId);
+          ws.on("close", async (err) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: callstatusenum.CALLED },
+            );
+            console.error("Closing llm ws for: ", callId);
+          });
+          ws.on("message", async (data: RawData, isBinary: boolean) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: "on call" },
+            );
+            console.log(data.toString());
+            if (isBinary) {
+              console.error("Got binary message instead of text in websocket.");
+              ws.close(1002, "Cannot find corresponding Retell LLM.");
+            }
+            try {
+              const request: RetellRequest = JSON.parse(data.toString());
+              this.emilyClient.DraftResponse(request, ws);
+            } catch (err) {
+              console.error("Error in parsing LLM websocket message: ", err);
+              ws.close(1002, "Cannot parse incoming message.");
+            }
+          });
         }
           // this.llmClient.BeginMessage(ws, callId);
         
