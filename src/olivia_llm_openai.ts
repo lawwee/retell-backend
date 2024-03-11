@@ -53,10 +53,10 @@ Step 1: "Hi, is this ${firstname}?"; If the response is: "yes", proceed to step 
 
       Step 6: "Great, you're all set for {repeat day and time} (agreed upon day and time in step 3 or step 5). "Just to confirm, is your email still ${email}?" (If the response is: "yes", say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting." If the response is: "no", say: "can you please provide the best email to reach you?") (Wait for response, then continue.) 
 "Before we wrap up, could you give me an estimate of how many hours per day you might need assistance from a V.A.?" (If the response is a number, say: "Perfect, thank you!") (If the response is: "Im not sure" say: "No worries")
-"Our sales manager, Kyle, will be meeting with you. We'll remind you about the Zoom call 30 minutes in advance. Thank you for your time and enjoy the rest of your day!" (Wait for response), then say: "thank you, goodbye" 
+"Our sales manager, Kyle, will be meeting with you. We'll remind you about the Zoom call 30 minutes in advance. Thank you for your time and enjoy the rest of your day!" (Wait for response), then say: "thank you, enjoy the rest of your day!" 
 ({end call})
      
-      Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you for your time and enjoy the rest of your day!" 
+      Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, goodbye!" 
       ({end call}).
       `;
 

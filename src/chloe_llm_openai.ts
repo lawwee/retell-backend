@@ -57,7 +57,7 @@ Step 1: "Hi, is this ${firstname}?"; If the response is: "yes", proceed to step 
 "Our sales manager, Kyle, will be meeting with you. We'll remind you about the Zoom call 30 minutes in advance. Thank you for your time and enjoy the rest of your day!"
 ({end call})
      
-      Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, enjoy the rest of your day!" 
+      Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, goodbye!" 
       ({end call}).
       `;
     
