@@ -1,4 +1,5 @@
 import cors from "cors";
+import axios from "axios";
 import express, { NextFunction, Request, Response } from "express";
 import expressWs from "express-ws";
 import { Server as HTTPServer, createServer } from "http";
@@ -16,7 +17,6 @@ import {
   updateOneContact,
 } from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
-// import { DemoLlmClient } from "./llm_openai";
 import { chloeDemoLlmClient } from "./chloe_llm_openai";
 import { emilyDemoLlmClient } from "./emily_llm-openai";
 import { oliviaDemoLlmClient } from "./olivia_llm_openai";
@@ -25,12 +25,12 @@ import { IContact, RetellRequest, callstatusenum } from "./types";
 import * as Papa from "papaparse"
 import fs from "fs"
 import multer from "multer"
+import { listEventTypes } from "./axios";
 connectDb();
 
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
-  // private llmClient: DemoLlmClient;
   private chloeClient: chloeDemoLlmClient
   private emilyClient: emilyDemoLlmClient
   private oliviaClient: oliviaDemoLlmClient
@@ -62,6 +62,7 @@ export class Server {
     this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
+    // this.usingCallendly()
     // this.updateCurentdb()
 
     // this.llmClient = new DemoLlmClient();
@@ -113,13 +114,15 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId); 
         const user = await contactModel.findOne({callId})
+        const firstname = user.firstname
+        const email = user.email
         console.log("this is the agent id", user.agentId)
         // Start sending the begin message to signal the client is ready.
 
 
         if (user.agentId === "214e92da684138edf44368d371da764c"){
           console.log("Call started with olivia")
-          this.oliviaClient.oliviaBeginMessage(ws, callId)
+          this.oliviaClient.oliviaBeginMessage(ws, firstname, email)
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -156,7 +159,7 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          this.chloeClient.chloeBeginMessage(ws, callId);
+          this.chloeClient.chloeBeginMessage(ws, firstname, email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
            });
@@ -188,7 +191,7 @@ export class Server {
         }
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          this.emilyClient.emilyBeginMessage(ws, callId);
+          this.emilyClient.emilyBeginMessage(ws, firstname, email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
            });
@@ -218,38 +221,6 @@ export class Server {
             }
           });
         }
-          // this.llmClient.BeginMessage(ws, callId);
-        
-
-        // ws.on("error", (err) => {
-        //   console.error("Error received in LLM websocket client: ", err);
-        // });
-        // ws.on("close", async (err) => {
-        //   await contactModel.findOneAndUpdate(
-        //     { callId },
-        //     { status: callstatusenum.CALLED },
-        //   );
-        //   console.error("Closing llm ws for: ", callId);
-        // });
-
-        // ws.on("message", async (data: RawData, isBinary: boolean) => {
-        //   await contactModel.findOneAndUpdate(
-        //     { callId },
-        //     { status: "on call" },
-        //   );
-        //   console.log(data.toString());
-        //   if (isBinary) {
-        //     console.error("Got binary message instead of text in websocket.");
-        //     ws.close(1002, "Cannot find corresponding Retell LLM.");
-        //   }
-        //   try {
-        //     const request: RetellRequest = JSON.parse(data.toString());
-        //     this.llmClient.DraftResponse(request, ws);
-        //   } catch (err) {
-        //     console.error("Error in parsing LLM websocket message: ", err);
-        //     ws.close(1002, "Cannot parse incoming message.");
-        //   }
-        // });
       },
     );
   }
@@ -396,15 +367,29 @@ export class Server {
     );
   }
 
-  // updateCurentdb() {
-  //   this.app.patch("/update", async (req:Request, res: Response) => {
-  //     try {
-  //       const {agentId} = req.body
-  //       const result = await update(agentId)
-  //       res.json({result})
-  //     } catch (error) {
-  //       console.log(error)
-  //     }
-  //   })
-  // }
+
+  
+//   usingCallendly() {
+//     this.app.get("/callender", async (req: Request, res: Response) => {
+//         try {
+//           const apiToken = process.env.CALLENDY_API;
+//           const headers = {
+//             "Authorization":
+//             "Bearer eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzEwMDE5MDQ5LCJqdGkiOiJlZTIxMDc2ZC1mMzg4LTQxZDctODUyOC0wMTVjOGRiMTIzZDkiLCJ1c2VyX3V1aWQiOiJiMDA0MGE4NC1lMmEwLTRhYTktYTg5Yi1hZTBjMWE2MGFlMDIifQ.oczecXQfS74BBXJB9kcT3sR7xuK3dOt56vRaRGop-SCKdlDUegMd6EeFwxkf-JknaicX_WnjESyugSbaUuI2dQ",
+//             "Content-Type": "application/json",
+//           };
+//             const response = await axios.get('https://api.calendly.com/event_types', { headers });
+//             const eventTypes = response.data;
+//             res.json({ eventTypes });
+
+//         } catch (error) {
+//             if (axios.isAxiosError(error)) {
+//                 console.error('Failed to retrieve event types:', error);
+//             } else {
+//                 console.error('Failed to retrieve event types:', error);
+//             }
+//             res.status(500).json({ error: 'Failed to retrieve event types' });
+//         }
+//     });
+// }
 }

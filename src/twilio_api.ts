@@ -78,6 +78,7 @@ export class TwilioClient {
     userId: string,
   ) => {
     try {
+      const user = await contactModel.findById(userId)
       const result = await this.twilio.calls.create({
         machineDetection: "Enable", // detects if the other party is IVR
         machineDetectionTimeout: 8,
@@ -146,7 +147,6 @@ export class TwilioClient {
               
             },
           );
-          console.log("this is the call reponse", callResponse)
           await contactModel.findByIdAndUpdate(userId, {callId: callResponse.callDetail.callId, status: "ringing"})
           if (callResponse.callDetail) {
             // Start phone call websocket
