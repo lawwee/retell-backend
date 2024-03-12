@@ -404,8 +404,9 @@ export class Server {
 
 
       const redisConfig = {
-        host: "redis://red-cno9egmct0pc739e79k0:6379",
+        host: process.env.REDIS,
         port: 6379,
+        maxRetriesPerRequest: null as null
       };
       const redisClient = new Redis(redisConfig);
 
