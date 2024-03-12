@@ -429,7 +429,7 @@ export class Server {
             // Start processing call
             const postData = {fromNumber, toNumber: phone, userId:_id}
             await axios.post(
-              `https://example.com/api/create-phone-call/${agentId}`,
+              `https://retell-backend.onrender.com/create-phone-call/${agentId}`,
               postData,
             );
             console.log("Call initiated successfully.");
