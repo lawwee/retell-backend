@@ -1,6 +1,6 @@
 import cors from "cors";
 import axios from "axios";
-import express, { NextFunction, Request, Response } from "express";
+import express, { Request, Response } from "express";
 import expressWs from "express-ws";
 import { Server as HTTPServer, createServer } from "http";
 import { RawData, WebSocket } from "ws";
@@ -9,7 +9,6 @@ import {
   AudioEncoding,
   AudioWebsocketProtocol,
 } from "retell-sdk/models/components";
-import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import {
   createContact,
   deleteOneContact,
@@ -20,20 +19,22 @@ import { connectDb, contactModel } from "./contacts/contact_model";
 import { chloeDemoLlmClient } from "./chloe_llm_openai";
 import { emilyDemoLlmClient } from "./emily_llm-openai";
 import { oliviaDemoLlmClient } from "./olivia_llm_openai";
-import { TwilioClient } from "./twilio_api"; 
+import { TwilioClient } from "./twilio_api";
 import { IContact, RetellRequest, callstatusenum } from "./types";
-import * as Papa from "papaparse"
-import fs from "fs"
-import multer from "multer"
-import { listEventTypes } from "./axios";
+import * as Papa from "papaparse";
+import fs from "fs";
+import multer from "multer";
+import { Worker, Queue, Job } from "bullmq";
+import { scheduleJob } from "node-schedule";
+
 connectDb();
 
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
-  private chloeClient: chloeDemoLlmClient
-  private emilyClient: emilyDemoLlmClient
-  private oliviaClient: oliviaDemoLlmClient
+  private chloeClient: chloeDemoLlmClient;
+  private emilyClient: emilyDemoLlmClient;
+  private oliviaClient: oliviaDemoLlmClient;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
 
@@ -46,7 +47,7 @@ export class Server {
   });
 
   upload = multer({ storage: this.storage });
-//con
+  //con
   constructor() {
     this.app = expressWs(express()).app;
     this.httpServer = createServer(this.app);
@@ -62,13 +63,14 @@ export class Server {
     this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
-    // this.usingCallendly()
+    this.schedulemycall();
+    this.usingCallendly()
     // this.updateCurentdb()
 
     // this.llmClient = new DemoLlmClient();
-    this.chloeClient = new chloeDemoLlmClient()
-    this.emilyClient = new emilyDemoLlmClient()
-    this.oliviaClient = new oliviaDemoLlmClient()
+    this.chloeClient = new chloeDemoLlmClient();
+    this.emilyClient = new emilyDemoLlmClient();
+    this.oliviaClient = new oliviaDemoLlmClient();
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -82,7 +84,6 @@ export class Server {
     console.log("Listening on " + port);
   }
 
-  // Only used for web frontend to register call so that frontend don't need api key
   handleRegisterCallAPI() {
     this.app.post(
       "/register-call-on-your-server",
@@ -112,17 +113,16 @@ export class Server {
       "/llm-websocket/:call_id",
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
-        console.log("Handle llm ws for: ", callId); 
-        const user = await contactModel.findOne({callId})
-        const firstname = user.firstname
-        const email = user.email
-        console.log("this is the agent id", user.agentId)
+        console.log("Handle llm ws for: ", callId);
+        const user = await contactModel.findOne({ callId });
+        const firstname = user.firstname;
+        const email = user.email;
+        console.log("this is the agent id", user.agentId);
         // Start sending the begin message to signal the client is ready.
 
-
-        if (user.agentId === "214e92da684138edf44368d371da764c"){
-          console.log("Call started with olivia")
-          this.oliviaClient.oliviaBeginMessage(ws, firstname, email)
+        if (user.agentId === "214e92da684138edf44368d371da764c") {
+          console.log("Call started with olivia");
+          this.oliviaClient.oliviaBeginMessage(ws, firstname, email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -133,36 +133,32 @@ export class Server {
             );
             console.error("Closing llm ws for: ", callId);
           });
-           ws.on("message", async (data: RawData, isBinary: boolean) => {
-             await contactModel.findOneAndUpdate(
-               { callId },
-               { status: "on call" },
-             );
-             console.log(data.toString());
-             if (isBinary) {
-               console.error(
-                 "Got binary message instead of text in websocket.",
-               );
-               ws.close(1002, "Cannot find corresponding Retell LLM.");
-             }
-             try {
-               const request: RetellRequest = JSON.parse(data.toString());
-               this.oliviaClient.DraftResponse(request, ws);
-             } catch (err) {
-               console.error("Error in parsing LLM websocket message: ", err);
-               ws.close(1002, "Cannot parse incoming message.");
-             }
-           });
-          
+          ws.on("message", async (data: RawData, isBinary: boolean) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: "on call" },
+            );
+            console.log(data.toString());
+            if (isBinary) {
+              console.error("Got binary message instead of text in websocket.");
+              ws.close(1002, "Cannot find corresponding Retell LLM.");
+            }
+            try {
+              const request: RetellRequest = JSON.parse(data.toString());
+              this.oliviaClient.DraftResponse(request, ws);
+            } catch (err) {
+              console.error("Error in parsing LLM websocket message: ", err);
+              ws.close(1002, "Cannot parse incoming message.");
+            }
+          });
         }
-
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
           this.chloeClient.chloeBeginMessage(ws, firstname, email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
-           });
+          });
           ws.on("close", async (err) => {
             await contactModel.findOneAndUpdate(
               { callId },
@@ -194,7 +190,7 @@ export class Server {
           this.emilyClient.emilyBeginMessage(ws, firstname, email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
-           });
+          });
           ws.on("close", async (err) => {
             await contactModel.findOneAndUpdate(
               { callId },
@@ -367,29 +363,104 @@ export class Server {
     );
   }
 
+  usingCallendly() {
+    this.app.get("/callender", async (req: Request, res: Response) => {
+      try {
+        const apiToken = process.env.CALLENDY_API;
+        const headers = {
+          Authorization:`Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        };
+        const response = await axios.get(
+          "https://api.calendly.com/event_types",
+          { headers },
+        );
+        const eventTypes = response.data;
+        res.json({ eventTypes });
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          console.error("Failed to retrieve event types:", error);
+        } else {
+          console.error("Failed to retrieve event types:", error);
+        }
+        res.status(500).json({ error: "Failed to retrieve event types" });
+      }
+    });
+  }
 
-  
-//   usingCallendly() {
-//     this.app.get("/callender", async (req: Request, res: Response) => {
-//         try {
-//           const apiToken = process.env.CALLENDY_API;
-//           const headers = {
-//             "Authorization":
-//             "Bearer eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzEwMDE5MDQ5LCJqdGkiOiJlZTIxMDc2ZC1mMzg4LTQxZDctODUyOC0wMTVjOGRiMTIzZDkiLCJ1c2VyX3V1aWQiOiJiMDA0MGE4NC1lMmEwLTRhYTktYTg5Yi1hZTBjMWE2MGFlMDIifQ.oczecXQfS74BBXJB9kcT3sR7xuK3dOt56vRaRGop-SCKdlDUegMd6EeFwxkf-JknaicX_WnjESyugSbaUuI2dQ",
-//             "Content-Type": "application/json",
-//           };
-//             const response = await axios.get('https://api.calendly.com/event_types', { headers });
-//             const eventTypes = response.data;
-//             res.json({ eventTypes });
+  schedulemycall() {
+    this.app.post(
+      "/set-schedule",
+      async (req: Request, res: Response) => {
+        const now = new Date();
+        const oneMinuteLater = new Date(now.getTime() + 60000); // Adding 60000 milliseconds (1 minute) to the current time
+        try {
+          scheduleJobTrigger(oneMinuteLater);
+          res.status(200).json({ message: "Schedule set successfully" });
+        } catch (error) {
+          console.error("Error setting schedule:", error);
+          res.status(500).json({ error: "Internal server error" });
+        }
+        const redisConfig = {
+          host: "localhost",
+          port: 6379,
+        };
+        const queue = new Queue("userCallQueue", {
+          connection: redisConfig,
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 1000,
+            },
+          },
+        });
 
-//         } catch (error) {
-//             if (axios.isAxiosError(error)) {
-//                 console.error('Failed to retrieve event types:', error);
-//             } else {
-//                 console.error('Failed to retrieve event types:', error);
-//             }
-//             res.status(500).json({ error: 'Failed to retrieve event types' });
-//         }
-//     });
-// }
+        async function processPhoneCall(job: Job) {
+          const data = job.data;
+          const { phone, agentId, _id } = data;
+          const fromNumber = "";
+
+          // start processing call
+          Server.prototype.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          Server.prototype.twilioClient.CreatePhoneCall(fromNumber, phone, agentId, _id);
+
+          console.log("data from queue:", data);
+          try {
+            //db call
+          } catch (error) {
+            console.error(`Error calling phone number :`, error);
+            throw error;
+          }
+        }
+        new Worker("userCallQueue", processPhoneCall, {
+          connection: redisConfig,
+          limiter: { max: 1, duration: 240000 },
+          lockDuration: 5000, // 5 seconds to process the job before it can be picked up by another worker
+          removeOnComplete: {
+            age: 3600,
+            count: 1000, // keep up to 1000 jobs
+          },
+          removeOnFail: {
+            age: 24 * 3600, // keep up to 24 hours
+          },
+        });
+
+        function scheduleJobTrigger(oneMinuteLater: Date) {
+          scheduleJob(oneMinuteLater, async () => {
+            try {
+              console.log("got here sucessfully");
+              const contacts = await contactModel.find();
+              for (const contact of contacts) {
+                await queue.add("startPhoneCall", contact);
+              }
+              console.log("Contacts added to the queue");
+            } catch (error) {
+              console.error("Error fetching contacts:", error);
+            }
+          });
+        }
+      },
+    );
+  }
 }
