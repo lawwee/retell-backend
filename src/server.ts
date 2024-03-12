@@ -25,6 +25,7 @@ import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
 import { Worker, Queue, Job } from "bullmq";
+import Redis from "ioredis"
 import { scheduleJob } from "node-schedule";
 
 connectDb();
@@ -401,10 +402,13 @@ export class Server {
         res.status(500).json({ error: "Internal server error" });
       }
 
+
       const redisConfig = {
         host: process.env.REDIS,
         port: 6379
       };
+      const redisClient = new Redis(redisConfig);
+
       const queue = new Queue("userCallQueue", {
         connection: redisConfig,
         defaultJobOptions: {
