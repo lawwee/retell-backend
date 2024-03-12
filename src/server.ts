@@ -410,7 +410,7 @@ export class Server {
       const redisClient = new Redis(redisConfig);
 
       const queue = new Queue("userCallQueue", {
-        connection: redisConfig,
+        connection: redisClient,
         defaultJobOptions: {
           attempts: 3,
           backoff: {
@@ -446,7 +446,7 @@ export class Server {
 
 
       new Worker("userCallQueue", processPhoneCallWrapper(this.twilioClient), {
-        connection: redisConfig,
+        connection: redisClient,
         limiter: { max: 1, duration: 120000 },
         lockDuration: 5000, // 5 seconds to process the job before it can be picked up by another worker
         removeOnComplete: {
