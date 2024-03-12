@@ -392,7 +392,7 @@ export class Server {
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const now = new Date();
-      const oneMinuteLater = new Date(now.getTime() + 600); // Adding 60000 milliseconds (1 minute) to the current time
+      const oneMinuteLater = new Date(now.getTime() + 1000); // Adding 60000 milliseconds (1 minute) to the current time
       try {
         scheduleJobTrigger(oneMinuteLater);
         res.status(200).json({ message: "Schedule set successfully" });
