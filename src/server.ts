@@ -64,7 +64,8 @@ export class Server {
     this.handleContactUpdate();
     this.uploadcsvToDb();
     this.schedulemycall();
-    this.usingCallendly()
+    this.usingCallendly();
+    this.clearqueue();
     // this.updateCurentdb()
 
     // this.llmClient = new DemoLlmClient();
@@ -368,7 +369,7 @@ export class Server {
       try {
         const apiToken = process.env.CALLENDY_API;
         const headers = {
-          Authorization:`Bearer ${apiToken}`,
+          Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         };
         const response = await axios.get(
@@ -389,78 +390,160 @@ export class Server {
   }
 
   schedulemycall() {
-    this.app.post(
-      "/set-schedule",
-      async (req: Request, res: Response) => {
-        const now = new Date();
-        const oneMinuteLater = new Date(now.getTime() + 60000); // Adding 60000 milliseconds (1 minute) to the current time
-        try {
-          scheduleJobTrigger(oneMinuteLater);
-          res.status(200).json({ message: "Schedule set successfully" });
-        } catch (error) {
-          console.error("Error setting schedule:", error);
-          res.status(500).json({ error: "Internal server error" });
-        }
-        const redisConfig = {
-          host: "localhost",
-          port: 6379,
-        };
-        const queue = new Queue("userCallQueue", {
-          connection: redisConfig,
-          defaultJobOptions: {
-            attempts: 3,
-            backoff: {
-              type: "exponential",
-              delay: 1000,
-            },
-          },
-        });
+    this.app.post("/schedule", async (req: Request, res: Response) => {
+      const now = new Date();
+      const oneMinuteLater = new Date(now.getTime() + 600); // Adding 60000 milliseconds (1 minute) to the current time
+      try {
+        scheduleJobTrigger(oneMinuteLater);
+        res.status(200).json({ message: "Schedule set successfully" });
+      } catch (error) {
+        console.error("Error setting schedule:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
 
-        async function processPhoneCall(job: Job) {
+      const redisConfig = {
+        host: process.env.REDIS,
+      };
+      const queue = new Queue("userCallQueue", {
+        connection: redisConfig,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 1000,
+          },
+        },
+      });
+
+      const processPhoneCallWrapper =
+        (twilioClient: TwilioClient) => async (job: Job) => {
           const data = job.data;
           const { phone, agentId, _id } = data;
-          const fromNumber = "";
+          const userId = _id;
+          const fromNumber = "+17257268989";
+          console.log("this is the job date:", job.data);
 
-          // start processing call
-          Server.prototype.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-          Server.prototype.twilioClient.CreatePhoneCall(fromNumber, phone, agentId, _id);
-
-          console.log("data from queue:", data);
           try {
-            //db call
+            // Start processing call
+            await twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+            await twilioClient.CreatePhoneCall(
+              fromNumber,
+              phone,
+              agentId,
+              userId,
+            );
+            console.log("Call initiated successfully.");
           } catch (error) {
             console.error(`Error calling phone number :`, error);
             throw error;
           }
-        }
-        new Worker("userCallQueue", processPhoneCall, {
-          connection: redisConfig,
-          limiter: { max: 1, duration: 240000 },
-          lockDuration: 5000, // 5 seconds to process the job before it can be picked up by another worker
-          removeOnComplete: {
-            age: 3600,
-            count: 1000, // keep up to 1000 jobs
-          },
-          removeOnFail: {
-            age: 24 * 3600, // keep up to 24 hours
-          },
-        });
+        };
 
-        function scheduleJobTrigger(oneMinuteLater: Date) {
-          scheduleJob(oneMinuteLater, async () => {
-            try {
-              console.log("got here sucessfully");
-              const contacts = await contactModel.find();
-              for (const contact of contacts) {
-                await queue.add("startPhoneCall", contact);
-              }
-              console.log("Contacts added to the queue");
-            } catch (error) {
-              console.error("Error fetching contacts:", error);
+
+      new Worker("userCallQueue", processPhoneCallWrapper(this.twilioClient), {
+        connection: redisConfig,
+        limiter: { max: 1, duration: 120000 },
+        lockDuration: 5000, // 5 seconds to process the job before it can be picked up by another worker
+        removeOnComplete: {
+          age: 3600,
+          count: 1000, // keep up to 1000 jobs
+        },
+        removeOnFail: {
+          age: 24 * 3600, // keep up to 24 hours
+        },
+      });
+
+
+      // Monitoring logic
+      const monitorInterval = setInterval(async () => {
+        const count = await queue.count();
+        console.log(`Number of jobs left in queue: ${count}`);
+
+        const activeJobs = await queue.getJobs(["active"]);
+        console.log("Active jobs:");
+        activeJobs.forEach((job) => {
+          console.log(`- Job ${job.id} is in progress`);
+        });
+      }, 10000); // Adjust the interval as needed
+
+      async function scheduleJobTrigger (oneMinuteLater: Date) {
+         scheduleJob(oneMinuteLater, async () => {
+          try {
+            console.log("got here")
+            const contacts = await contactModel.find({
+              firstname: "Nick",
+              lastname: "Bernadini",
+            });
+            console.log(contacts)
+            for (const contact of contacts) {
+              await queue.add("startPhoneCall", contact);
             }
-          });
-        }
-      },
-    );
+            console.log("Contacts added to the queue");
+          } catch (error) {
+            console.error("Error fetching contacts:", error);
+          }
+        });
+      }
+
+      // Cleanup interval when the job is done or your application stops
+      process.on("SIGINT", () => clearInterval(monitorInterval));
+      process.on("SIGTERM", () => clearInterval(monitorInterval));
+    });
+  }
+
+  clearqueue() {
+    // Define a new endpoint to get total number of jobs and clear the queue
+    this.app.get("/clear-queue", async (req: Request, res: Response) => {
+      const redisConfig = {
+        host: "localhost",
+        port: 6379,
+      };
+      const queue = new Queue("userCallQueue", {
+        connection: redisConfig,
+      });
+
+      try {
+        // Get total number of jobs in the queue
+        const totalJobsBeforeClear = await queue.count();
+        console.log(
+          `Total number of jobs before clearing: ${totalJobsBeforeClear}`,
+        );
+
+        // Clear all jobs in the queue
+        await queue.drain();
+        console.log("Queue cleared successfully");
+
+        // Get total number of jobs after clearing
+        const totalJobsAfterClear = await queue.count();
+        console.log(
+          `Total number of jobs after clearing: ${totalJobsAfterClear}`,
+        );
+
+        res.status(200).json({
+          totalJobsBeforeClear,
+          totalJobsAfterClear,
+          message: "Queue cleared successfully",
+        });
+      } catch (error) {
+        console.error("Error clearing queue:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+      // Monitoring logic
+      const monitorInterval = setInterval(async () => {
+        const count = await queue.count();
+        console.log(`Number of jobs left in queue: ${count}`);
+
+        const activeJobs = await queue.getJobs(["active"]);
+        console.log("Active jobs:");
+        activeJobs.forEach((job) => {
+          console.log(`- Job ${job.id} is in progress`);
+        });
+      }, 5000); // Adjust the interval as needed
+
+      // Cleanup interval when the job is done or your application stops
+      process.on("SIGINT", () => clearInterval(monitorInterval));
+      process.on("SIGTERM", () => clearInterval(monitorInterval));
+    });
   }
 }
+
