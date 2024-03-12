@@ -403,6 +403,7 @@ export class Server {
 
       const redisConfig = {
         host: process.env.REDIS,
+        port: 6379
       };
       const queue = new Queue("userCallQueue", {
         connection: redisConfig,
