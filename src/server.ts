@@ -25,8 +25,8 @@ import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
 import { Worker, Queue, Job } from "bullmq";
-import Redis from "ioredis"
 import { scheduleJob } from "node-schedule";
+import IORedis from "ioredis"
 
 connectDb();
 
@@ -401,17 +401,16 @@ export class Server {
         console.error("Error setting schedule:", error);
         res.status(500).json({ error: "Internal server error" });
       }
-
-
-      const redisConfig = {
-        host: process.env.REDIS,
-        port: 6379,
-        maxRetriesPerRequest: null as null
-      };
-      const redisClient = new Redis(redisConfig);
-
+     const connection = new IORedis({
+       port: 17112,
+       host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
+       password: process.env.RED_PASS,
+       maxRetriesPerRequest: null,
+       enableOfflineQueue: false,
+       offlineQueue: false,
+     });
       const queue = new Queue("userCallQueue", {
-        connection: redisClient,
+        connection,
         defaultJobOptions: {
           attempts: 3,
           backoff: {
@@ -445,9 +444,8 @@ export class Server {
           }
         };
 
-
       new Worker("userCallQueue", processPhoneCallWrapper(this.twilioClient), {
-        connection: redisClient,
+        connection,
         limiter: { max: 1, duration: 120000 },
         lockDuration: 5000, // 5 seconds to process the job before it can be picked up by another worker
         removeOnComplete: {
@@ -482,7 +480,8 @@ export class Server {
             });
             console.log(contacts)
             for (const contact of contacts) {
-              await queue.add("startPhoneCall", contact);
+             const reuslt =  await queue.add("startPhoneCall", contact);
+             console.log(reuslt)
             }
             console.log("Contacts added to the queue");
           } catch (error) {

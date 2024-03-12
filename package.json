@@ -25,6 +25,7 @@
     "node-schedule": "^2.1.1",
     "openai": "^4.26.0",
     "papaparse": "^5.4.1",
+    "redis": "^4.6.13",
     "retell-sdk": "^2.3.4",
     "twilio": "^4.21.0"
   },
