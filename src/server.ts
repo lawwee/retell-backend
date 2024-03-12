@@ -424,18 +424,13 @@ export class Server {
         (twilioClient: TwilioClient) => async (job: Job) => {
           const data = job.data;
           const { phone, agentId, _id } = data;
-          const userId = _id;
           const fromNumber = "+17257268989";
-          console.log("this is the job date:", job.data);
-
           try {
             // Start processing call
-            await twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-            await twilioClient.CreatePhoneCall(
-              fromNumber,
-              phone,
-              agentId,
-              userId,
+            const postData = {fromNumber, toNumber: phone, userId:_id}
+            await axios.post(
+              `https://example.com/api/create-phone-call/${agentId}`,
+              postData,
             );
             console.log("Call initiated successfully.");
           } catch (error) {
@@ -456,19 +451,6 @@ export class Server {
           age: 24 * 3600, // keep up to 24 hours
         },
       });
-
-
-      // // Monitoring logic
-      // const monitorInterval = setInterval(async () => {
-      //   const count = await queue.count();
-      //   console.log(`Number of jobs left in queue: ${count}`);
-
-      //   const activeJobs = await queue.getJobs(["active"]);
-      //   console.log("Active jobs:");
-      //   activeJobs.forEach((job) => {
-      //     console.log(`- Job ${job.id} is in progress`);
-      //   });
-      // }, 10000); // Adjust the interval as needed
 
       async function scheduleJobTrigger (oneMinuteLater: Date) {
          scheduleJob(oneMinuteLater, async () => {
