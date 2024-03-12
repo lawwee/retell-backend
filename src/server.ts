@@ -458,17 +458,17 @@ export class Server {
       });
 
 
-      // Monitoring logic
-      const monitorInterval = setInterval(async () => {
-        const count = await queue.count();
-        console.log(`Number of jobs left in queue: ${count}`);
+      // // Monitoring logic
+      // const monitorInterval = setInterval(async () => {
+      //   const count = await queue.count();
+      //   console.log(`Number of jobs left in queue: ${count}`);
 
-        const activeJobs = await queue.getJobs(["active"]);
-        console.log("Active jobs:");
-        activeJobs.forEach((job) => {
-          console.log(`- Job ${job.id} is in progress`);
-        });
-      }, 10000); // Adjust the interval as needed
+      //   const activeJobs = await queue.getJobs(["active"]);
+      //   console.log("Active jobs:");
+      //   activeJobs.forEach((job) => {
+      //     console.log(`- Job ${job.id} is in progress`);
+      //   });
+      // }, 10000); // Adjust the interval as needed
 
       async function scheduleJobTrigger (oneMinuteLater: Date) {
          scheduleJob(oneMinuteLater, async () => {
@@ -490,19 +490,23 @@ export class Server {
         });
       }
 
-      // Cleanup interval when the job is done or your application stops
-      process.on("SIGINT", () => clearInterval(monitorInterval));
-      process.on("SIGTERM", () => clearInterval(monitorInterval));
+      // // Cleanup interval when the job is done or your application stops
+      // process.on("SIGINT", () => clearInterval(monitorInterval));
+      // process.on("SIGTERM", () => clearInterval(monitorInterval));
     });
   }
 
   clearqueue() {
     // Define a new endpoint to get total number of jobs and clear the queue
     this.app.get("/clear-queue", async (req: Request, res: Response) => {
-      const redisConfig = {
-        host: "localhost",
-        port: 6379,
-      };
+       const redisConfig = new IORedis({
+         port: 17112,
+         host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
+         password: process.env.RED_PASS,
+         maxRetriesPerRequest: null,
+         enableOfflineQueue: false,
+         offlineQueue: false,
+       });
       const queue = new Queue("userCallQueue", {
         connection: redisConfig,
       });
