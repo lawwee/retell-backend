@@ -547,7 +547,7 @@ export class Server {
         activeJobs.forEach((job) => {
           console.log(`- Job ${job.id} is in progress`);
         });
-      }, 5000); // Adjust the interval as needed
+      }, 10000); // Adjust the interval as needed
 
       // Cleanup interval when the job is done or your application stops
       process.on("SIGINT", () => clearInterval(monitorInterval));
