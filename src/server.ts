@@ -386,7 +386,7 @@ export class Server {
   }
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
-      const { hour, minute } = req.body;
+      const { hour, minute ,agentId} = req.body;
       if (!hour || !minute) {
         res.json({ message: "Please provide and hour and minute" });
       }
@@ -395,7 +395,7 @@ export class Server {
       rule.minute = minute
       rule.tz = "America/Los_Angeles";
      try{
-        scheduleJobTrigger(rule);
+        scheduleJobTrigger(rule, agentId);
         res.status(200).json({ message: "Schedule set successfully" });
       } catch (error) {
         console.error("Error setting schedule:", error);
@@ -452,12 +452,13 @@ export class Server {
         },
       });
 
-      async function scheduleJobTrigger(oneMinuteLater: any) {
+      async function scheduleJobTrigger(oneMinuteLater: any, agentId:any) {
         scheduler.scheduleJob(oneMinuteLater, async () => {
           try {
             const contacts = await contactModel
               .find({
-                firstname: "Nick",
+                agentId,
+                status: "not called", firstname: "Nick",
                 lastname: "Bernadini",
               })
               .limit(100);
@@ -517,3 +518,4 @@ export class Server {
     });
   }
 }
+
