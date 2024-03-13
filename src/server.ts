@@ -460,8 +460,6 @@ export class Server {
               .find({
                 agentId,
                 status: "not called",
-                firstname: "Nick",
-                lastname: "Bernadini",
               })
               .limit(100);
             console.log(contacts);
