@@ -387,8 +387,8 @@ export class Server {
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const { hour, minute ,agentId} = req.body;
-      if (!hour || !minute) {
-        res.json({ message: "Please provide and hour and minute" });
+      if (!hour || !minute|| !agentId) {
+        res.json({ message: "Please provide and hour and minute also agentid" });
       }
       const rule = new scheduler.RecurrenceRule()
       rule.hour = hour
@@ -455,10 +455,12 @@ export class Server {
       async function scheduleJobTrigger(oneMinuteLater: any, agentId:any) {
         scheduler.scheduleJob(oneMinuteLater, async () => {
           try {
+            console.log("agent Id got",agentId)
             const contacts = await contactModel
               .find({
-                agentId,
-                status: "not called", firstname: "Nick",
+                agentid: "86f0db493888f1da69b7d46bfaecd360",
+                status: "not called",
+                firstname: "Nick",
                 lastname: "Bernadini",
               })
               .limit(100);
