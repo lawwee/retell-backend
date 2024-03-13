@@ -461,8 +461,6 @@ export class Server {
                 agentId,
                 status: "not called",
               })
-              .limit(100);
-            console.log(contacts);
             for (const contact of contacts) {
               await queue.add("startPhoneCall", contact);
             }
