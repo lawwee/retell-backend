@@ -26,7 +26,7 @@ import fs from "fs";
 import multer from "multer";
 import { Worker, Queue, Job } from "bullmq";
 import { scheduleJob } from "node-schedule";
-import IORedis from "ioredis"
+import IORedis from "ioredis";
 
 connectDb();
 export class Server {
@@ -386,23 +386,36 @@ export class Server {
   }
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
-      const now = new Date();
-      const oneMinuteLater = new Date(now.getTime() + 500); // Adding 60000 milliseconds (1 minute) to the current time
+      const { hour, minute } = req.body;
+      if (!hour || !minute) {
+        res.json({ message: "Please provide and hour and minute" });
+      }
+      const newhour = parseInt(hour);
+      const newMin = parseInt(minute);
       try {
-        scheduleJobTrigger(oneMinuteLater);
+        function createPSTDate(newhour: number, newMin: number) {
+          const currentDate = new Date();
+          currentDate.setUTCHours(newhour - 8);
+          currentDate.setUTCMinutes(newMin);
+          currentDate.setUTCSeconds(0);
+
+          return currentDate;
+        }
+        const newdate = createPSTDate(newhour, newMin);
+        scheduleJobTrigger(newdate);
         res.status(200).json({ message: "Schedule set successfully" });
       } catch (error) {
         console.error("Error setting schedule:", error);
         res.status(500).json({ error: "Internal server error" });
       }
-     const connection = new IORedis({
-       port: 17112,
-       host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
-       password: process.env.RED_PASS,
-       maxRetriesPerRequest: null,
-       enableOfflineQueue: false,
-       offlineQueue: false,
-     });
+      const connection = new IORedis({
+        port: 17112,
+        host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
+        password: process.env.RED_PASS,
+        maxRetriesPerRequest: null,
+        enableOfflineQueue: false,
+        offlineQueue: false,
+      });
       const queue = new Queue("userCallQueue", {
         connection,
         defaultJobOptions: {
@@ -421,7 +434,7 @@ export class Server {
           const fromNumber = "+17257268989";
           try {
             // Start processing call
-            const postData = {fromNumber, toNumber: phone, userId:_id}
+            const postData = { fromNumber, toNumber: phone, userId: _id };
             await axios.post(
               `https://retell-backend.onrender.com/create-phone-call/${agentId}`,
               postData,
@@ -446,16 +459,18 @@ export class Server {
         },
       });
 
-      async function scheduleJobTrigger (oneMinuteLater: Date) {
-         scheduleJob(oneMinuteLater, async () => {
+      async function scheduleJobTrigger(oneMinuteLater: Date) {
+        scheduleJob(oneMinuteLater, async () => {
           try {
-            const contacts = await contactModel.find({
-              firstname: "Nick",
-              lastname: "Bernadini",
-            }).limit(100)
-            console.log(contacts)
+            const contacts = await contactModel
+              .find({
+                firstname: "Nick",
+                lastname: "Bernadini",
+              })
+              .limit(100);
+            console.log(contacts);
             for (const contact of contacts) {
-             const reuslt =  await queue.add("startPhoneCall", contact);
+              await queue.add("startPhoneCall", contact);
             }
             console.log("Contacts added to the queue");
           } catch (error) {
@@ -468,14 +483,14 @@ export class Server {
   clearqueue() {
     // Define a new endpoint to get total number of jobs and clear the queue
     this.app.get("/clear-queue", async (req: Request, res: Response) => {
-       const redisConfig = new IORedis({
-         port: 17112,
-         host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
-         password: process.env.RED_PASS,
-         maxRetriesPerRequest: null,
-         enableOfflineQueue: false,
-         offlineQueue: false,
-       });
+      const redisConfig = new IORedis({
+        port: 17112,
+        host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
+        password: process.env.RED_PASS,
+        maxRetriesPerRequest: null,
+        enableOfflineQueue: false,
+        offlineQueue: false,
+      });
       const queue = new Queue("userCallQueue", {
         connection: redisConfig,
       });
