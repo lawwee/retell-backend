@@ -29,7 +29,6 @@ import { scheduleJob } from "node-schedule";
 import IORedis from "ioredis"
 
 connectDb();
-
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -46,7 +45,6 @@ export class Server {
       cb(null, file.originalname); // Use original file name
     },
   });
-
   upload = multer({ storage: this.storage });
   //con
   constructor() {
@@ -85,7 +83,6 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
-
   handleRegisterCallAPI() {
     this.app.post(
       "/register-call-on-your-server",
@@ -302,7 +299,6 @@ export class Server {
       },
     );
   }
-
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
@@ -364,7 +360,6 @@ export class Server {
       },
     );
   }
-
   usingCallendly() {
     this.app.get("/callender", async (req: Request, res: Response) => {
       try {
@@ -389,7 +384,6 @@ export class Server {
       }
     });
   }
-
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const now = new Date();
@@ -455,15 +449,13 @@ export class Server {
       async function scheduleJobTrigger (oneMinuteLater: Date) {
          scheduleJob(oneMinuteLater, async () => {
           try {
-            console.log("got here")
             const contacts = await contactModel.find({
               firstname: "Nick",
               lastname: "Bernadini",
-            });
+            }).limit(100)
             console.log(contacts)
             for (const contact of contacts) {
              const reuslt =  await queue.add("startPhoneCall", contact);
-             console.log(reuslt)
             }
             console.log("Contacts added to the queue");
           } catch (error) {
@@ -471,13 +463,8 @@ export class Server {
           }
         });
       }
-
-      // // Cleanup interval when the job is done or your application stops
-      // process.on("SIGINT", () => clearInterval(monitorInterval));
-      // process.on("SIGTERM", () => clearInterval(monitorInterval));
     });
   }
-
   clearqueue() {
     // Define a new endpoint to get total number of jobs and clear the queue
     this.app.get("/clear-queue", async (req: Request, res: Response) => {
@@ -519,22 +506,6 @@ export class Server {
         console.error("Error clearing queue:", error);
         res.status(500).json({ error: "Internal server error" });
       }
-      // Monitoring logic
-      const monitorInterval = setInterval(async () => {
-        const count = await queue.count();
-        console.log(`Number of jobs left in queue: ${count}`);
-
-        const activeJobs = await queue.getJobs(["active"]);
-        console.log("Active jobs:");
-        activeJobs.forEach((job) => {
-          console.log(`- Job ${job.id} is in progress`);
-        });
-      }, 10000); // Adjust the interval as needed
-
-      // Cleanup interval when the job is done or your application stops
-      process.on("SIGINT", () => clearInterval(monitorInterval));
-      process.on("SIGTERM", () => clearInterval(monitorInterval));
     });
   }
 }
-
