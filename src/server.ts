@@ -458,7 +458,7 @@ export class Server {
             console.log("agent Id got",agentId)
             const contacts = await contactModel
               .find({
-                agentid: "86f0db493888f1da69b7d46bfaecd360",
+                agentId,
                 status: "not called",
                 firstname: "Nick",
                 lastname: "Bernadini",
