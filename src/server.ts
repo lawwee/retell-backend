@@ -25,7 +25,7 @@ import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
 import { Worker, Queue, Job } from "bullmq";
-import { scheduleJob } from "node-schedule";
+import scheduler from "node-schedule";
 import IORedis from "ioredis";
 
 connectDb();
@@ -390,19 +390,12 @@ export class Server {
       if (!hour || !minute) {
         res.json({ message: "Please provide and hour and minute" });
       }
-      const newhour = parseInt(hour);
-      const newMin = parseInt(minute);
-      try {
-        function createPSTDate(newhour: number, newMin: number) {
-          const currentDate = new Date();
-          currentDate.setUTCHours(newhour - 8);
-          currentDate.setUTCMinutes(newMin);
-          currentDate.setUTCSeconds(0);
-
-          return currentDate;
-        }
-        const newdate = createPSTDate(newhour, newMin);
-        scheduleJobTrigger(newdate);
+      const rule = new scheduler.RecurrenceRule()
+      rule.hour = hour
+      rule.minute = minute
+      rule.tz = "America/Los_Angeles";
+     try{
+        scheduleJobTrigger(rule);
         res.status(200).json({ message: "Schedule set successfully" });
       } catch (error) {
         console.error("Error setting schedule:", error);
@@ -459,8 +452,8 @@ export class Server {
         },
       });
 
-      async function scheduleJobTrigger(oneMinuteLater: Date) {
-        scheduleJob(oneMinuteLater, async () => {
+      async function scheduleJobTrigger(oneMinuteLater: any) {
+        scheduler.scheduleJob(oneMinuteLater, async () => {
           try {
             const contacts = await contactModel
               .find({
