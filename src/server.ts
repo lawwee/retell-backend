@@ -460,6 +460,7 @@ export class Server {
               .find({
                 agentId,
                 status: "not called",
+                isDeleted:{$ne:true}
               })
             for (const contact of contacts) {
               await queue.add("startPhoneCall", contact);
