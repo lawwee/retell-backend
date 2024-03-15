@@ -27,6 +27,7 @@ import multer from "multer";
 import { Worker, Queue, Job } from "bullmq";
 import scheduler from "node-schedule";
 import IORedis from "ioredis";
+import { clearAllScheduledJobs, scheduleJobTrigger, scheduleJobTrigger2 } from "./queue";
 
 connectDb();
 export class Server {
@@ -395,87 +396,20 @@ export class Server {
       rule.minute = minute
       rule.tz = "America/Los_Angeles";
      try{
-        scheduleJobTrigger(rule, agentId, limit);
+        await scheduleJobTrigger(rule, agentId, limit);
+        await scheduleJobTrigger2(agentId)
         res.status(200).json({ message: "Schedule set successfully" });
       } catch (error) {
         console.error("Error setting schedule:", error);
         res.status(500).json({ error: "Internal server error" });
       }
-      const connection = new IORedis({
-        port: 17112,
-        host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
-        password: process.env.RED_PASS,
-        maxRetriesPerRequest: null,
-        enableOfflineQueue: false,
-        offlineQueue: false,
-      });
-      const queue = new Queue("userCallQueue", {
-        connection,
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: {
-            type: "exponential",
-            delay: 1000,
-          },
-        },
-      });
 
-      const processPhoneCallWrapper =
-        (twilioClient: TwilioClient) => async (job: Job) => {
-          const data = job.data;
-          const { phone, agentId, _id } = data;
-          const fromNumber = "+17257268989";
-          try {
-            // Start processing call
-            const postData = { fromNumber, toNumber: phone, userId: _id };
-            await axios.post(
-              `https://retell-backend.onrender.com/create-phone-call/${agentId}`,
-              postData,
-            );
-            console.log("Call initiated successfully.");
-          } catch (error) {
-            console.error(`Error calling phone number :`, error);
-            throw error;
-          }
-        };
-
-      new Worker("userCallQueue", processPhoneCallWrapper(this.twilioClient), {
-        connection,
-        limiter: { max: 1, duration: 120000 },
-        lockDuration: 5000, // 5 seconds to process the job before it can be picked up by another worker
-        removeOnComplete: {
-          age: 3600,
-          count: 1000, // keep up to 1000 jobs
-        },
-        removeOnFail: {
-          age: 24 * 3600, // keep up to 24 hours
-        },
-      });
-
-      async function scheduleJobTrigger(oneMinuteLater: any, agentId:any, limit: any) {
-        scheduler.scheduleJob(oneMinuteLater, async () => {
-          try {
-            console.log("agent Id got",agentId)
-            const contacts = await contactModel
-              .find({
-                agentId,
-                status: "not called",
-                isDeleted:{$ne:true}
-              }).limit(limit)
-            for (const contact of contacts) {
-              await queue.add("startPhoneCall", contact);
-            }
-            console.log("Contacts added to the queue");
-          } catch (error) {
-            console.error("Error fetching contacts:", error);
-          }
-        });
-      }
     });
   }
   clearqueue() {
     // Define a new endpoint to get total number of jobs and clear the queue
     this.app.get("/clear-queue", async (req: Request, res: Response) => {
+      await clearAllScheduledJobs()
       const redisConfig = new IORedis({
         port: 17112,
         host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
@@ -516,5 +450,12 @@ export class Server {
       }
     });
   }
+  cleardb(){
+    this.app.delete("/cleardb", async(req: Request, res: Response)=> {
+      const agentId = req.body
+      await contactModel.findOneAndDelete({agentId})
+    })
+  }
 }
 
+ 
