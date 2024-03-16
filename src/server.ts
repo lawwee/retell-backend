@@ -409,7 +409,17 @@ export class Server {
   clearqueue() {
     // Define a new endpoint to get total number of jobs and clear the queue
     this.app.get("/clear-queue", async (req: Request, res: Response) => {
-      await clearAllScheduledJobs()
+  
+      let scheduledJobs: { [jobName: string]: scheduler.Job };
+      // Iterate over all jobs in scheduledJobs and cancel them
+      for (const jobName in scheduledJobs) {
+        if (Object.prototype.hasOwnProperty.call(scheduledJobs, jobName)) {
+          const job = scheduledJobs[jobName];
+          job.cancel();
+          console.log("canceled all")
+        }
+      }
+
       const redisConfig = new IORedis({
         port: 17112,
         host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
@@ -450,6 +460,7 @@ export class Server {
       }
     });
   }
+  
   cleardb(){
     this.app.delete("/cleardb", async(req: Request, res: Response)=> {
       const agentId = req.body
