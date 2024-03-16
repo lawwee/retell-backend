@@ -415,6 +415,7 @@ export class Server {
       for (const jobName in scheduledJobs) {
         if (Object.prototype.hasOwnProperty.call(scheduledJobs, jobName)) {
           const job = scheduledJobs[jobName];
+          console.log("jobs",job)
           job.cancel();
           console.log("canceled all")
         }
@@ -460,7 +461,7 @@ export class Server {
       }
     });
   }
-  
+
   cleardb(){
     this.app.delete("/cleardb", async(req: Request, res: Response)=> {
       const agentId = req.body
