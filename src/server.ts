@@ -16,26 +16,25 @@ import {
   updateOneContact,
 } from "./contacts/contact_controller";
 import { connectDb, contactModel } from "./contacts/contact_model";
-import { chloeDemoLlmClient } from "./chloe_llm_openai";
-import { emilyDemoLlmClient } from "./emily_llm-openai";
-import { oliviaDemoLlmClient } from "./olivia_llm_openai";
+import { chloeFunctionCallingLlmClient } from "./chloe_llm_openai";
+import { emilyFunctionCallingLlmClient } from "./emily_llm-openai";
+import { olivaFunctionCallingLlmClient } from "./olivia_llm_openai";
 import { TwilioClient } from "./twilio_api";
 import { IContact, RetellRequest, callstatusenum } from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
-import { Worker, Queue, Job } from "bullmq";
-import scheduler from "node-schedule";
-import IORedis from "ioredis";
-import { clearAllScheduledJobs, scheduleJobTrigger, scheduleJobTrigger2 } from "./queue";
+import { scheduleCronJob } from "./queue";
+import moment from "moment-timezone";
+import { FunctionCallingLlmClient } from "./llm_azure_openai_func_call";
 
 connectDb();
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
-  private chloeClient: chloeDemoLlmClient;
-  private emilyClient: emilyDemoLlmClient;
-  private oliviaClient: oliviaDemoLlmClient;
+  private chloeClient: chloeFunctionCallingLlmClient;
+  private emilyClient: emilyFunctionCallingLlmClient;
+  private oliviaClient: olivaFunctionCallingLlmClient;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
 
@@ -64,14 +63,13 @@ export class Server {
     this.handleContactUpdate();
     this.uploadcsvToDb();
     this.schedulemycall();
-    this.usingCallendly();
-    this.clearqueue();
+    // this.clearqueue();
     // this.updateCurentdb()
 
     // this.llmClient = new DemoLlmClient();
-    this.chloeClient = new chloeDemoLlmClient();
-    this.emilyClient = new emilyDemoLlmClient();
-    this.oliviaClient = new oliviaDemoLlmClient();
+    this.chloeClient = new chloeFunctionCallingLlmClient()
+    this.emilyClient = new emilyFunctionCallingLlmClient();
+    this.oliviaClient = new olivaFunctionCallingLlmClient();
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -361,113 +359,30 @@ export class Server {
       },
     );
   }
-  usingCallendly() {
-    this.app.get("/callender", async (req: Request, res: Response) => {
-      try {
-        const apiToken = process.env.CALLENDY_API;
-        const headers = {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        };
-        const response = await axios.get(
-          "https://api.calendly.com/event_types",
-          { headers },
-        );
-        const eventTypes = response.data;
-        res.json({ eventTypes });
-      } catch (error) {
-        if (axios.isAxiosError(error)) {
-          console.error("Failed to retrieve event types:", error);
-        } else {
-          console.error("Failed to retrieve event types:", error);
-        }
-        res.status(500).json({ error: "Failed to retrieve event types" });
-      }
-    });
-  }
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
-      const { hour, minute ,agentId, limit} = req.body;
-      if (!hour || !minute|| !agentId) {
-        res.json({ message: "Please provide and hour and minute also agentid" });
-      }
-      const rule = new scheduler.RecurrenceRule()
-      rule.hour = hour
-      rule.minute = minute
-      rule.tz = "America/Los_Angeles";
-     try{
-        await scheduleJobTrigger(rule, agentId, limit);
-        await scheduleJobTrigger2(agentId)
-        res.status(200).json({ message: "Schedule set successfully" });
-      } catch (error) {
-        console.error("Error setting schedule:", error);
-        res.status(500).json({ error: "Internal server error" });
+      const { hour, minute, recur , agentId} = req.body;
+      let scheduledTimePST;
+
+      if (recur) {
+        // Recurring cron job pattern: Run daily at the specified hour and minute
+        scheduledTimePST = `${minute} ${hour} * * *`;
+      } else {
+        // Non-recurring cron job pattern: Run once at the specified hour and minute
+        const nowPST = moment().tz("America/Los_Angeles");
+        const dayOfMonth = nowPST.date();
+        const month = nowPST.month() + 1; // Months are zero-based in JavaScript
+        scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
       }
 
+      scheduleCronJob(scheduledTimePST, agentId);
+      res.send("done")
     });
   }
-  clearqueue() {
-    // Define a new endpoint to get total number of jobs and clear the queue
-    this.app.get("/clear-queue", async (req: Request, res: Response) => {
-  
-      let scheduledJobs: { [jobName: string]: scheduler.Job };
-      // Iterate over all jobs in scheduledJobs and cancel them
-      for (const jobName in scheduledJobs) {
-        if (Object.prototype.hasOwnProperty.call(scheduledJobs, jobName)) {
-          const job = scheduledJobs[jobName];
-          console.log("jobs",job)
-          job.cancel();
-          console.log("canceled all")
-        }
-      }
-
-      const redisConfig = new IORedis({
-        port: 17112,
-        host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
-        password: process.env.RED_PASS,
-        maxRetriesPerRequest: null,
-        enableOfflineQueue: false,
-        offlineQueue: false,
-      });
-      const queue = new Queue("userCallQueue", {
-        connection: redisConfig,
-      });
-
-      try {
-        // Get total number of jobs in the queue
-        const totalJobsBeforeClear = await queue.count();
-        console.log(
-          `Total number of jobs before clearing: ${totalJobsBeforeClear}`,
-        );
-
-        // Clear all jobs in the queue
-        await queue.drain();
-        console.log("Queue cleared successfully");
-
-        // Get total number of jobs after clearing
-        const totalJobsAfterClear = await queue.count();
-        console.log(
-          `Total number of jobs after clearing: ${totalJobsAfterClear}`,
-        );
-
-        res.status(200).json({
-          totalJobsBeforeClear,
-          totalJobsAfterClear,
-          message: "Queue cleared successfully",
-        });
-      } catch (error) {
-        console.error("Error clearing queue:", error);
-        res.status(500).json({ error: "Internal server error" });
-      }
+  cleardb() {
+    this.app.delete("/cleardb", async (req: Request, res: Response) => {
+      const agentId = req.body;
+      await contactModel.findOneAndDelete({ agentId });
     });
-  }
-
-  cleardb(){
-    this.app.delete("/cleardb", async(req: Request, res: Response)=> {
-      const agentId = req.body
-      await contactModel.findOneAndDelete({agentId})
-    })
   }
 }
-
- 

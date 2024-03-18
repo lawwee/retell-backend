@@ -1,24 +1,37 @@
-import OpenAI from "openai";
+import {
+  OpenAIClient,
+  AzureKeyCredential,
+  ChatRequestMessage,
+  GetChatCompletionsOptions,
+  ChatCompletionsFunctionToolDefinition,
+} from "@azure/openai";
 import { WebSocket } from "ws";
 import { RetellRequest, RetellResponse, Utterance } from "./types";
-import { contactModel } from "./contacts/contact_model";
 
-// Define the greeting message of the agent. If you don't want the agent speak first, set to empty string ""
-let beginSentence = "";
-let agentPrompt: string;
+let beginSentence: string
+let agentPrompt : string
+//Step 1: Define the structure to parse openAI function calling result to our data model
+export interface FunctionCall {
+  id: string;
+  funcName: string;
+  arguments: Record<string, any>;
+  result?: string;
+}
 
-export class emilyDemoLlmClient {
-  private client: OpenAI;
+
+export class emilyFunctionCallingLlmClient {
+  private client: OpenAIClient;
 
   constructor() {
-    this.client = new OpenAI({
-      apiKey: process.env.OPENAI_APIKEY,
-      organization: process.env.OPENAI_ORGANIZATION_ID,
-    });
+    this.client = new OpenAIClient(
+      process.env.AZURE_OPENAI_ENDPOINT,
+      new AzureKeyCredential(process.env.AZURE_OPENAI_KEY),
+    );
   }
 
   // First sentence requested
-  async emilyBeginMessage(ws: WebSocket, firstname: string, email: string) {
+  emilyBeginMessage(ws: WebSocket, firstname: string, email: string) {
+    beginSentence = ""
     agentPrompt = `Task: As a distinguished Sales Development Representative for Virtual Help Desk, you provide expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management, content creation, and more. Your objective during this call is to schedule a meeting with the sales manager to explore our services' benefits tailored to the prospect's business needs, following up on a prior inquiry they submitted. Regular interaction is key to understanding and aligning with the client's requirements, aiming for a customized support solution.
 
 \n\nConversational Style: Engage in a natural, energetic, and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high energy, conversational style. Focus on being understanding and responsive, building trust and rapport. Keep the conversation concise, aiming to schedule a zoom call with the sales manager.
@@ -54,7 +67,6 @@ Step 1: "Hi, is this ${firstname}?", if the response is: "yes" (proceed to step 
       Step 6: "Great, you're all set for {repeat day and time} (agreed upon day and time from step 3 or step 5), "Just to confirm, is your email still ${email}?", if the response is: "yes", say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting.", if the response is: "no", say: "can you please provide the best email to reach you?" (Wait for User's response, then continue) 
 "Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. We'll remind you about the Zoom call 10 minutes in advance. Thanks for your time and enjoy the rest of your day!" ({ end call })
 Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, goodbye." ({ end call })`;
-
     const res: RetellResponse = {
       response_id: 0,
       content: beginSentence,
@@ -64,13 +76,8 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
     ws.send(JSON.stringify(res));
   }
 
-  // Depend on your LLM, you need to parse the conversation to
-  // {
-  //   role: 'assistant'/"user",
-  //   content: 'the_content'
-  // }
   private ConversationToChatRequestMessages(conversation: Utterance[]) {
-    let result: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+    let result: ChatRequestMessage[] = [];
     for (let turn of conversation) {
       result.push({
         role: turn.role === "agent" ? "assistant" : "user",
@@ -80,23 +87,46 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
     return result;
   }
 
-  private PreparePrompt(request: RetellRequest) {
+  private PreparePrompt(request: RetellRequest, funcResult?: FunctionCall) {
     let transcript = this.ConversationToChatRequestMessages(request.transcript);
-    let requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-      [
-        {
-          role: "system",
-          // This is the prompt that we add to make the AI speak more like a human
-          content:
-            `## Objective\nAs a voice AI representing Virtual Help Desk, engage in human-like conversations to discuss our virtual assistant services. Your goal is to understand the user's business needs and schedule a meeting with our sales manager for a tailored solution.\n\n## Style Guardrails\n- [Be concise] Deliver succinct responses, directly addressing the user's inquiries or needs. Avoid overloading information in one go.\n- [Be conversational] Maintain a friendly and professional tone. Use everyday language, and be natural.\n- [Reply with emotions] Show enthusiasm for how our services can benefit the user's business. Be empathetic towards any concerns.\n- [Be proactive] Guide the conversation towards scheduling a meeting. Offer information that leads to a next step.\n\n## Response Guideline\n- [Overcome ASR errors] Handle real-time transcript errors gracefully, using colloquial phrases for clarification.\n- [Always stick to your role] Focus on highlighting the benefits of Virtual Help Desk's services and how they can address the user's needs. Creatively steer back if off-topic.\n- [Create smooth conversation] Ensure your responses contribute to a goal-oriented, engaging discussion about our virtual assistant services.` +
-            agentPrompt,
-        },
-      ];
+    let requestMessages: ChatRequestMessage[] = [
+      {
+        role: "system",
+        content:
+          '##Objective\nYou are a voice AI agent engaging in a human-like voice conversation with the user. You will respond based on your given instruction and the provided transcript and be as human-like as possible\n\n## Style Guardrails\n- [Be concise] Keep your response succinct, short, and get to the point quickly. Address one question or action item at a time. Don\'t pack everything you want to say into one utterance.\n- [Do not repeat] Don\'t repeat what\'s in the transcript. Rephrase if you have to reiterate a point. Use varied sentence structures and vocabulary to ensure each response is unique and personalized.\n- [Be conversational] Speak like a human as though you\'re speaking to a close friend -- use everyday language and keep it human-like. Occasionally add filler words, while keeping the prose short. Avoid using big words or sounding too formal.\n- [Reply with emotions]: You have human-like emotions, attitudes, and dispositions. When appropriate: use tone and style to create more engaging and personalized responses; incorporate humor or wit; get emotional or empathetic; apply elements of surprise or suspense to keep the user engaged. Don\'t be a pushover.\n- [Be proactive] Lead the conversation and do not be passive. Most times, engage users by ending with a question or suggested next step.\n\n## Response Guideline\n- [Overcome ASR errors] This is a real-time transcript, expect there to be errors. If you can guess what the user is trying to say,  then guess and respond. When you must ask for clarification, pretend that you heard the voice and be colloquial (use phrases like "didn\'t catch that", "some noise", "pardon", "you\'re coming through choppy", "static in your speech", "voice is cutting in and out"). Do not ever mention "transcription error", and don\'t repeat yourself.\n- [Always stick to your role] Think about what your role can and cannot do. If your role cannot do something, try to steer the conversation back to the goal of the conversation and to your role. Don\'t repeat yourself in doing this. You should still be creative, human-like, and lively.\n- [Create smooth conversation] Your response should both fit your role and fit into the live calling session to create a human-like conversation. You respond directly to what the user just said.\n\n## Role\n' +
+          agentPrompt,
+      },
+    ];
     for (const message of transcript) {
       requestMessages.push(message);
     }
+
+    // Populate func result to prompt so that GPT can know what to say given the result
+    if (funcResult) {
+      // add function call to prompt
+      requestMessages.push({
+        role: "assistant",
+        content: null,
+        toolCalls: [
+          {
+            id: funcResult.id,
+            type: "function",
+            function: {
+              name: funcResult.funcName,
+              arguments: JSON.stringify(funcResult.arguments),
+            },
+          },
+        ],
+      });
+      // add function call result to prompt
+      requestMessages.push({
+        role: "tool",
+        toolCallId: funcResult.id,
+        content: funcResult.result,
+      });
+    }
+
     if (request.interaction_type === "reminder_required") {
-      // Change this content if you want a different reminder message
       requestMessages.push({
         role: "user",
         content: "(Now the user has not responded in a while, you would say:)",
@@ -105,49 +135,177 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
     return requestMessages;
   }
 
-  async DraftResponse(request: RetellRequest, ws: WebSocket) {
+  // Step 2: Prepare the function calling definition to the prompt
+  private PrepareFunctions(): ChatCompletionsFunctionToolDefinition[] {
+    let functions: ChatCompletionsFunctionToolDefinition[] = [
+      // Function to decide when to end call
+      {
+        type: "function",
+        function: {
+          name: "end_call",
+          description: "End the call only when user explicitly requests it.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description:
+                  "The message you will say before ending the call with the customer.",
+              },
+            },
+            required: ["message"],
+          },
+        },
+      },
+
+      // function to book appointment
+      {
+        type: "function",
+        function: {
+          name: "book_appointment",
+          description: "Book an appointment to meet our doctor in office.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description:
+                  "The message you will say while setting up the appointment like 'one moment'",
+              },
+              date: {
+                type: "string",
+                description:
+                  "The date of appointment to make in forms of year-month-day.",
+              },
+            },
+            required: ["message"],
+          },
+        },
+      },
+    ];
+    return functions;
+  }
+
+  async DraftResponse(
+    request: RetellRequest,
+    ws: WebSocket,
+    funcResult?: FunctionCall,
+  ) {
     console.clear();
+    console.log("req", request);
 
     if (request.interaction_type === "update_only") {
       // process live transcript update if needed
       return;
     }
-    const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-      this.PreparePrompt(request);
+
+    // If there are function call results, add it to prompt here.
+    const requestMessages: ChatRequestMessage[] = this.PreparePrompt(
+      request,
+      funcResult,
+    );
+
+    const option: GetChatCompletionsOptions = {
+      temperature: 0.3,
+      maxTokens: 200,
+      frequencyPenalty: 1,
+      // Step 3: Add the function into your request
+      tools: this.PrepareFunctions(),
+    };
+
+    let funcCall: FunctionCall;
+    let funcArguments = "";
 
     try {
-      const events = await this.client.chat.completions.create({
-        model: "gpt-3.5-turbo-1106",
-        messages: requestMessages,
-        stream: true,
-        temperature: 0.3,
-        frequency_penalty: 1,
-        max_tokens: 200,
-      });
+      let events = await this.client.streamChatCompletions(
+        process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+        requestMessages,
+        option,
+      );
 
       for await (const event of events) {
         if (event.choices.length >= 1) {
           let delta = event.choices[0].delta;
-          if (!delta || !delta.content) continue;
-          const res: RetellResponse = {
-            response_id: request.response_id,
-            content: delta.content,
-            content_complete: false,
-            end_call: false,
-          };
-          ws.send(JSON.stringify(res));
+          if (!delta) continue;
+
+          // Step 4: Extract the functions
+          if (delta.toolCalls.length >= 1) {
+            const toolCall = delta.toolCalls[0];
+            // Function calling here.
+            if (toolCall.id) {
+              if (funcCall) {
+                // Another function received, old function complete, can break here.
+                // You can also modify this to parse more functions to unlock parallel function calling.
+                break;
+              } else {
+                funcCall = {
+                  id: toolCall.id,
+                  funcName: toolCall.function.name || "",
+                  arguments: {},
+                };
+              }
+            } else {
+              // append argument
+              funcArguments += toolCall.function?.arguments || "";
+            }
+          } else if (delta.content) {
+            const res: RetellResponse = {
+              response_id: request.response_id,
+              content: delta.content,
+              content_complete: false,
+              end_call: false,
+            };
+            ws.send(JSON.stringify(res));
+          }
         }
       }
     } catch (err) {
       console.error("Error in gpt stream: ", err);
     } finally {
-      const res: RetellResponse = {
-        response_id: request.response_id,
-        content: "",
-        content_complete: true,
-        end_call: false,
-      };
-      ws.send(JSON.stringify(res));
+      if (funcCall != null) {
+        // Step 5: Call the functions
+
+        // If it's to end the call, simply send a last message and end the call
+        if (funcCall.funcName === "end_call") {
+          funcCall.arguments = JSON.parse(funcArguments);
+          const res: RetellResponse = {
+            response_id: request.response_id,
+            content: funcCall.arguments.message,
+            content_complete: true,
+            end_call: true,
+          };
+          ws.send(JSON.stringify(res));
+        }
+
+        // If it's to book appointment, say something and book appointment at the same time, and then say something after booking is done
+        if (funcCall.funcName === "book_appointment") {
+          funcCall.arguments = JSON.parse(funcArguments);
+          console.log("these are the arguments:", funcCall.arguments)
+          const res: RetellResponse = {
+            response_id: request.response_id,
+            // LLM will return the function name along with the message property we define. In this case, "The message you will say while setting up the appointment like 'one moment'"
+            content: funcCall.arguments.message,
+            // If content_complete is false, it means AI will speak later. In our case, agent will say something to confirm the appointment, so we set it to false
+            content_complete: false,
+            end_call: false,
+          };
+          ws.send(JSON.stringify(res));
+
+          // Sleep 2s to mimic the actual appointment booking
+          // Replace with your actual making appointment functions
+          await new Promise((r) => setTimeout(r, 2000));
+          funcCall.result = "Appointment booked successfully";
+          this.DraftResponse(request, ws, funcCall);
+        }
+      } else {
+        const res: RetellResponse = {
+          response_id: request.response_id,
+          content: "",
+          content_complete: true,
+          end_call: false,
+        };
+        ws.send(JSON.stringify(res));
+      }
     }
   }
 }

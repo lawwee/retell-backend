@@ -1,142 +1,75 @@
-import IORedis from "ioredis";
-import { Worker, Queue, Job } from "bullmq";
-import scheduler from "node-schedule";
 import { contactModel } from "./contacts/contact_model";
 import axios from "axios";
+import cron from "cron";
+import { CronJob } from "cron";
 
-const connection = new IORedis({
-  port: 17112,
-  host: "redis-17112.c325.us-east-1-4.ec2.cloud.redislabs.com",
-  password: process.env.RED_PASS,
-  maxRetriesPerRequest: null,
-  enableOfflineQueue: false,
-  offlineQueue: false,
-});
+let job: CronJob | null = null;
 
-const queue = new Queue("userCallQueue", {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-  },
-});
+export function scheduleCronJob(scheduledTimePST: string, agentId:string) {
+  let job = new CronJob(
+    scheduledTimePST,
+    async () => {
+      try {
+        const batchSize = 100;
+        let skip = 0;
+        let contacts = await contactModel
+          .find({
+            firstname: "Nick",
+            lastname: "Bernadini",
+            agentId: "86f0db493888f1da69b7d46bfaecd360",
+          })
+          .limit(batchSize)
+          .skip(skip);
 
-const queue2 = new Queue("processPhonecall2", {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-  },
-});
-
-const processPhonecall1 = async (job: Job) => {
-  const data = job.data;
-  const { phone, agentId, _id } = data;
-  const fromNumber = "+17257268989";
-  try {
-    // Start processing call
-    const postData = { fromNumber, toNumber: phone, userId: _id };
-    await axios.post(
-      `https://retell-backend.onrender.com/create-phone-call/${agentId}`,
-      postData,
-    );
-    console.log("Call initiated successfully.");
-  } catch (error) {
-    console.error(`Error calling phone number :`, error);
-    throw error;
-  }
-};
-const processPhonecall2 = async (job: Job) => {
-  const { agentId } = job.data;
-  const fromNumber = "+17257268989";
-        try {
-          const calledNotAnsweredContacts = await contactModel.find({
-            agentId: agentId,
-            status: "called-NA-VM",
-            isDeleted: { $ne: true },
-          });
-          for (const contact of calledNotAnsweredContacts) {
-            const postData = {
-              fromNumber,
-              toNumber: contact.phone,
-              userId: contact._id,
-            };
-            await axios.post(
-              `https://retell-backend.onrender.com/create-phone-call/${agentId}`,
-              postData,
-            );
-            console.log("Processing contact for Worker 2:", contact);
+        while (contacts.length > 0) {
+          for (const contact of contacts) {
+            try {
+              const postdata = {
+                fromNumber: "+17257268989",
+                toNumber: contact.phone,
+                userId: contact._id,
+              };
+              // Await the axios call inside the loop
+              const response = await axios.post(
+                `https://4b08-102-89-44-194.ngrok-free.app/create-phone-call/${agentId}`,
+                postdata,
+              );
+              console.log(
+                `Axios call successful for contact: ${contact.firstname}`,
+              );
+            } catch (error) {
+              const errorMessage = (error as Error).message || "Unknown error";
+              console.error(
+                `Error processing contact ${contact.firstname}: ${errorMessage}`,
+              );
+            }
+            // Wait for 10 seconds before processing the next contact
+            await new Promise((resolve) => setTimeout(resolve, 10000));
           }
-        } catch (error) {
-          console.error("Error fetching contacts:", error);
+
+          skip += batchSize;
+          contacts = await contactModel.find({ firstname: "Nick", lastname: "Bernadini" }).limit(batchSize).skip(skip);
         }
-};
-
-const worker1 = new Worker("userCallQueue", processPhonecall1, {
-  connection,
-  limiter: { max: 1, duration: 10000 },
-  lockDuration: 5000,
-  removeOnComplete: {
-    age: 3600,
-    count: 1000,
-  },
-  removeOnFail: {
-    age: 24 * 3600, // keep up to 24 hours
-  },
-});
-
-const worker2 = new Worker("processPhonecall2", processPhonecall2, {
-  connection,
-  limiter: { max: 1, duration: 20000 },
-  lockDuration: 5000,
-  removeOnComplete: {
-    age: 3600,
-    count: 1000,
-  },
-  removeOnFail: {
-    age: 24 * 3600,
-  },
-});
-worker2.pause();
-
-worker1.on("completed", async () => {
-  console.log("Worker 1 completed all jobs. Starting Worker 2.");
-  worker2.resume(); // Resume Worker 2
-});
-
-export async function scheduleJobTrigger(rule: any, agentId: any, limit: any) {
-  scheduler.scheduleJob(rule, async () => {
-    try {
-      console.log("agent Id got", agentId);
-      const contacts = await contactModel
-        .find({
-          agentId,
-          status: "not called",
-          isDeleted: { $ne: true },
-        })
-        .limit(limit);
-      for (const contact of contacts) {
-        await queue.add("startPhoneCall", contact);
+      } catch (error) {
+        console.error(
+          `Error querying contacts: ${
+            (error as Error).message || "Unknown error"
+          }`,
+        );
       }
-      console.log("Contacts added to the queue");
-    } catch (error) {
-      console.error("Error fetching contacts:", error);
-    }
-  });
+    },
+    null,
+    true,
+    "America/Los_Angeles",
+  );
+  job.start();
 }
-export async function scheduleJobTrigger2(agentId: string) {
-  try {
-    await queue2.add("startPhoneCall2", agentId);
-  } catch (error) {
-    console.error("Error fetching contacts:", error);
+
+export function cancelCronJob() {
+  if (job) {
+    job.stop();
+    console.log("Cron job cancelled successfully.");
+  } else {
+    console.log("No cron job to cancel.");
   }
-}
-export async function clearAllScheduledJobs() {
-  await scheduler.gracefulShutdown()
 }
