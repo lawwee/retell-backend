@@ -361,7 +361,7 @@ export class Server {
 
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
-      const { hour, minute, recur, agentId, limit } = req.body;
+      const { hour, minute, recur, agentId, limit, fromNumber } = req.body;
       let scheduledTimePST;
 
       if (recur) {
@@ -374,12 +374,13 @@ export class Server {
         const month = nowPST.month() + 1; // Months are zero-based in JavaScript
         scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
       }
-      const { jobId, scheduledTime, fromNumber } = await scheduleCronJob(
+      const { jobId, scheduledTime } = await scheduleCronJob(
         scheduledTimePST,
         agentId,
-        limit
+        limit,
+        fromNumber
       );
-      res.json({ jobId, scheduledTime, fromNumber });
+      res.json({ jobId, scheduledTime });
     });
   }
 
