@@ -116,7 +116,7 @@ async function searchAndRecallContacts(limit: number, agentId: string) {
 
     // Retrieve recalled contacts from the database
     let recalledContacts = await contactModel
-      .find({ firstname: "Nick", lastname:"Bernardini", agentId })
+      .find({ firstname: "Nick", lastname:"Bernadini", agentId })
       .limit(limit);
 
     // Loop over the recalled contacts
