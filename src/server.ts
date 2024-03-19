@@ -22,10 +22,9 @@ import fs from "fs";
 import multer from "multer";
 import { scheduleCronJob } from "./queue";
 import moment from "moment-timezone";
-import { emilyFunctionCallingLlmClient } from "./emily_llm-openai";
-import { oliviaFunctionCallingLlmClient } from "./olivia_llm_openai";
-import { chloeFunctionCallingLlmClient } from "./chloe_llm_openai";
-import { DemoLlmClient} from "./llm_azure_openai"
+import { chloeDemoLlmClient } from "./chloe_llm_openai";
+import { oliviaDemoLlmClient } from "./olivia_llm_openai";
+import { emilyDemoLlmClient } from "./emily_llm-openai";
 
 connectDb();
 export class Server {
@@ -74,6 +73,7 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
+
   handleRegisterCallAPI() {
     this.app.post(
       "/register-call-on-your-server",
@@ -98,6 +98,7 @@ export class Server {
       },
     );
   }
+
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -108,7 +109,7 @@ export class Server {
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with olivia");
-          const oclient = new oliviaFunctionCallingLlmClient();
+          const oclient = new oliviaDemoLlmClient();
           oclient.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -142,7 +143,7 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          const client = new chloeFunctionCallingLlmClient();
+          const client = new chloeDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -176,7 +177,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          const client = new DemoLlmClient();
+          const client = new emilyDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -210,6 +211,7 @@ export class Server {
       },
     );
   }
+
   handleContactSaving() {
     this.app.post("/users/create", async (req: Request, res: Response) => {
       const { firstname, lastname, email, phone, agentId } = req.body;
@@ -225,6 +227,7 @@ export class Server {
       } catch (error) {}
     });
   }
+
   handlecontactGet() {
     this.app.get("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
@@ -234,6 +237,7 @@ export class Server {
       } catch (error) {}
     });
   }
+
   handlecontactDelete() {
     this.app.patch("/users/delete", async (req: Request, res: Response) => {
       const { id } = req.body;
@@ -243,6 +247,7 @@ export class Server {
       } catch (error) {}
     });
   }
+
   handleContactUpdate() {
     this.app.patch("/users/update", async (req: Request, res: Response) => {
       try {
@@ -262,6 +267,7 @@ export class Server {
       }
     });
   }
+
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
@@ -352,6 +358,7 @@ export class Server {
       },
     );
   }
+
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const { hour, minute, recur, agentId, limit } = req.body;
@@ -379,6 +386,7 @@ export class Server {
   cleardb() {
     this.app.delete("/cleardb", async (req: Request, res: Response) => {
       const { agentId } = req.body;
+      console.log(agentId)
       const result = await contactModel.deleteMany({ agentId });
       res.send(`db cleared sucesffully: ${result}`);
     });

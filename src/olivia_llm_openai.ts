@@ -3,21 +3,13 @@ import {
   AzureKeyCredential,
   ChatRequestMessage,
   GetChatCompletionsOptions,
-  ChatCompletionsFunctionToolDefinition,
 } from "@azure/openai";
 import { WebSocket } from "ws";
 import { RetellRequest, RetellResponse, Utterance } from "./types";
 
-//Step 1: Define the structure to parse openAI function calling result to our data model
+let beginSentence: string = "";
 let agentPrompt: string;
-export interface FunctionCall {
-  id: string;
-  funcName: string;
-  arguments: Record<string, any>;
-  result?: string;
-}
-
-export class oliviaFunctionCallingLlmClient {
+export class oliviaDemoLlmClient {
   private client: OpenAIClient;
 
   constructor() {
@@ -29,15 +21,15 @@ export class oliviaFunctionCallingLlmClient {
 
   // First sentence requested
   BeginMessage(ws: WebSocket, firstname: string, email: string) {
-    const beginSentence = ` Hi, is this ${firstname}`;
-    agentPrompt =  `Task: As a distinguished Sales Development Representative for Virtual Team Expert, you provide expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management, content creation, and more. Your objective during this call is to schedule a meeting with the sales manager to explore our services' benefits tailored to the prospect's business needs, following up on a prior inquiry they submitted. Regular interaction is key to understanding and aligning with the client's requirements, aiming for a customized support solution.
+    beginSentence = ` Hi, is this ${firstname}`;
+    agentPrompt = `Task: As a distinguished Sales Development Representative for Virtual Team Expert, you provide expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management, content creation, and more. Your objective during this call is to schedule a meeting with the sales manager to explore our services' benefits tailored to the prospect's business needs, following up on a prior inquiry they submitted. Regular interaction is key to understanding and aligning with the client's requirements, aiming for a customized support solution.
 
 \n\nConversational Style: Engage in a natural, energetic, and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high energy, conversational style. Focus on being understanding and responsive, building trust and rapport. Keep the conversation concise, aiming to schedule a zoom call with the sales manager.
 
 \n\nPersonality: Your approach should be warm and inviting, yet professional, emphasizing how our services can benefit the client's business.
 
 \n\nRules: 1. Only schedule appointments for next Monday at 8:30 or 9:30 pacific. If the user is not available next Monday at 8:30 or 9:30 pacific, suggest Tuesday at 11:30 or 1 pacific. If the user is not available for either of the suggested days or times (proceed to step 4).
-
+ 
 (If user starts call with: "Hi this is ${firstname} (proceed to step 2), if user starts call with: "Hello", "Hi", "company greeting" or similar greeting (proceed to step 1).)
 
 Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if the response is: "no", say: "may I be connected to ${firstname} please?", if the response is: "${firstname}, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." ({ end call }), if the response is: "wrong number", say: "my apologies, have a great day."({ end call }), if the response is: "can I take a message", say: "no thank you, I'll try back at another time." ({ end call }), if the response is: "may I ask who's calling", "who is this", or simialar response say: "Hi, this is Olivia with Virtual Team Expert, following up on an inquiry you submitted for our Virtual Assistant services, ({ pause }) were you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time" or similar objection, say: "I understand, if anything changes, please keep us in mind for future consideration." (proceed to step 7), if the response is: "will do", "I will", "sounds good", or similar response (proceed to step 7).
@@ -64,8 +56,8 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
       Step 5: "Would you be available for a short Zoom call on Monday at 8:30 or 9:30 pacific?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or similar response suggest Tuesday at 11:30 or 1 pacific, if the user is not available for either of the suggested days or times (proceed to step 4).
 
       Step 6: "Great, you're all set for {repeat day and time} (agreed upon day and time from step 3 or step 5), ({ pause }) "Just to confirm, is your email still ${email}?", if the response is: "yes", say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting.", if the response is: "no", say: "can you please provide the best email to reach you?" (Wait for User's response, then continue) 
-      "Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. ({ pause }) We'll remind you about the Zoom call 10 minutes in advance. ({ pause }) Thanks for your time and enjoy the rest of your day!" ({ end call })
-      Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, goodbye." ({ end call })`
+"Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. ({ pause }) We'll remind you about the Zoom call 10 minutes in advance. ({ pause }) Thanks for your time and enjoy the rest of your day!" ({ end call })
+Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, goodbye." ({ end call })`
     const res: RetellResponse = {
       response_id: 0,
       content: beginSentence,
@@ -86,7 +78,7 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
     return result;
   }
 
-  private PreparePrompt(request: RetellRequest, funcResult?: FunctionCall) {
+  private PreparePrompt(request: RetellRequest) {
     let transcript = this.ConversationToChatRequestMessages(request.transcript);
     let requestMessages: ChatRequestMessage[] = [
       {
@@ -99,32 +91,6 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
     for (const message of transcript) {
       requestMessages.push(message);
     }
-
-    // Populate func result to prompt so that GPT can know what to say given the result
-    if (funcResult) {
-      // add function call to prompt
-      requestMessages.push({
-        role: "assistant",
-        content: null,
-        toolCalls: [
-          {
-            id: funcResult.id,
-            type: "function",
-            function: {
-              name: funcResult.funcName,
-              arguments: JSON.stringify(funcResult.arguments),
-            },
-          },
-        ],
-      });
-      // add function call result to prompt
-      requestMessages.push({
-        role: "tool",
-        toolCallId: funcResult.id,
-        content: funcResult.result,
-      });
-    }
-
     if (request.interaction_type === "reminder_required") {
       requestMessages.push({
         role: "user",
@@ -134,62 +100,7 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
     return requestMessages;
   }
 
-  // Step 2: Prepare the function calling definition to the prompt
-  private PrepareFunctions(): ChatCompletionsFunctionToolDefinition[] {
-    let functions: ChatCompletionsFunctionToolDefinition[] = [
-      // Function to decide when to end call
-      {
-        type: "function",
-        function: {
-          name: "end_call",
-          description: "End the call only when user explicitly requests it.",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description:
-                  "The message you will say before ending the call with the customer.",
-              },
-            },
-            required: ["message"],
-          },
-        },
-      },
-
-      // function to book appointment
-      {
-        type: "function",
-        function: {
-          name: "book_appointment",
-          description: "Book an appointment to meet our doctor in office.",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description:
-                  "The message you will say while setting up the appointment like 'one moment'",
-              },
-              date: {
-                type: "string",
-                description:
-                  "The date of appointment to make in forms of year-month-day.",
-              },
-            },
-            required: ["message"],
-          },
-        },
-      },
-    ];
-    return functions;
-  }
-
-  async DraftResponse(
-    request: RetellRequest,
-    ws: WebSocket,
-    funcResult?: FunctionCall,
-  ) {
+  async DraftResponse(request: RetellRequest, ws: WebSocket) {
     console.clear();
     console.log("req", request);
 
@@ -197,23 +108,13 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
       // process live transcript update if needed
       return;
     }
-
-    // If there are function call results, add it to prompt here.
-    const requestMessages: ChatRequestMessage[] = this.PreparePrompt(
-      request,
-      funcResult,
-    );
+    const requestMessages: ChatRequestMessage[] = this.PreparePrompt(request);
 
     const option: GetChatCompletionsOptions = {
       temperature: 0.3,
       maxTokens: 200,
       frequencyPenalty: 1,
-      // Step 3: Add the function into your request
-      tools: this.PrepareFunctions(),
     };
-
-    let funcCall: FunctionCall;
-    let funcArguments = "";
 
     try {
       let events = await this.client.streamChatCompletions(
@@ -225,85 +126,27 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
       for await (const event of events) {
         if (event.choices.length >= 1) {
           let delta = event.choices[0].delta;
-          if (!delta) continue;
-
-          // Step 4: Extract the functions
-          if (delta.toolCalls.length >= 1) {
-            const toolCall = delta.toolCalls[0];
-            // Function calling here.
-            if (toolCall.id) {
-              if (funcCall) {
-                // Another function received, old function complete, can break here.
-                // You can also modify this to parse more functions to unlock parallel function calling.
-                break;
-              } else {
-                funcCall = {
-                  id: toolCall.id,
-                  funcName: toolCall.function.name || "",
-                  arguments: {},
-                };
-              }
-            } else {
-              // append argument
-              funcArguments += toolCall.function?.arguments || "";
-            }
-          } else if (delta.content) {
-            const res: RetellResponse = {
-              response_id: request.response_id,
-              content: delta.content,
-              content_complete: false,
-              end_call: false,
-            };
-            ws.send(JSON.stringify(res));
-          }
+          if (!delta || !delta.content) continue;
+          const res: RetellResponse = {
+            response_id: request.response_id,
+            content: delta.content,
+            content_complete: false,
+            end_call: false,
+          };
+          ws.send(JSON.stringify(res));
         }
       }
     } catch (err) {
       console.error("Error in gpt stream: ", err);
     } finally {
-      if (funcCall != null) {
-        // Step 5: Call the functions
-
-        // If it's to end the call, simply send a last message and end the call
-        if (funcCall.funcName === "end_call") {
-          funcCall.arguments = JSON.parse(funcArguments);
-          const res: RetellResponse = {
-            response_id: request.response_id,
-            content: funcCall.arguments.message,
-            content_complete: true,
-            end_call: true,
-          };
-          ws.send(JSON.stringify(res));
-        }
-
-        // If it's to book appointment, say something and book appointment at the same time, and then say something after booking is done
-        if (funcCall.funcName === "book_appointment") {
-          funcCall.arguments = JSON.parse(funcArguments);
-          const res: RetellResponse = {
-            response_id: request.response_id,
-            // LLM will return the function name along with the message property we define. In this case, "The message you will say while setting up the appointment like 'one moment'"
-            content: funcCall.arguments.message,
-            // If content_complete is false, it means AI will speak later. In our case, agent will say something to confirm the appointment, so we set it to false
-            content_complete: false,
-            end_call: false,
-          };
-          ws.send(JSON.stringify(res));
-
-          // Sleep 2s to mimic the actual appointment booking
-          // Replace with your actual making appointment functions
-          await new Promise((r) => setTimeout(r, 2000));
-          funcCall.result = "Appointment booked successfully";
-          this.DraftResponse(request, ws, funcCall);
-        }
-      } else {
-        const res: RetellResponse = {
-          response_id: request.response_id,
-          content: "",
-          content_complete: true,
-          end_call: false,
-        };
-        ws.send(JSON.stringify(res));
-      }
+      // Send a content complete no matter if error or not.
+      const res: RetellResponse = {
+        response_id: request.response_id,
+        content: "",
+        content_complete: true,
+        end_call: false,
+      };
+      ws.send(JSON.stringify(res));
     }
   }
 }
