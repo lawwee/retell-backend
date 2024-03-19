@@ -206,7 +206,7 @@ export class Server {
               console.error("Error in parsing LLM websocket message: ", err);
               ws.close(1002, "Cannot parse incoming message.");
             }
-          });
+          }); 
         }
       },
     );
