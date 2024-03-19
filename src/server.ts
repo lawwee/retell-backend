@@ -384,7 +384,7 @@ export class Server {
   }
 
   getjobstatus() {
-    this.app.post("/status", async (req: Request, res: Response) => {
+    this.app.post("/schedules/status", async (req: Request, res: Response) => {
       const { jobId } = req.body;
       const result =  await jobModel.findOne({callId: jobId})
       res.status(200).send(result)

@@ -41,7 +41,7 @@ export async function scheduleCronJob(
             };
             // Await the axios call inside the loop
             await axios.post(
-              `https://523e-102-89-47-26.ngrok-free.app/create-phone-call/${agentId}`,
+              `https://retell-backend-yy86.onrender.com/create-phone-call/${agentId}`,
               postdata,
             );
             // await axios.post(
@@ -116,7 +116,7 @@ async function searchAndRecallContacts(limit: number, agentId: string) {
 
     // Retrieve recalled contacts from the database
     let recalledContacts = await contactModel
-      .find({ firstname: "NIck", agentId })
+      .find({ firstname: "Nick", agentId })
       .limit(limit);
 
     // Loop over the recalled contacts
@@ -129,7 +129,7 @@ async function searchAndRecallContacts(limit: number, agentId: string) {
         };
         // Await the axios call inside the loop
         await axios.post(
-          `https://523e-102-89-47-26.ngrok-free.app/create-phone-call/${agentId}`,
+          `https://retell-backend-yy86.onrender.com/create-phone-call/${agentId}`,
           postdata,
         );
         console.log(
