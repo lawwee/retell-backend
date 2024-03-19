@@ -28,7 +28,7 @@ export async function scheduleCronJob(
 
         // Retrieve contacts from the database
         let contacts = await contactModel
-          .find({ firstname: "NIck", agentId })
+          .find({ firstname: "Nick", lastname:"Bernardini",agentId })
           .limit(totalContacts); // Limit the number of contacts retrieved by the totalContacts value
           console.log("the number of contact is", contacts)
         // Loop over the retrieved contacts
@@ -116,7 +116,7 @@ async function searchAndRecallContacts(limit: number, agentId: string) {
 
     // Retrieve recalled contacts from the database
     let recalledContacts = await contactModel
-      .find({ firstname: "Nick", agentId })
+      .find({ firstname: "Nick", lastname:"Bernardini", agentId })
       .limit(limit);
 
     // Loop over the recalled contacts
