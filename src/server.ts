@@ -374,12 +374,12 @@ export class Server {
         const month = nowPST.month() + 1; // Months are zero-based in JavaScript
         scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
       }
-      const { jobId, scheduledTime } = await scheduleCronJob(
+      const { jobId, scheduledTime, fromNumber } = await scheduleCronJob(
         scheduledTimePST,
         agentId,
-        limit,
+        limit
       );
-      res.json({ jobId, scheduledTime });
+      res.json({ jobId, scheduledTime, fromNumber });
     });
   }
 

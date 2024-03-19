@@ -11,6 +11,7 @@ export async function scheduleCronJob(
   scheduledTimePST: string,
   agentId: string,
   limit: string,
+  fromNumber: string
 ) {
   const jobId = uuidv4();
   await jobModel.create({ callstatus: jobstatus.QUEUED, jobId });
@@ -22,20 +23,25 @@ export async function scheduleCronJob(
           { callId: jobId },
           { callstatus: jobstatus.ON_CALL },
         );
+
         const totalContacts = parseInt(limit); // Total number of contacts to be processed
         const batchSize = 100; // Batch size for each query
-        let processedContacts = 0; // Counter for processed contacts
+        let processedContacts: number = 0; // Counter for processed contacts
 
-        // Retrieve contacts from the database
         let contacts = await contactModel
-          .find({ firstname: "Nick", lastname:"Bernadini",agentId })
-          .limit(totalContacts); // Limit the number of contacts retrieved by the totalContacts value
+          .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+          .limit(totalContacts);
+        
+        // Retrieve contacts from the database
+        // let contacts = await contactModel
+        //   .find({ status: "not called" ,agentId })
+        //   .limit(totalContacts); // Limit the number of contacts retrieved by the totalContacts value
           console.log("the number of contact is", contacts)
         // Loop over the retrieved contacts
         for (const contact of contacts) {
           try {
             const postdata = {
-              fromNumber: "+17257268989",
+              fromNumber,
               toNumber: contact.phone,
               userId: contact._id,
             };
@@ -82,7 +88,7 @@ export async function scheduleCronJob(
         }
 
         // Call the function to search the DB for people who were called but didn't answer and recall them
-        await searchAndRecallContacts(processedContacts, agentId); // Pass the actual number of processed contacts
+        await searchAndRecallContacts(processedContacts, agentId, fromNumber); // Pass the actual number of processed contacts
       } catch (error) {
         console.error(
           `Error querying contacts: ${
@@ -109,21 +115,22 @@ export function cancelCronJob() {
   }
 }
 
-async function searchAndRecallContacts(limit: number, agentId: string) {
+async function searchAndRecallContacts(limit: number, agentId: string, fromNumber: string) {
   try {
-    const batchSize = 100; // Batch size for each query
+    // const totalContacts = parseInt(limit); // Total number of contacts to be processed
+    const batchSize = limit; // Batch size for each query
     let processedContacts = 0; // Counter for processed contacts
 
     // Retrieve recalled contacts from the database
-    let recalledContacts = await contactModel
-      .find({ firstname: "Nick", lastname:"Bernadini", agentId })
+    let contacts = await contactModel
+      .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
       .limit(limit);
 
     // Loop over the recalled contacts
-    for (const contact of recalledContacts) {
+    for (const contact of contacts) {
       try {
         const postdata = {
-          fromNumber: "+17257268989",
+          fromNumber,
           toNumber: contact.phone,
           userId: contact._id,
         };
