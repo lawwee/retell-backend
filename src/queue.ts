@@ -153,10 +153,7 @@ async function searchAndRecallContacts(limit: number, agentId: string, fromNumbe
       processedContacts++; // Increment the processed contacts counter
 
       // If all contacts have been processed or the limit has been reached, stop the loop
-      if (
-        processedContacts >= recalledContacts.length ||
-        processedContacts >= limit
-      ) {
+      if (processedContacts >= contacts.length || processedContacts >= limit) {
         break;
       }
     }
