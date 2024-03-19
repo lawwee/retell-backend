@@ -35,7 +35,7 @@ export async function scheduleCronJob(
         for (const contact of contacts) {
           try {
             const postdata = {
-              fromNumber: "+17252552434",
+              fromNumber: "+7257268989",
               toNumber: contact.phone,
               userId: contact._id,
             };
@@ -123,7 +123,7 @@ async function searchAndRecallContacts(limit: number, agentId: string) {
     for (const contact of recalledContacts) {
       try {
         const postdata = {
-          fromNumber: "+17252552434",
+          fromNumber: "+7257268989",
           toNumber: contact.phone,
           userId: contact._id,
         };
