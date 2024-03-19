@@ -1,5 +1,4 @@
 import cors from "cors";
-import axios from "axios";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
 import { Server as HTTPServer, createServer } from "http";
@@ -15,10 +14,7 @@ import {
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
-import { connectDb, contactModel } from "./contacts/contact_model";
-import { chloeFunctionCallingLlmClient } from "./chloe_llm_openai";
-import { emilyFunctionCallingLlmClient } from "./emily_llm-openai";
-import { olivaFunctionCallingLlmClient } from "./olivia_llm_openai";
+import { connectDb, contactModel, jobModel } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
 import { IContact, RetellRequest, callstatusenum } from "./types";
 import * as Papa from "papaparse";
@@ -26,15 +22,14 @@ import fs from "fs";
 import multer from "multer";
 import { scheduleCronJob } from "./queue";
 import moment from "moment-timezone";
-import { FunctionCallingLlmClient } from "./llm_azure_openai_func_call";
+import { emilyFunctionCallingLlmClient } from "./emily_llm-openai";
+import { oliviaFunctionCallingLlmClient } from "./olivia_llm_openai";
+import { chloeFunctionCallingLlmClient } from "./chloe_llm_openai";
 
 connectDb();
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
-  private chloeClient: chloeFunctionCallingLlmClient;
-  private emilyClient: emilyFunctionCallingLlmClient;
-  private oliviaClient: olivaFunctionCallingLlmClient;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
 
@@ -63,13 +58,9 @@ export class Server {
     this.handleContactUpdate();
     this.uploadcsvToDb();
     this.schedulemycall();
-    // this.clearqueue();
-    // this.updateCurentdb()
+    this.cleardb();
+    this.getjobstatus()
 
-    // this.llmClient = new DemoLlmClient();
-    this.chloeClient = new chloeFunctionCallingLlmClient()
-    this.emilyClient = new emilyFunctionCallingLlmClient();
-    this.oliviaClient = new olivaFunctionCallingLlmClient();
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -113,14 +104,11 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
-        const firstname = user.firstname;
-        const email = user.email;
-        console.log("this is the agent id", user.agentId);
-        // Start sending the begin message to signal the client is ready.
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with olivia");
-          this.oliviaClient.oliviaBeginMessage(ws, firstname, email);
+          const oclient = new oliviaFunctionCallingLlmClient();
+          oclient.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -143,7 +131,7 @@ export class Server {
             }
             try {
               const request: RetellRequest = JSON.parse(data.toString());
-              this.oliviaClient.DraftResponse(request, ws);
+              oclient.DraftResponse(request, ws);
             } catch (err) {
               console.error("Error in parsing LLM websocket message: ", err);
               ws.close(1002, "Cannot parse incoming message.");
@@ -153,7 +141,8 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          this.chloeClient.chloeBeginMessage(ws, firstname, email);
+          const client = new chloeFunctionCallingLlmClient();
+          client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -176,16 +165,18 @@ export class Server {
             }
             try {
               const request: RetellRequest = JSON.parse(data.toString());
-              this.chloeClient.DraftResponse(request, ws);
+              client.DraftResponse(request, ws);
             } catch (err) {
               console.error("Error in parsing LLM websocket message: ", err);
               ws.close(1002, "Cannot parse incoming message.");
             }
           });
         }
+
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          this.emilyClient.emilyBeginMessage(ws, firstname, email);
+          const client = new emilyFunctionCallingLlmClient();
+          client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -208,7 +199,7 @@ export class Server {
             }
             try {
               const request: RetellRequest = JSON.parse(data.toString());
-              this.emilyClient.DraftResponse(request, ws);
+              client.DraftResponse(request, ws);
             } catch (err) {
               console.error("Error in parsing LLM websocket message: ", err);
               ws.close(1002, "Cannot parse incoming message.");
@@ -298,6 +289,7 @@ export class Server {
       },
     );
   }
+  
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
@@ -361,7 +353,7 @@ export class Server {
   }
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
-      const { hour, minute, recur , agentId} = req.body;
+      const { hour, minute, recur, agentId, limit } = req.body;
       let scheduledTimePST;
 
       if (recur) {
@@ -374,15 +366,28 @@ export class Server {
         const month = nowPST.month() + 1; // Months are zero-based in JavaScript
         scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
       }
-
-      scheduleCronJob(scheduledTimePST, agentId);
-      res.send("done")
+      const { jobId, scheduledTime } = await scheduleCronJob(
+        scheduledTimePST,
+        agentId,
+        limit,
+      );
+      res.json({ jobId, scheduledTime });
     });
   }
+
   cleardb() {
     this.app.delete("/cleardb", async (req: Request, res: Response) => {
-      const agentId = req.body;
-      await contactModel.findOneAndDelete({ agentId });
+      const { agentId } = req.body;
+      const result = await contactModel.deleteMany({ agentId });
+      res.send(`db cleared sucesffully: ${result}`);
+    });
+  }
+
+  getjobstatus() {
+    this.app.post("/status", async (req: Request, res: Response) => {
+      const { jobId } = req.body;
+      const result =  await jobModel.findOne({callId: jobId})
+      res.status(200).send(result)
     });
   }
 }

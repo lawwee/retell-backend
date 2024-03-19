@@ -1,6 +1,6 @@
 import  { Schema, model } from 'mongoose';
 import mongoose from "mongoose"
-import { IContact, callstatusenum } from '../types';
+import { IContact, callstatusenum, jobstatus } from '../types';
 
 const ContactSchema =new Schema<IContact>({
     firstname: {
@@ -36,7 +36,19 @@ const ContactSchema =new Schema<IContact>({
     }
 }, {timestamps: true})
 
+const jobschema = new Schema({
+    callstatus:{
+        type: String,
+        enum:Object.values(jobstatus)
+    },
+    jobId: {
+        type:String,
+        required: true
+    }
+})
+
 export const contactModel  = model<IContact>("Retell", ContactSchema)
+export const jobModel = model<IContact>("RetellJOb", jobschema);
 const db = process.env.URL
 
 export const connectDb = async (): Promise<void> => {
@@ -48,3 +60,4 @@ export const connectDb = async (): Promise<void> => {
 		process.exit(1);
 	}
 };
+

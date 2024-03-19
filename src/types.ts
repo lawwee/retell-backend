@@ -43,3 +43,10 @@ export enum callstatusenum {
 export interface Itranscript {
   transcript: string
 }
+
+export enum jobstatus{
+  QUEUED = "queued",
+  ON_CALL = "Calling",
+  CALLED = "Called"
+
+}

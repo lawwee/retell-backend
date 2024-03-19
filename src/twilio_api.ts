@@ -78,7 +78,6 @@ export class TwilioClient {
     userId: string,
   ) => {
     try {
-      const user = await contactModel.findById(userId)
       const result = await this.twilio.calls.create({
         machineDetection: "Enable", // detects if the other party is IVR
         machineDetectionTimeout: 8,
@@ -126,8 +125,7 @@ export class TwilioClient {
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const userId = req.params.userId
-        const answeredBy = req.body.AnsweredBy;
-        console.log("this is the body", req.body)
+        const answeredBy = req.body.AnsweredBy
         try {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
