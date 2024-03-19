@@ -25,6 +25,7 @@ import moment from "moment-timezone";
 import { emilyFunctionCallingLlmClient } from "./emily_llm-openai";
 import { oliviaFunctionCallingLlmClient } from "./olivia_llm_openai";
 import { chloeFunctionCallingLlmClient } from "./chloe_llm_openai";
+import { DemoLlmClient} from "./llm_azure_openai"
 
 connectDb();
 export class Server {
@@ -175,7 +176,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          const client = new emilyFunctionCallingLlmClient();
+          const client = new DemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
