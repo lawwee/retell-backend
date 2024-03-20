@@ -25,9 +25,7 @@ export async function scheduleCronJob(
         );
 
         const totalContacts = parseInt(limit); // Total number of contacts to be processed
-        const batchSize = 100; // Batch size for each query
         let processedContacts: number = 0; // Counter for processed contacts
-
         let contacts = await contactModel
           .find({ agentId, status: "not called", isDeleted: { $ne: true } })
           .limit(totalContacts);
@@ -117,8 +115,7 @@ export function cancelCronJob() {
 
 async function searchAndRecallContacts(limit: number, agentId: string, fromNumber: string) {
   try {
-    // const totalContacts = parseInt(limit); // Total number of contacts to be processed
-    const batchSize = limit; // Batch size for each query
+    // const totalContacts = parseInt(limit); // Total number of contacts to be processed /
     let processedContacts = 0; // Counter for processed contacts
 
     // Retrieve recalled contacts from the database
