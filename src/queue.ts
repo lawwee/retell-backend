@@ -19,6 +19,7 @@ export async function scheduleCronJob(
     scheduledTimePST,
     async () => {
       try {
+        
         await jobModel.findOneAndUpdate(
           { callId: jobId },
           { callstatus: jobstatus.ON_CALL },
@@ -29,12 +30,6 @@ export async function scheduleCronJob(
         let contacts = await contactModel
           .find({ agentId, status: "not called", isDeleted: { $ne: true } })
           .limit(totalContacts);
-        
-        // Retrieve contacts from the database
-        // let contacts = await contactModel
-        //   .find({ status: "not called" ,agentId })
-        //   .limit(totalContacts); // Limit the number of contacts retrieved by the totalContacts value
-          console.log("the number of contact is", contacts)
         // Loop over the retrieved contacts
         for (const contact of contacts) {
           try {
