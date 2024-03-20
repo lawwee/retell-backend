@@ -44,8 +44,9 @@ const jobschema = new Schema<Ijob>({
     jobId: {
         type:String,
         required: true
-    }
-})
+    },
+    
+},{timestamps: true})
 
 export const contactModel  = model<IContact>("Retell", ContactSchema)
 export const jobModel = model<Ijob>("RetellJOb", jobschema);

@@ -403,7 +403,7 @@ export class Server {
 
   getAllJobSchedule() {
     this.app.get("/schedules/get", async (req: Request, res: Response) => {
-      const result = await jobModel.find()
+      const result = await jobModel.find().sort({ createdAt: "desc" });
       res.json({ result })
     })
   }
