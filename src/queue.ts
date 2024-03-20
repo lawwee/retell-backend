@@ -19,7 +19,7 @@ export async function scheduleCronJob(
     scheduledTimePST,
     async () => {
       await jobModel.findOneAndUpdate(
-        { callId: jobId },
+        {  jobId },
         { callstatus: jobstatus.ON_CALL },
       );
 
@@ -68,7 +68,7 @@ export async function scheduleCronJob(
         // Stop the job after processing all contacts
         job.stop();
         await jobModel.findOneAndUpdate(
-          { callId: jobId },
+          {  jobId },
           { callstatus: jobstatus.CALLED },
         );
         console.log("Cron job stopped successfully.");

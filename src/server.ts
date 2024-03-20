@@ -224,7 +224,7 @@ export class Server {
           agentId,
         );
         res.json({ result });
-      } catch (error) {}
+      } catch (error) { }
     });
   }
 
@@ -234,7 +234,7 @@ export class Server {
       try {
         const result = await getAllContact(agentId);
         res.json({ result });
-      } catch (error) {}
+      } catch (error) { }
     });
   }
 
@@ -244,7 +244,7 @@ export class Server {
       try {
         const result = await deleteOneContact(id);
         res.json({ result });
-      } catch (error) {}
+      } catch (error) { }
     });
   }
 
@@ -396,8 +396,15 @@ export class Server {
   getjobstatus() {
     this.app.post("/schedules/status", async (req: Request, res: Response) => {
       const { jobId } = req.body;
-      const result =  await jobModel.findOne({callId: jobId})
-      res.status(200).send(result)
+      const result = await jobModel.findOne({ jobId })
+      res.json({ result })
     });
+  }
+
+  getAllJobSchedule() {
+    this.app.get("/schedules/get", async (req: Request, res: Response) => {
+      const result = await jobModel.find()
+      res.json({ result })
+    })
   }
 }

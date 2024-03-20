@@ -49,4 +49,9 @@ export enum jobstatus{
   ON_CALL = "Calling",
   CALLED = "Called"
 
+} 
+
+export interface Ijob{
+  callstatus: string,
+  jobId: string
 }
