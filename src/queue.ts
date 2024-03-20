@@ -18,13 +18,12 @@ export async function scheduleCronJob(
   job = new CronJob(
     scheduledTimePST,
     async () => {
-      try {
-        
-        await jobModel.findOneAndUpdate(
-          { callId: jobId },
-          { callstatus: jobstatus.ON_CALL },
-        );
+      await jobModel.findOneAndUpdate(
+        { callId: jobId },
+        { callstatus: jobstatus.ON_CALL },
+      );
 
+      try {
         const totalContacts = parseInt(limit); // Total number of contacts to be processed
         let processedContacts: number = 0; // Counter for processed contacts
         let contacts = await contactModel
@@ -68,14 +67,14 @@ export async function scheduleCronJob(
 
         // Stop the job after processing all contacts
         job.stop();
+        await jobModel.findOneAndUpdate(
+          { callId: jobId },
+          { callstatus: jobstatus.CALLED },
+        );
         console.log("Cron job stopped successfully.");
         // Check if the job is really stopped
         if (!job.running) {
           console.log("Cron job is stopped.");
-          await jobModel.findOneAndUpdate(
-            { callId: jobId },
-            { callstatus: jobstatus.CALLED },
-          );
         } else {
           console.log("Cron job is still running.");
         }
