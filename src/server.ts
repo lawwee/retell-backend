@@ -467,12 +467,12 @@ export class Server {
         try {
           const totalContacts = parseInt(limit);
           let processedContacts: number = 0;
-          // let contacts = await contactModel
-          //   .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-          //   .limit(totalContacts);
           let contacts = await contactModel
-            .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+            .find({ agentId, status: "not called", isDeleted: { $ne: true } })
             .limit(totalContacts);
+          // let contacts = await contactModel
+          //   .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+          //   .limit(totalContacts);
           for (const contact of contacts.reverse()) {
             try {
               const postdata = {
@@ -564,13 +564,13 @@ export class Server {
             userId: contact._id.toString(),
             agentId,
           };
-          // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-          // await this.twilioClient.CreatePhoneCall(
-          //   postdata.fromNumber,
-          //   postdata.toNumber,
-          //   postdata.agentId,
-          //   postdata.userId,
-          // );
+          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          await this.twilioClient.CreatePhoneCall(
+            postdata.fromNumber,
+            postdata.toNumber,
+            postdata.agentId,
+            postdata.userId,
+          );
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
           );
