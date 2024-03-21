@@ -530,7 +530,6 @@ export class Server {
       "America/Los_Angeles",
     );
     job.start();
-    console.log("this is the job object", job);
     return { jobId, scheduledTime: scheduledTimePST };
   }
 
