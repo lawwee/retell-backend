@@ -31,6 +31,7 @@ import { CronJob } from "cron";
 import { v4 as uuidv4 } from "uuid";
 import { jobstatus } from "./types";
 let job: CronJob | null = null;
+// Define a variable to store the job object globally
 connectDb();
 export class Server {
   private httpServer: HTTPServer;
@@ -68,6 +69,7 @@ export class Server {
     this.updateStatus()
     this.getCallLogs();
     this.getAllJobSchedule()
+    this.stopSpecificJob()
 
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
@@ -518,7 +520,7 @@ export class Server {
     );
     job.start();
     console.log("this is the job object", job);
-    return { jobId, scheduledTime: scheduledTimePST };
+    return { jobId, scheduledTime: scheduledTimePST , job};
   }
 
   async searchAndRecallContacts(
@@ -574,14 +576,21 @@ export class Server {
     }
   }
 
-
-  cancelCronJob() {
-    if (job) {
-      job.stop();
-      console.log("Cron job cancelled successfully.");
-    } else {
-      console.log("No cron job to cancel.");
-    }
+  
+  stopSpecificJob() {
+    this.app.post("/cancel-job", async (req: Request, res: Response) => {
+      // Check if job object exists
+      const job: CronJob | null = req.body.job;
+      if (job) {
+        // Stop the job
+        job.stop();
+        console.log("Cron job cancelled successfully.");
+        res.send("Cron job cancelled successfully.");
+      } else {
+        console.log("No cron job to cancel.");
+        res.status(400).send("No cron job to cancel.");
+      }
+    })
   }
 
   getCallLogs() {
