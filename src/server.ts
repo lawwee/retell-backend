@@ -374,6 +374,16 @@ export class Server {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const { hour, minute, recur, agentId, limit, fromNumber } = req.body;
       let scheduledTimePST;
+      const currentDate = new Date();
+
+      // Set the hour and minute components to the desired values
+      currentDate.setUTCHours(hour);
+      currentDate.setUTCMinutes(minute);
+      currentDate.setUTCSeconds(0); // Setting seconds to 0
+      currentDate.setUTCMilliseconds(0); // Setting milliseconds to 0
+      currentDate.setHours(currentDate.getHours() - 8);
+      // Format the date as a string in ISO 8601 format
+      const formattedDate = currentDate.toISOString();
 
       if (recur) {
         // Recurring cron job pattern: Run daily at the specified hour and minute
@@ -390,6 +400,7 @@ export class Server {
         agentId,
         limit,
         fromNumber,
+        formattedDate
       );
       res.json({ jobId, scheduledTime });
     });
@@ -435,14 +446,14 @@ export class Server {
     agentId: string,
     limit: string,
     fromNumber: string,
+    formattedDate: string
   ) {
     const jobId = uuidv4();
-    const parser = cronParser.parseExpression(scheduledTimePST);
     await jobModel.create({
       callstatus: jobstatus.QUEUED,
       jobId,
       agentId,
-      scheduledTime: parser,
+      scheduledTime:formattedDate
     });
     job = new CronJob(
       scheduledTimePST,
