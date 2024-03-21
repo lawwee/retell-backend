@@ -375,16 +375,16 @@ export class Server {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const { hour, minute, recur, agentId, limit, fromNumber } = req.body;
       let scheduledTimePST;
-      const currentDate = new Date();
+      let date = moment().tz("America/Los_Angeles");
 
-      // Set the hour and minute components to the desired values
-      currentDate.setUTCHours(hour);
-      currentDate.setUTCMinutes(minute);
-      currentDate.setUTCSeconds(0); // Setting seconds to 0
-      currentDate.setUTCMilliseconds(0); // Setting milliseconds to 0
-      // Format the date as a string in ISO 8601 format
-      const formattedDate = currentDate.toISOString();
+      // Set the hour and minute for the PST/PDT time
+      date.hour(hour);
+      date.minute(minute);
+      date.second(0); // Set seconds to 0
+      date.millisecond(812); // Set milliseconds, as in your example
 
+      // Format the date, including the correct offset for PST or PDT
+      const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss.SSSZ");
       if (recur) {
         // Recurring cron job pattern: Run daily at the specified hour and minute
         scheduledTimePST = `${minute} ${hour} * * *`;
