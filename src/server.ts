@@ -385,7 +385,7 @@ export class Server {
         const month = nowPST.month() + 1; // Months are zero-based in JavaScript
         scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
       }
-      const { jobId, scheduledTime , job} = await this.schduleCronJob(
+      const { jobId, scheduledTime } = await this.schduleCronJob(
         scheduledTimePST,
         agentId,
         limit,
@@ -523,7 +523,7 @@ export class Server {
     );
     job.start();
     console.log("this is the job object", job);
-    return { jobId, scheduledTime: scheduledTimePST , job};
+    return { jobId, scheduledTime: scheduledTimePST };
   }
 
   async searchAndRecallContacts(
@@ -583,7 +583,7 @@ export class Server {
   stopSpecificJob() {
     this.app.post("/cancel-job", async (req: Request, res: Response) => {
       // Check if job object exists
-      const job: CronJob | null = req.body.job;
+      // const job: CronJob | null = req.body.job;
       if (job) {
         // Stop the job
         job.stop();
