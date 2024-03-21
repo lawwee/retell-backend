@@ -605,7 +605,6 @@ export class Server {
       }
     });
   }
-
   getCallLogs() {
     this.app.get("/call-logs", async (req: Request, res: Response) => {
       const { agentId } = req.body;
