@@ -70,7 +70,7 @@ export class Server {
     this.updateStatus();
     this.getCallLogs();
     this.getAllJobSchedule();
-    this.stopSpecificJob();
+    // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
