@@ -391,7 +391,7 @@ export class Server {
         limit,
         fromNumber,
       );
-      res.json({ jobId, scheduledTime, job });
+      res.json({ jobId, scheduledTime });
     });
   }
 
