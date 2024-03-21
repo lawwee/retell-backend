@@ -29,7 +29,7 @@ import axios from "axios";
 import mongoose from "mongoose";
 import { CronJob } from "cron";
 import { v4 as uuidv4 } from "uuid";
-import cronParser from "cron-parser"
+import cronParser from "cron-parser";
 import { jobstatus } from "./types";
 let job: CronJob | null = null;
 // Define a variable to store the job object globally
@@ -67,10 +67,10 @@ export class Server {
     this.schedulemycall();
     this.cleardb();
     this.getjobstatus();
-    this.updateStatus()
+    this.updateStatus();
     this.getCallLogs();
-    this.getAllJobSchedule()
-    this.stopSpecificJob()
+    this.getAllJobSchedule();
+    this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
       apiKey: process.env.RETELL_API_KEY,
@@ -422,7 +422,10 @@ export class Server {
   updateStatus() {
     this.app.post("users/status/reset", async (req: Request, res: Response) => {
       const { agentId } = req.body;
-      const result = await contactModel.updateMany({ agentId }, { status: "not called" });
+      const result = await contactModel.updateMany(
+        { agentId },
+        { status: "not called" },
+      );
       res.json({ result });
     });
   }
@@ -436,7 +439,12 @@ export class Server {
     const jobId = uuidv4();
     const parser = cronParser.parseExpression(scheduledTimePST);
     const nextDate = parser.next();
-    await jobModel.create({ callstatus: jobstatus.QUEUED, jobId , agentId, scheduledTime:nextDate});
+    await jobModel.create({
+      callstatus: jobstatus.QUEUED,
+      jobId,
+      agentId,
+      scheduledTime: nextDate,
+    });
     job = new CronJob(
       scheduledTimePST,
       async () => {
@@ -446,14 +454,14 @@ export class Server {
         );
 
         try {
-          const totalContacts = parseInt(limit); 
-          let processedContacts: number = 0; 
+          const totalContacts = parseInt(limit);
+          let processedContacts: number = 0;
           // let contacts = await contactModel
           //   .find({ agentId, status: "not called", isDeleted: { $ne: true } })
           //   .limit(totalContacts);
-           let contacts = await contactModel
-             .find({ firstname: "Nick", lastname: "Bernadini", agentId })
-             .limit(totalContacts);
+          let contacts = await contactModel
+            .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+            .limit(totalContacts);
           for (const contact of contacts.reverse()) {
             try {
               const postdata = {
@@ -479,7 +487,7 @@ export class Server {
               );
             }
             await new Promise((resolve) => setTimeout(resolve, 30000));
-            processedContacts++; 
+            processedContacts++;
             if (
               processedContacts >= contacts.length ||
               processedContacts >= totalContacts
@@ -507,7 +515,7 @@ export class Server {
             totalContacts,
             agentId,
             fromNumber,
-            jobId
+            jobId,
           );
         } catch (error) {
           console.error(
@@ -534,7 +542,7 @@ export class Server {
   ) {
     try {
       // const totalContacts = parseInt(limit); // Total number of contacts to be processed /
-      let processedContacts = 0; 
+      let processedContacts = 0;
       let contacts = await contactModel
         .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
         .limit(limit);
@@ -544,7 +552,7 @@ export class Server {
             fromNumber,
             toNumber: contact.phone,
             userId: contact._id.toString(),
-            agentId
+            agentId,
           };
           // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
           // await this.twilioClient.CreatePhoneCall(
@@ -564,7 +572,7 @@ export class Server {
         }
         // Wait for 30 seconds before processing the next contact
         await new Promise((resolve) => setTimeout(resolve, 30000));
-        processedContacts++; 
+        processedContacts++;
         if (
           processedContacts >= contacts.length ||
           processedContacts >= limit
@@ -572,16 +580,18 @@ export class Server {
           break;
         }
       }
-      await jobModel.findOneAndUpdate({jobId},{processedContactsForRedial: processedContacts})
+      await jobModel.findOneAndUpdate(
+        { jobId },
+        { processedContactsForRedial: processedContacts },
+      );
       console.log("Recalled contacts processed:", processedContacts);
     } catch (error) {
       console.error("Error searching and recalling contacts:", error);
     }
   }
 
-  
   stopSpecificJob() {
-    this.app.post("/cancel-job", async (req: Request, res: Response) => {
+    this.app.get("/cancel-job", async (req: Request, res: Response) => {
       // Check if job object exists
       // const job: CronJob | null = req.body.job;
       if (job) {
@@ -593,7 +603,7 @@ export class Server {
         console.log("No cron job to cancel.");
         res.status(400).send("No cron job to cancel.");
       }
-    })
+    });
   }
 
   getCallLogs() {
@@ -601,7 +611,6 @@ export class Server {
       const { agentId } = req.body;
       const result = await jobModel.find({ agentId });
       res.json({ result });
-
     });
   }
 }
