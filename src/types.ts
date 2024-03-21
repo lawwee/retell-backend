@@ -53,5 +53,8 @@ export enum jobstatus{
 
 export interface Ijob{
   callstatus: string,
-  jobId: string
+  jobId: string,
+  processedContacts: number,
+  processedContactsForRedial: number,
+  agentId: string
 }

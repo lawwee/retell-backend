@@ -1,64 +1,79 @@
-import  { Schema, model } from 'mongoose';
-import mongoose from "mongoose"
-import { IContact, Ijob, callstatusenum, jobstatus } from '../types';
+import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
+import { IContact, Ijob, callstatusenum, jobstatus } from "../types";
 
-const ContactSchema =new Schema<IContact>({
+const ContactSchema = new Schema<IContact>(
+  {
     firstname: {
-        type: String
+      type: String,
     },
     email: {
-        type: String
+      type: String,
     },
-    lastname:{
-        type: String
+    lastname: {
+      type: String,
     },
     phone: {
-        type: String
+      type: String,
     },
-    isusercalled:{
-        type: Boolean,
-        default: false
+    isusercalled: {
+      type: Boolean,
+      default: false,
     },
     isDeleted: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
-    callId:{
-        type: String
+    callId: {
+      type: String,
     },
     agentId: {
-        type: String
+      type: String,
     },
-    status:{
-        type: String,
-        enum: Object.values(callstatusenum),
-        default: callstatusenum.NOT_CALLED
-    }
-}, {timestamps: true})
+    status: {
+      type: String,
+      enum: Object.values(callstatusenum),
+      default: callstatusenum.NOT_CALLED,
+    },
+  },
+  { timestamps: true },
+);
 
-const jobschema = new Schema<Ijob>({
-    callstatus:{
-        type: String,
-        enum:Object.values(jobstatus)
+const jobschema = new Schema<Ijob>(
+  {
+    callstatus: {
+      type: String,
+      enum: Object.values(jobstatus),
     },
     jobId: {
-        type:String,
-        required: true
+      type: String,
+      required: true,
     },
-    
-},{timestamps: true})
+    processedContacts: {
+      type: Number,
+      default: 0,
+    },
+    processedContactsForRedial: {
+      type: Number,
+      default: 0,
+    },
+    agentId: {
+      type: String,
+    },
+  },
+  { timestamps: true },
+);
 
-export const contactModel  = model<IContact>("Retell", ContactSchema)
+export const contactModel = model<IContact>("Retell", ContactSchema);
 export const jobModel = model<Ijob>("RetellJOb", jobschema);
-const db = process.env.URL
+const db = process.env.URL;
 
 export const connectDb = async (): Promise<void> => {
-	try {
-		const conn = await mongoose.connect(db);
-		console.log('MongoDB Connected to ' + conn.connection.name);
-	} catch (error) {
-		console.log('Error: ' + (error as Error).message);
-		process.exit(1);
-	}
+  try {
+    const conn = await mongoose.connect(db);
+    console.log("MongoDB Connected to " + conn.connection.name);
+  } catch (error) {
+    console.log("Error: " + (error as Error).message);
+    process.exit(1);
+  }
 };
-
