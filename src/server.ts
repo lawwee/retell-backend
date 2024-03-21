@@ -382,7 +382,6 @@ export class Server {
       currentDate.setUTCMinutes(minute);
       currentDate.setUTCSeconds(0); // Setting seconds to 0
       currentDate.setUTCMilliseconds(0); // Setting milliseconds to 0
-      currentDate.setHours(currentDate.getHours() - 8);
       // Format the date as a string in ISO 8601 format
       const formattedDate = currentDate.toISOString();
 
