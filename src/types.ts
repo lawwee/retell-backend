@@ -56,5 +56,6 @@ export interface Ijob{
   jobId: string,
   processedContacts: number,
   processedContactsForRedial: number,
-  agentId: string
+  agentId: string,
+  scheduledTime: Date
 }

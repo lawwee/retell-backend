@@ -57,7 +57,7 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes" (proceed to step 2), if t
 
       Step 6: "Great, you're all set for {repeat day and time} (agreed upon day and time from step 3 or step 5), ({ pause }) "Just to confirm, is your email still ${email}?", if the response is: "yes", say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting.", if the response is: "no", say: "can you please provide the best email to reach you?" (Wait for User's response, then continue) 
 "Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. ({ pause }) We'll remind you about the Zoom call 10 minutes in advance. ({ pause }) Thanks for your time and enjoy the rest of your day!" ({ end call })
-Step 7: If the call concludes without scheduling an appointment, remain courteous, say: "Thank you, goodbye." ({ end call })`;
+Step 7: If the call concludes without scheduling an appointment, remain courteous, ({pause}) say: "Thank you, goodbye." ({ end call })`;
     const res: RetellResponse = {
       response_id: 0,
       content: beginSentence,

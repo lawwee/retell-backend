@@ -29,6 +29,7 @@ import axios from "axios";
 import mongoose from "mongoose";
 import { CronJob } from "cron";
 import { v4 as uuidv4 } from "uuid";
+import cronParser from "cron-parser"
 import { jobstatus } from "./types";
 let job: CronJob | null = null;
 // Define a variable to store the job object globally
@@ -384,13 +385,13 @@ export class Server {
         const month = nowPST.month() + 1; // Months are zero-based in JavaScript
         scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
       }
-      const { jobId, scheduledTime } = await this.schduleCronJob(
+      const { jobId, scheduledTime , job} = await this.schduleCronJob(
         scheduledTimePST,
         agentId,
         limit,
         fromNumber,
       );
-      res.json({ jobId, scheduledTime });
+      res.json({ jobId, scheduledTime, job });
     });
   }
 
@@ -433,7 +434,9 @@ export class Server {
     fromNumber: string,
   ) {
     const jobId = uuidv4();
-    await jobModel.create({ callstatus: jobstatus.QUEUED, jobId , agentId});
+    const parser = cronParser.parseExpression(scheduledTimePST);
+    const nextDate = parser.next();
+    await jobModel.create({ callstatus: jobstatus.QUEUED, jobId , agentId, scheduledTime:nextDate});
     job = new CronJob(
       scheduledTimePST,
       async () => {

@@ -60,6 +60,7 @@ const jobschema = new Schema<Ijob>(
     agentId: {
       type: String,
     },
+    scheduledTime: { type: Date},
   },
   { timestamps: true },
 );
