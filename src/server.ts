@@ -23,7 +23,7 @@ import multer from "multer";
 // import { scheduleCronJob } from "./queue";
 import moment from "moment-timezone";
 import { chloeDemoLlmClient } from "./chloe_llm_openai";
-import { oliviaDemoLlmClient } from "./olivia_llm_openai";
+import { ethanDemoLlmClient } from "./olivia_llm_openai";
 import { emilyDemoLlmClient } from "./emily_llm-openai";
 import axios from "axios";
 import mongoose from "mongoose";
@@ -120,7 +120,7 @@ export class Server {
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with olivia");
-          const oclient = new oliviaDemoLlmClient();
+          const oclient = new ethanDemoLlmClient();
           oclient.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -438,12 +438,11 @@ export class Server {
   ) {
     const jobId = uuidv4();
     const parser = cronParser.parseExpression(scheduledTimePST);
-    const nextDate = parser.next();
     await jobModel.create({
       callstatus: jobstatus.QUEUED,
       jobId,
       agentId,
-      scheduledTime: nextDate,
+      scheduledTime: parser,
     });
     job = new CronJob(
       scheduledTimePST,
