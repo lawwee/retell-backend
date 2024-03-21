@@ -451,7 +451,7 @@ export class Server {
            let contacts = await contactModel
              .find({ firstname: "Nick", lastname: "Bernadini", agentId })
              .limit(totalContacts);
-          for (const contact of contacts) {
+          for (const contact of contacts.reverse()) {
             try {
               const postdata = {
                 fromNumber,
@@ -535,7 +535,7 @@ export class Server {
       let contacts = await contactModel
         .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
         .limit(limit);
-      for (const contact of contacts) {
+      for (const contact of contacts.reverse()) {
         try {
           const postdata = {
             fromNumber,

@@ -141,7 +141,7 @@ export class TwilioClient {
               audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
               audioEncoding: AudioEncoding.Mulaw,
               sampleRate: 8000,
-              endCallAfterSilenceMs: 11000,
+              endCallAfterSilenceMs: 15000,
               
             },
           );
