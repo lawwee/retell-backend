@@ -381,10 +381,10 @@ export class Server {
       date.hour(hour);
       date.minute(minute);
       date.second(0); // Set seconds to 0
-      date.millisecond(812); // Set milliseconds, as in your example
+      date.millisecond(); // Set milliseconds, as in your example
 
       // Format the date, including the correct offset for PST or PDT
-      const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss.SSSZ");
+      const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
       if (recur) {
         // Recurring cron job pattern: Run daily at the specified hour and minute
         scheduledTimePST = `${minute} ${hour} * * *`;
@@ -466,12 +466,12 @@ export class Server {
         try {
           const totalContacts = parseInt(limit);
           let processedContacts: number = 0;
-          // let contacts = await contactModel
-          //   .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-          //   .limit(totalContacts);
           let contacts = await contactModel
-            .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+            .find({ agentId, status: "not called", isDeleted: { $ne: true } })
             .limit(totalContacts);
+          // let contacts = await contactModel
+          //   .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+          //   .limit(totalContacts);
           for (const contact of contacts.reverse()) {
             try {
               const postdata = {
@@ -563,13 +563,13 @@ export class Server {
             userId: contact._id.toString(),
             agentId,
           };
-          // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-          // await this.twilioClient.CreatePhoneCall(
-          //   postdata.fromNumber,
-          //   postdata.toNumber,
-          //   postdata.agentId,
-          //   postdata.userId,
-          // );
+          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          await this.twilioClient.CreatePhoneCall(
+            postdata.fromNumber,
+            postdata.toNumber,
+            postdata.agentId,
+            postdata.userId,
+          );
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
           );
