@@ -7,6 +7,7 @@ import {
 } from "@azure/openai";
 import { WebSocket } from "ws";
 import { RetellRequest, RetellResponse, Utterance } from "./types";
+import axios from "axios";
 
 //Step 1: Define the structure to parse openAI function calling result to our data model
 export interface FunctionCall {
@@ -51,7 +52,7 @@ Task: As a distinguished Sales Development Representative for Virtual Help Desk,
 \n\nPersonality: Your approach should be warm and inviting, yet professional, emphasizing how our services can benefit the client's business.
 
 \n\nRules: 1. Only schedule appointments for next Wednesday or Thurday at 1PM pacific. If the user is not available next wednesday or Thursday at 1PM, suggest Friday at 8 or 11AM pacific. If the user is not available at any of the suggested days or times (proceed to step 4)."
-`
+`;
 export class FunctionCallingLlmClient {
   private client: OpenAIClient;
 
@@ -135,44 +136,19 @@ export class FunctionCallingLlmClient {
   // Step 2: Prepare the function calling definition to the prompt
   private PrepareFunctions(): ChatCompletionsFunctionToolDefinition[] {
     let functions: ChatCompletionsFunctionToolDefinition[] = [
-      // Function to decide when to end call
-      {
-        type: "function",
-        function: {
-          name: "end_call",
-          description: "End the call only when user explicitly requests it.",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description:
-                  "The message you will say before ending the call with the customer.",
-              },
-            },
-            required: ["message"],
-          },
-        },
-      },
-
       // function to book appointment
       {
         type: "function",
         function: {
-          name: "book_appointment",
-          description: "Book an appointment to meet our doctor in office.",
+          name: "check_availability",
+          description: "Check the availability of appointment times.",
           parameters: {
             type: "object",
             properties: {
               message: {
                 type: "string",
                 description:
-                  "The message you will say while setting up the appointment like 'one moment'",
-              },
-              date: {
-                type: "string",
-                description:
-                  "The date of appointment to make in forms of year-month-day.",
+                  "The message you will say while checking availability like 'What times are available?'",
               },
             },
             required: ["message"],
@@ -180,7 +156,46 @@ export class FunctionCallingLlmClient {
         },
       },
     ];
+
     return functions;
+  }
+
+  async getAvailableTimesFromCalendly(): Promise<string[]> {
+    try {
+      const response = await axios.get(
+        `https://api.calendly.com/user_availability_schedules`,
+        {
+          params: {
+            user: process.env.CALLENDY_URI,
+          },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.CALLENDY_API}`,
+          },
+        },
+      );
+
+      const availableTimes: string[] = [];
+      response.data.collection.forEach((schedule: any) => {
+        schedule.rules.forEach((rule: any) => {
+          if (rule.intervals && rule.intervals.length > 0) {
+            rule.intervals.forEach((interval: any) => {
+              availableTimes.push(
+                `${rule.wday} from ${interval.from} to ${interval.to}`,
+              );
+            });
+          }
+        });
+      });
+
+      return availableTimes;
+    } catch (error) {
+      console.error(
+        "Error fetching availability schedules from Calendly:",
+        error,
+      );
+      return [];
+    }
   }
 
   async DraftResponse(
@@ -261,37 +276,21 @@ export class FunctionCallingLlmClient {
     } finally {
       if (funcCall != null) {
         // Step 5: Call the functions
-
-        // If it's to end the call, simply send a last message and end the call
-        if (funcCall.funcName === "end_call") {
+        // If it's to check appointment availability, call the Calendly API and return available times
+        if (funcCall.funcName === "check_availability") {
           funcCall.arguments = JSON.parse(funcArguments);
+          // Call Calendly API to get available times
+          const availableTimes = await this.getAvailableTimesFromCalendly();
+
           const res: RetellResponse = {
             response_id: request.response_id,
-            content: funcCall.arguments.message,
+            content: `Available appointment times: ${availableTimes.join(
+              ", ",
+            )}`,
             content_complete: true,
-            end_call: true,
-          };
-          ws.send(JSON.stringify(res));
-        }
-
-        // If it's to book appointment, say something and book appointment at the same time, and then say something after booking is done
-        if (funcCall.funcName === "book_appointment") {
-          funcCall.arguments = JSON.parse(funcArguments);
-          const res: RetellResponse = {
-            response_id: request.response_id,
-            // LLM will return the function name along with the message property we define. In this case, "The message you will say while setting up the appointment like 'one moment'"
-            content: funcCall.arguments.message,
-            // If content_complete is false, it means AI will speak later. In our case, agent will say something to confirm the appointment, so we set it to false
-            content_complete: false,
             end_call: false,
           };
           ws.send(JSON.stringify(res));
-
-          // Sleep 2s to mimic the actual appointment booking
-          // Replace with your actual making appointment functions
-          await new Promise((r) => setTimeout(r, 2000));
-          funcCall.result = "Appointment booked successfully";
-          this.DraftResponse(request, ws, funcCall);
         }
       } else {
         const res: RetellResponse = {

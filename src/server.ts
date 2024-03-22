@@ -23,8 +23,8 @@ import multer from "multer";
 // import { scheduleCronJob } from "./queue";
 import moment from "moment-timezone";
 import { chloeDemoLlmClient } from "./chloe_llm_openai";
-import { ethanDemoLlmClient } from "./olivia_llm_openai";
-import { emilyDemoLlmClient } from "./emily_llm-openai";
+import { ethanDemoLlmClient } from "./ethan_llm_openai";
+import { danielDemoLlmClient } from "./daniel_llm-openai";
 import axios from "axios";
 import mongoose from "mongoose";
 import { CronJob } from "cron";
@@ -189,7 +189,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          const client = new emilyDemoLlmClient();
+          const client = new danielDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
