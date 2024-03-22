@@ -431,7 +431,7 @@ export class Server {
   }
 
   updateStatus() {
-    this.app.post("users/status/reset", async (req: Request, res: Response) => {
+    this.app.post("/users/status/reset", async (req: Request, res: Response) => {
       const { agentId } = req.body;
       const result = await contactModel.updateMany(
         { agentId },
