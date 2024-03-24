@@ -16,20 +16,22 @@ import {
 } from "./contacts/contact_controller";
 import { connectDb, contactModel, jobModel } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
-import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
+import { IContact, RetellRequest, callstatusenum } from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
+// import { scheduleCronJob } from "./queue";
 import moment from "moment-timezone";
 import { chloeDemoLlmClient } from "./chloe_llm_openai";
 import { ethanDemoLlmClient } from "./ethan_llm_openai";
 import { danielDemoLlmClient } from "./daniel_llm-openai";
 import axios from "axios";
+import mongoose from "mongoose";
+import { CronJob } from "cron";
 import { v4 as uuidv4 } from "uuid";
-import schedule from "node-schedule";
-import { FunctionCallingLlmClient } from "./llm_azure_openai_func_call";
-process.env.TZ = "America/Los_Angeles";
-// let job: CronJob | null = null;
+import cronParser from "cron-parser";
+import { jobstatus } from "./types";
+let job: CronJob | null = null;
 // Define a variable to store the job object globally
 connectDb();
 export class Server {
@@ -68,9 +70,7 @@ export class Server {
     this.updateStatus();
     this.getTimefromcallendly();
     this.getCallLogs();
-    this.stopSpecificJob();
     this.getAllJobSchedule();
-    this.getAllJob();
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -189,8 +189,8 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          const client = new FunctionCallingLlmClient();
-          client.BeginMessage(ws);
+          const client = new danielDemoLlmClient();
+          client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -371,6 +371,41 @@ export class Server {
     );
   }
 
+  schedulemycall() {
+    this.app.post("/schedule", async (req: Request, res: Response) => {
+      const { hour, minute, recur, agentId, limit, fromNumber } = req.body;
+      let scheduledTimePST;
+      let date = moment().tz("America/Los_Angeles");
+
+      // Set the hour and minute for the PST/PDT time
+      date.hour(hour);
+      date.minute(minute);
+      date.second(0); // Set seconds to 0
+      date.millisecond(); // Set milliseconds, as in your example
+
+      // Format the date, including the correct offset for PST or PDT
+      const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
+      if (recur) {
+        // Recurring cron job pattern: Run daily at the specified hour and minute
+        scheduledTimePST = `${minute} ${hour} * * *`;
+      } else {
+        // Non-recurring cron job pattern: Run once at the specified hour and minute
+        const nowPST = moment().tz("America/Los_Angeles");
+        const dayOfMonth = nowPST.date();
+        const month = nowPST.month() + 1; // Months are zero-based in JavaScript
+        scheduledTimePST = `${minute} ${hour} ${dayOfMonth} ${month} *`;
+      }
+      const { jobId, scheduledTime, job } = await this.schduleCronJob(
+        scheduledTimePST,
+        agentId,
+        limit,
+        fromNumber,
+        formattedDate,
+      );
+      res.send({ jobId, scheduledTime, job });
+    });
+  }
+
   cleardb() {
     this.app.delete("/cleardb", async (req: Request, res: Response) => {
       const { agentId } = req.body;
@@ -408,144 +443,122 @@ export class Server {
       },
     );
   }
-  schedulemycall() {
-    this.app.post("/schedule", async (req: Request, res: Response) => {
-      const { hour, minute, agentId, limit, fromNumber } = req.body;
 
-      // Create a new Date object for the scheduled time in PST timezone
-      const scheduledTimePST = moment
-        .tz("America/Los_Angeles")
-        .set({
-          hour,
-          minute,
-          second: 0,
-          millisecond: 0,
-        })
-        .toDate();
-
-      // Format the date as per the required format (YYYY-MM-DDTHH:mm:ss)
-      const formattedDate = moment(scheduledTimePST).format(
-        "YYYY-MM-DDTHH:mm:ss",
-      );
-
-      // Schedule the job and get jobId and scheduledTime
-      const { jobId, scheduledTime } = await this.scheduleCronJob(
-        scheduledTimePST,
-        agentId,
-        limit,
-        fromNumber,
-        formattedDate,
-      );
-
-      // Send response with jobId and scheduledTime
-      res.send({ jobId, scheduledTime });
-    });
-  }
-
-  async scheduleCronJob(
-    scheduledTimePST: Date,
+  async schduleCronJob(
+    scheduledTimePST: string,
     agentId: string,
     limit: string,
     fromNumber: string,
     formattedDate: string,
   ) {
     const jobId = uuidv4();
-    await jobModel.create({
-      callstatus: jobstatus.QUEUED,
-      jobId,
-      agentId,
-      scheduledTime: formattedDate,
-    });
-    const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
+    // await jobModel.create({
+    //   callstatus: jobstatus.QUEUED,
+    //   jobId,
+    //   agentId,
+    //   scheduledTime: formattedDate,
+    // });
+    job = new CronJob(
+      scheduledTimePST,
+      async () => {
+        // await jobModel.findOneAndUpdate(
+        //   { jobId },
+        //   { callstatus: jobstatus.ON_CALL },
+        // );
 
-      try {
-        await jobModel.findOneAndUpdate(
-          { jobId },
-          { callstatus: jobstatus.ON_CALL },
-        );
-        const contactLimit = parseInt(limit);
-        let processedContacts = 0;
-
-        const contacts = await contactModel
-          .find({ firstname: "Nick", lastname: "Bernadini", agentId })
-          .limit(contactLimit);
-
-        for (const contact of contacts.reverse()) {
-          try {
-            const postdata = {
-              fromNumber,
-              toNumber: contact.phone,
-              userId: contact._id.toString(),
-              agentId,
-            };
-            await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-            await this.twilioClient.CreatePhoneCall(
-              postdata.fromNumber,
-              postdata.toNumber,
-              postdata.agentId,
-              postdata.userId,
-            );
-            console.log(
-              `Axios call successful for contact: ${contact.firstname}`,
-            );
-          } catch (error) {
-            console.error(
-              `Error processing contact ${contact.firstname}: ${
-                (error as Error).message || "Unknown error"
-              }`,
-            );
+        try {
+          const totalContacts = parseInt(limit);
+          let processedContacts: number = 0;
+          // let contacts = await contactModel
+          //   .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+          //   .limit(totalContacts);
+          let contacts = await contactModel
+            .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+            .limit(totalContacts);
+          for (const contact of contacts.reverse()) {
+            try {
+              const postdata = {
+                fromNumber,
+                toNumber: contact.phone,
+                userId: contact._id.toString(),
+                agentId,
+              };
+              // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+              // await this.twilioClient.CreatePhoneCall(
+              //   postdata.fromNumber,
+              //   postdata.toNumber,
+              //   postdata.agentId,
+              //   postdata.userId,
+              // );
+              console.log(
+                `Axios call successful for contact: ${contact.firstname}`,
+              );
+            } catch (error) {
+              const errorMessage = (error as Error).message || "Unknown error";
+              console.error(
+                `Error processing contact ${contact.firstname}: ${errorMessage}`,
+              );
+            }
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+            processedContacts++;
+            if (
+              processedContacts >= contacts.length ||
+              processedContacts >= totalContacts
+            ) {
+              break;
+            }
           }
-          await new Promise((resolve) => setTimeout(resolve, 30000));
-          processedContacts++;
-          if (
-            processedContacts >= contacts.length ||
-            processedContacts >= contactLimit
-          ) {
-            break;
+
+          job.stop();
+          // await jobModel.findOneAndUpdate(
+          //   { jobId },
+          //   { callstatus: jobstatus.CALLED },
+          // );
+          console.log("Cron job stopped successfully.");
+          if (!job.running) {
+            console.log("Cron job is stopped.");
+          } else {
+            console.log("Cron job is still running.");
           }
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { processedContacts: processedContacts },
+          );
+          await this.searchAndRecallContacts(
+            totalContacts,
+            agentId,
+            fromNumber,
+            jobId,
+          );
+        } catch (error) {
+          console.error(
+            `Error querying contacts: ${
+              (error as Error).message || "Unknown error"
+            }`,
+          );
         }
-
-         await jobModel.findOneAndUpdate(
-           { jobId },
-           { processedContacts: processedContacts },
-         );
-        console.log("Contacts processed:", processedContacts);
-        await this.searchAndRecallContacts(
-          contactLimit,
-          agentId,
-          fromNumber,
-          jobId,
-        );
-      } catch (error) {
-        console.error(
-          `Error querying contacts: ${
-            (error as Error).message || "Unknown error"
-          }`,
-        );
-      }
-    });
-
-    console.log(
-      `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
+      },
+      null,
+      true,
+      "America/Los_Angeles",
     );
-
-    return { jobId, scheduledTime: scheduledTimePST };
+    job.start();
+    console.log();
+    return { jobId, scheduledTime: scheduledTimePST, job };
   }
 
   async searchAndRecallContacts(
-    contactLimit: number,
+    limit: number,
     agentId: string,
     fromNumber: string,
     jobId: string,
   ) {
     try {
+      // const totalContacts = parseInt(limit); // Total number of contacts to be processed /
       let processedContacts = 0;
-      // let contacts = await contactModel
-      //   .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
-      //   .limit(contactLimit);
-       const contacts = await contactModel
-         .find({ firstname: "Nick", lastname: "Bernadini", agentId })
-         .limit(contactLimit);
+      let contacts = await contactModel
+        .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
+        .limit(limit);
       for (const contact of contacts.reverse()) {
         try {
           const postdata = {
@@ -554,13 +567,13 @@ export class Server {
             userId: contact._id.toString(),
             agentId,
           };
-          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-          await this.twilioClient.CreatePhoneCall(
-            postdata.fromNumber,
-            postdata.toNumber,
-            postdata.agentId,
-            postdata.userId,
-          );
+          // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          // await this.twilioClient.CreatePhoneCall(
+          //   postdata.fromNumber,
+          //   postdata.toNumber,
+          //   postdata.agentId,
+          //   postdata.userId,
+          // );
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
           );
@@ -575,7 +588,7 @@ export class Server {
         processedContacts++;
         if (
           processedContacts >= contacts.length ||
-          processedContacts >= contactLimit
+          processedContacts >= limit
         ) {
           break;
         }
@@ -591,47 +604,20 @@ export class Server {
   }
 
   stopSpecificJob() {
-    this.app.post("/stop-job", async (req: Request, res: Response) => {
-      const { jobId } = req.body; // Assuming you're sending jobId in the request body
-      const scheduledJobs = schedule.scheduledJobs;
-
-      if (!jobId) {
-        return res.status(404).send(`Please provide an ID`);
-      }
-      // Check if the specified job exists
-      if (!scheduledJobs.hasOwnProperty(jobId)) {
-        return res.status(404).send(`Job with ID ${jobId} not found.`);
-      }
-
-      // Cancel the job using the jobId
-      const isCancelled = schedule.cancelJob(jobId);
-
-      // Wait for the cancellation process to finish
-      if (isCancelled) {
-        res.send(`Job with ID ${jobId} cancelled successfully.`);
+    this.app.get("/cancel-job", async (req: Request, res: Response) => {
+      // Check if job object exists
+      // const job: CronJob | null = req.body.job;
+      if (job) {
+        // Stop the job
+        job.stop();
+        console.log("Cron job cancelled successfully.");
+        res.send("Cron job cancelled successfully.");
       } else {
-        res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
+        console.log("No cron job to cancel.");
+        res.status(400).send("No cron job to cancel.");
       }
     });
   }
-
-  getAllJob() {
-    this.app.get("/get-jobs", async (req: Request, res: Response) => {
-      const scheduledJobs = schedule.scheduledJobs;
-      let responseString = ""; // Initialize an empty string to accumulate job details
-
-      for (const jobId in scheduledJobs) {
-        if (scheduledJobs.hasOwnProperty(jobId)) {
-          const job = scheduledJobs[jobId];
-          responseString += `Job ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n`;
-        }
-      }
-
-      // Send the accumulated job details as the response
-      res.send({ responseString });
-    });
-  }
-
   getCallLogs() {
     this.app.get("/call-logs", async (req: Request, res: Response) => {
       const { agentId } = req.body;

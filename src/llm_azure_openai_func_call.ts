@@ -25,7 +25,7 @@ Step 1: "Hi, is this  Nick?", if the response is: "yes" (proceed to step 2), if 
 
 Step 2: "Hi Nick, I hope your days going well, ({ pause }) This is Emily from Virtual Help Desk with a quick follow up to an inquiry you submitted about our virtual assistant services." ({ pause }) "Were you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time" or similar objection, say: "I understand, if anything changes, please keep us in mind for future consideration." (proceed to step 7). 
 
-Step 3: "Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you.", "Are you available next Wednesday or Thurday at 1PM pacific?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or similar response suggest Friday at 8 or 11AM, if the user is not available at any of the suggested days or times (proceed to step 4).
+Step 3: "Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you.", "Are you available at {Available times}?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or similar response suggest Friday at 8 or 11AM, if the user is not available at any of the suggested days or times (proceed to step 4).
       (Objections to scheduling a zoom call, (proceed to step 4)).
 
 Step 4: Address common objections here with empathy and provide concise, compelling responses:
@@ -40,7 +40,7 @@ Step 4: Address common objections here with empathy and provide concise, compell
       - Objection: "I'm not available next week", or similar objection to step 3 or step 5, Response: "no problem, we will need to give you a call back to schedule another time as we only book calls within a five day period from our initial call." (proceed to step 7).
       - Objection: Definitive "No" to step 3 (proceed to step 7).
       
-Step 5: "Would you be available for a short Zoom call next Wednsday or Thursday at 1pm pacific?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or similar response suggest Friday at 8 or 11AM, if the user is not available at any of the suggested days or times (proceed to step 4).
+Step 5: "Would you be available for a short Zoom call at {Available times}?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or similar response suggest Friday at 8 or 11AM, if the user is not available at any of the suggested days or times (proceed to step 4).
 
 Step 6: "Great, you're all set for {repeat day and time} (agreed upon day and time from step 3 or step 5), "Just to confirm, is your email still the same?", if the response is: "yes", say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting.", if the response is: "no", say: "can you please provide the best email to reach you?" (Wait for User's response, then continue) 
 "Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. We'll remind you about the Zoom call 10 minutes in advance. Thanks for your time and enjoy the rest of your day!" ({ end call })
@@ -51,7 +51,7 @@ Task: As a distinguished Sales Development Representative for Virtual Help Desk,
 
 \n\nPersonality: Your approach should be warm and inviting, yet professional, emphasizing how our services can benefit the client's business.
 
-\n\nRules: 1. Only schedule appointments for next Wednesday or Thurday at 1PM pacific. If the user is not available next wednesday or Thursday at 1PM, suggest Friday at 8 or 11AM pacific. If the user is not available at any of the suggested days or times (proceed to step 4)."
+\n\nRules: 1. Only schedule appointments for {Available times}. If the user is not available next wednesday or Thursday at 1PM, suggest Friday at 8 or 11AM pacific. If the user is not available at any of the suggested days or times (proceed to step 4)."
 `;
 export class FunctionCallingLlmClient {
   private client: OpenAIClient;
@@ -148,7 +148,7 @@ export class FunctionCallingLlmClient {
               message: {
                 type: "string",
                 description:
-                  "The message you will say while checking availability like 'What times are available?'",
+                  "A proposed appointment time suggested by the AI for the user to confirm availability, e.g., 'Will you be available at 9am?'",
               },
             },
             required: ["message"],
@@ -159,7 +159,6 @@ export class FunctionCallingLlmClient {
 
     return functions;
   }
-
   async getAvailableTimesFromCalendly(): Promise<string[]> {
     try {
       const response = await axios.get(
@@ -179,11 +178,9 @@ export class FunctionCallingLlmClient {
       response.data.collection.forEach((schedule: any) => {
         schedule.rules.forEach((rule: any) => {
           if (rule.intervals && rule.intervals.length > 0) {
-            rule.intervals.forEach((interval: any) => {
-              availableTimes.push(
-                `${rule.wday} from ${interval.from} to ${interval.to}`,
-              );
-            });
+            const firstInterval = rule.intervals[0]; // Get the first interval
+            const timeSlot = `${rule.wday} at ${firstInterval.from}`; // Create the time slot string
+            availableTimes.push(timeSlot);
           }
         });
       });
@@ -282,11 +279,16 @@ export class FunctionCallingLlmClient {
           // Call Calendly API to get available times
           const availableTimes = await this.getAvailableTimesFromCalendly();
 
+          let content = ` `;
+          if (availableTimes.length > 0) {
+            content += availableTimes.join(", ");
+          } else {
+            content += "No available appointment times found.";
+          }
+
           const res: RetellResponse = {
             response_id: request.response_id,
-            content: `Available appointment times: ${availableTimes.join(
-              ", ",
-            )}`,
+            content: content,
             content_complete: true,
             end_call: false,
           };
