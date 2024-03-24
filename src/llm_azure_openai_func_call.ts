@@ -201,7 +201,6 @@ export class FunctionCallingLlmClient {
     funcResult?: FunctionCall,
   ) {
     console.clear();
-    console.log("req", request);
 
     if (request.interaction_type === "update_only") {
       // process live transcript update if needed
