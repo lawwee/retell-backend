@@ -51,7 +51,7 @@ Task: As a distinguished Sales Development Representative for Virtual Help Desk,
 
 \n\nPersonality: Your approach should be warm and inviting, yet professional, emphasizing how our services can benefit the client's business.
 
-\n\nRules: 1. Only schedule appointments for {Available times}. If the user is not available next wednesday or Thursday at 1PM, suggest Friday at 8 or 11AM pacific. If the user is not available at any of the suggested days or times (proceed to step 4)."
+\n\nRules: 1. Only schedule appointments for {Available times}. If the user is not available at any of the suggested days or times (proceed to step 4)."
 `;
 export class FunctionCallingLlmClient {
   private client: OpenAIClient;
