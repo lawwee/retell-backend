@@ -159,48 +159,66 @@ export class FunctionCallingLlmClient {
 
     return functions;
   }
-  
 
   async getAvailableTimesFromCalendly(): Promise<string[]> {
-  try {
-    const response = await axios.get(
-      `https://api.calendly.com/user_availability_schedules`,
-      {
-        params: {
-          user: process.env.CALLENDY_URI,
+    try {
+      const response = await axios.get(
+        `https://api.calendly.com/user_availability_schedules`,
+        {
+          params: {
+            user: process.env.CALLENDY_URI,
+          },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.CALLENDY_API}`,
+          },
         },
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.CALLENDY_API}`,
-        },
-      }
-    );
+      );
 
-    const availableTimes: string[] = [];
-    response.data.collection.forEach((schedule: any) => {
-      schedule.rules.forEach((rule: any) => {
-        if (rule.intervals && rule.intervals.length > 0) {
-          const { from } = rule.intervals[0]; // Destructure from
-          const [hour, minute] = from.split(':').map(Number); // Extract hour and minute
+      const availableTimesMap: { [day: string]: string[] } = {};
 
-          // Convert 24-hour format to 12-hour format
-          const period = hour >= 12 ? "pm" : "am";
-          const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
+      response.data.collection.forEach((schedule: any) => {
+        schedule.rules.forEach((rule: any) => {
+          if (rule.intervals && rule.intervals.length > 0) {
+            rule.intervals.forEach((interval: any) => {
+              const { from } = interval; // Destructure from
+              const [hour, minute] = from.split(":").map(Number); // Extract hour and minute
 
-          const formattedTime = `${formattedHour}:${minute}${period}`;
+              // Convert 24-hour format to 12-hour format
+              const period = hour >= 12 ? "pm" : "am";
+              const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
 
-          const timeSlot = `${rule.wday} at ${formattedTime}`; // Create the time slot string
-          availableTimes.push(timeSlot);
-        }
+              const formattedMinute = minute.toString().padStart(2, "0"); // Add leading zero if minute < 10
+
+              const formattedTime = `${formattedHour}:${formattedMinute}${period}`;
+
+              if (!availableTimesMap[rule.wday]) {
+                availableTimesMap[rule.wday] = [formattedTime];
+              } else {
+                availableTimesMap[rule.wday].push(formattedTime);
+              }
+            });
+          }
+        });
       });
-    });
 
-    return availableTimes;
-  } catch (error) {
-    console.error("Error fetching availability schedules from Calendly:", error);
-    return [];
+      let content: string[] = [];
+
+      Object.keys(availableTimesMap).forEach((day: string) => {
+        const times = availableTimesMap[day];
+        const timeString = times.join(" or ");
+        content.push(`${day} at ${timeString}`);
+      });
+
+      return content;
+    } catch (error) {
+      console.error(
+        "Error fetching availability schedules from Calendly:",
+        error,
+      );
+      return ["Error fetching availability schedules from Calendly"];
+    }
   }
-}
 
   async DraftResponse(
     request: RetellRequest,

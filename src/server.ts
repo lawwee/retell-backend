@@ -607,7 +607,10 @@ export class Server {
 
       // Wait for the cancellation process to finish
       if (isCancelled) {
-        await jobModel.findOneAndUpdate({jobId}, {callstatus: jobstatus.CANCELLED})
+        await jobModel.findOneAndUpdate(
+          { jobId },
+          { callstatus: jobstatus.CANCELLED },
+        );
         res.send(`Job with ID ${jobId} cancelled successfully.`);
       } else {
         res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
@@ -684,51 +687,62 @@ export class Server {
 
   getTimefromcallendly() {
     this.app.get("/calender", async (req: Request, res: Response) => {
-      try {
-        const response = await axios.get(
-          `https://api.calendly.com/user_availability_schedules`,
-          {
-            params: {
-              user: process.env.CALLENDY_URI,
-            },
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.CALLENDY_API}`,
-            },
-          },
-        );
+       try {
+    const response = await axios.get(
+      `https://api.calendly.com/user_availability_schedules`,
+      {
+        params: {
+          user: process.env.CALLENDY_URI,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.CALLENDY_API}`,
+        },
+      }
+    );
 
-        // console.log(response.data.collection.name)
-        const availableTimes: string[] = [];
-        response.data.collection.forEach((schedule: any) => {
-          schedule.rules.forEach((rule: any) => {
-            if (rule.intervals && rule.intervals.length > 0) {
-              const firstInterval = rule.intervals[0]; // Get the first interval
-              let hour = parseInt(firstInterval.from.split(":")[0]); // Extract hour
-              const minute = firstInterval.from.split(":")[1]; // Extract minute
+    const availableTimesMap: { [day: string]: string[] } = {};
 
-              // Convert 24-hour format to 12-hour format
-              const period = hour >= 12 ? "pm" : "am";
-              hour = hour % 12 || 12; // Convert hour to 12-hour format
-              const formattedTime = `${hour}:${minute}${period}`;
+    response.data.collection.forEach((schedule: any) => {
+      schedule.rules.forEach((rule: any) => {
+        if (rule.intervals && rule.intervals.length > 0) {
+          rule.intervals.forEach((interval: any) => {
+            const { from } = interval; // Destructure from
+            const [hour, minute] = from.split(":").map(Number); // Extract hour and minute
 
-              const timeSlot = `${rule.wday} at ${formattedTime}`; // Create the time slot string
-              availableTimes.push(timeSlot);
+            // Convert 24-hour format to 12-hour format
+            const period = hour >= 12 ? "pm" : "am";
+            const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
+
+            const formattedMinute = minute.toString().padStart(2, "0"); // Add leading zero if minute < 10
+
+            const formattedTime = `${formattedHour}:${formattedMinute}${period}`;
+
+            if (!availableTimesMap[rule.wday]) {
+              availableTimesMap[rule.wday] = [formattedTime];
+            } else {
+              availableTimesMap[rule.wday].push(formattedTime);
             }
           });
-        });
+        }
+      });
+    });
 
-        // Join the available times into a single string
-        const formattedResponse = availableTimes.join(", ");
+    let content = "";
 
-        res.send(formattedResponse); // Sending the formatted response
-      } catch (error) {
-        console.error(
-          "Error fetching availability schedules from Calendly:",
-          error,
-        );
-        res.status(500).json({ error: "Internal Server Error" }); // Sending an error response
-      }
+    Object.keys(availableTimesMap).forEach((day: string) => {
+      const times = availableTimesMap[day];
+      const timeString = times.join(" or ");
+      content += `${day} at ${timeString}, `;
+    });
+
+    // Remove trailing comma and space
+    content = content.slice(0, -2);
+
+    res.send(content);
+  } catch (error) {
+    console.error("Error fetching availability schedules from Calendly:", error);
+    res.send("Error fetching availability schedules from Calendly");}
     });
   }
 }
