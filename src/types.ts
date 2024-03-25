@@ -47,7 +47,8 @@ export interface Itranscript {
 export enum jobstatus{
   QUEUED = "queued",
   ON_CALL = "Calling",
-  CALLED = "Called"
+  CALLED = "Called",
+  CANCELLED ="cancelled"
 
 } 
 

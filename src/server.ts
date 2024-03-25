@@ -607,6 +607,7 @@ export class Server {
 
       // Wait for the cancellation process to finish
       if (isCancelled) {
+        await jobModel.findOneAndUpdate({jobId}, {callstatus: jobstatus.CANCELLED})
         res.send(`Job with ID ${jobId} cancelled successfully.`);
       } else {
         res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
@@ -697,6 +698,7 @@ export class Server {
           },
         );
 
+        // console.log(response.data.collection.name)
         const availableTimes: string[] = [];
         response.data.collection.forEach((schedule: any) => {
           schedule.rules.forEach((rule: any) => {
