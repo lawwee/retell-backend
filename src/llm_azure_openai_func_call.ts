@@ -159,41 +159,48 @@ export class FunctionCallingLlmClient {
 
     return functions;
   }
+  
+
   async getAvailableTimesFromCalendly(): Promise<string[]> {
-    try {
-      const response = await axios.get(
-        `https://api.calendly.com/user_availability_schedules`,
-        {
-          params: {
-            user: process.env.CALLENDY_URI,
-          },
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.CALLENDY_API}`,
-          },
+  try {
+    const response = await axios.get(
+      `https://api.calendly.com/user_availability_schedules`,
+      {
+        params: {
+          user: process.env.CALLENDY_URI,
         },
-      );
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.CALLENDY_API}`,
+        },
+      }
+    );
 
-      const availableTimes: string[] = [];
-      response.data.collection.forEach((schedule: any) => {
-        schedule.rules.forEach((rule: any) => {
-          if (rule.intervals && rule.intervals.length > 0) {
-            const firstInterval = rule.intervals[0]; // Get the first interval
-            const timeSlot = `${rule.wday} at ${firstInterval.from}`; // Create the time slot string
-            availableTimes.push(timeSlot);
-          }
-        });
+    const availableTimes: string[] = [];
+    response.data.collection.forEach((schedule: any) => {
+      schedule.rules.forEach((rule: any) => {
+        if (rule.intervals && rule.intervals.length > 0) {
+          const { from } = rule.intervals[0]; // Destructure from
+          const [hour, minute] = from.split(':').map(Number); // Extract hour and minute
+
+          // Convert 24-hour format to 12-hour format
+          const period = hour >= 12 ? "pm" : "am";
+          const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
+
+          const formattedTime = `${formattedHour}:${minute}${period}`;
+
+          const timeSlot = `${rule.wday} at ${formattedTime}`; // Create the time slot string
+          availableTimes.push(timeSlot);
+        }
       });
+    });
 
-      return availableTimes;
-    } catch (error) {
-      console.error(
-        "Error fetching availability schedules from Calendly:",
-        error,
-      );
-      return [];
-    }
+    return availableTimes;
+  } catch (error) {
+    console.error("Error fetching availability schedules from Calendly:", error);
+    return [];
   }
+}
 
   async DraftResponse(
     request: RetellRequest,

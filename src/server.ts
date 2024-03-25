@@ -457,7 +457,6 @@ export class Server {
       scheduledTime: formattedDate,
     });
     const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
-
       try {
         await jobModel.findOneAndUpdate(
           { jobId },
@@ -505,10 +504,10 @@ export class Server {
           }
         }
 
-         await jobModel.findOneAndUpdate(
-           { jobId },
-           { processedContacts: processedContacts },
-         );
+        await jobModel.findOneAndUpdate(
+          { jobId },
+          { processedContacts: processedContacts },
+        );
         console.log("Contacts processed:", processedContacts);
         await this.searchAndRecallContacts(
           contactLimit,
@@ -543,9 +542,9 @@ export class Server {
       // let contacts = await contactModel
       //   .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
       //   .limit(contactLimit);
-       const contacts = await contactModel
-         .find({ firstname: "Nick", lastname: "Bernadini", agentId })
-         .limit(contactLimit);
+      const contacts = await contactModel
+        .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+        .limit(contactLimit);
       for (const contact of contacts.reverse()) {
         try {
           const postdata = {
@@ -701,16 +700,24 @@ export class Server {
         const availableTimes: string[] = [];
         response.data.collection.forEach((schedule: any) => {
           schedule.rules.forEach((rule: any) => {
-            if (rule.intervals.length > 0) {
+            if (rule.intervals && rule.intervals.length > 0) {
               const firstInterval = rule.intervals[0]; // Get the first interval
-              const startTime = firstInterval.from; // Extract the start time
-              availableTimes.push(`${rule.wday} at ${startTime}`);
+              let hour = parseInt(firstInterval.from.split(":")[0]); // Extract hour
+              const minute = firstInterval.from.split(":")[1]; // Extract minute
+
+              // Convert 24-hour format to 12-hour format
+              const period = hour >= 12 ? "pm" : "am";
+              hour = hour % 12 || 12; // Convert hour to 12-hour format
+              const formattedTime = `${hour}:${minute}${period}`;
+
+              const timeSlot = `${rule.wday} at ${formattedTime}`; // Create the time slot string
+              availableTimes.push(timeSlot);
             }
           });
         });
 
-        // Combine multiple days and times into a single string
-        const formattedResponse = availableTimes.join(" or ");
+        // Join the available times into a single string
+        const formattedResponse = availableTimes.join(", ");
 
         res.send(formattedResponse); // Sending the formatted response
       } catch (error) {
