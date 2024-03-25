@@ -189,8 +189,8 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with emily");
-          const client = new FunctionCallingLlmClient();
-          client.BeginMessage(ws);
+          const client = new danielDemoLlmClient();
+          client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -465,8 +465,11 @@ export class Server {
         const contactLimit = parseInt(limit);
         let processedContacts = 0;
 
+        // const contacts = await contactModel
+        //   .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+        //   .limit(contactLimit);
         const contacts = await contactModel
-          .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+          .find({ agentId, status: "not called", isDeleted: { $ne: true } })
           .limit(contactLimit);
 
         for (const contact of contacts.reverse()) {
@@ -539,12 +542,12 @@ export class Server {
   ) {
     try {
       let processedContacts = 0;
-      // let contacts = await contactModel
-      //   .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
-      //   .limit(contactLimit);
-      const contacts = await contactModel
-        .find({ firstname: "Nick", lastname: "Bernadini", agentId })
+      let contacts = await contactModel
+        .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
         .limit(contactLimit);
+      // let contacts = await contactModel
+      //   .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+      //   .limit(totalContacts);
       for (const contact of contacts.reverse()) {
         try {
           const postdata = {
