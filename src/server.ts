@@ -611,7 +611,7 @@ export class Server {
 
         const job = await jobModel.findOneAndUpdate(
           { jobId },
-          { shouldContinueProcessing: false },
+          { shouldContinueProcessing: false , callstatus: jobstatus.CANCELLED},
         );
 
         if (!job) {
