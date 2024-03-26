@@ -567,7 +567,7 @@ export class Server {
             userId: contact._id.toString(),
             agentId,
           };
-          // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          // await this.twilioClient.RegisterPhoneAgent(`fromNumb`er, agentId);
           // await this.twilioClient.CreatePhoneCall(
           //   postdata.fromNumber,
           //   postdata.toNumber,

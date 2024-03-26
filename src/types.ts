@@ -52,11 +52,12 @@ export enum jobstatus{
 
 } 
 
-export interface Ijob{
-  callstatus: string,
-  jobId: string,
-  processedContacts: number,
-  processedContactsForRedial: number,
-  agentId: string,
-  scheduledTime: string
+export interface Ijob {
+  callstatus: string;
+  jobId: string;
+  processedContacts: number;
+  processedContactsForRedial: number;
+  agentId: string;
+  scheduledTime: string;
+  shouldContinueProcessing:boolean
 }
