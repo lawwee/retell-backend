@@ -5,9 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "NODE_ENV=development nodemon src/index.ts",
-    "start": "pm2-runtime start ecosystem.config.js --env production",
-    "build": "npm install && tsc",
-    "cluster": "pm2 start dist/server.js -i max"
+    "start": "NODE_ENV=development node dist/index.js",
+    "build": "npm install && tsc"
   },
   "author": "",
   "license": "ISC",
