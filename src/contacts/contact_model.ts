@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import {Schema, model } from "mongoose";
 import mongoose from "mongoose";
 import { IContact, Ijob, callstatusenum, jobstatus } from "../types";
 
@@ -61,7 +61,7 @@ const jobschema = new Schema<Ijob>(
       type: String,
     },
     scheduledTime: { type: String },
-    shouldContinueProcessing:{type: Boolean}
+    shouldContinueProcessing:{type: Boolean, default: true}
   },
   { timestamps: true },
 );

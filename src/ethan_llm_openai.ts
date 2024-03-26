@@ -105,8 +105,8 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
   }
 
   async DraftResponse(request: RetellRequest, ws: WebSocket) {
-    console.clear();
-    console.log("req", request);
+    // console.clear();
+    // console.log("req", request);
 
     if (request.interaction_type === "update_only") {
       // process live transcript update if needed
