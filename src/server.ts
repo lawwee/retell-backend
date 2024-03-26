@@ -37,7 +37,7 @@ export class Server {
   public app: expressWs.Application;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
-
+  private shouldContinueProcessing: boolean = true;
   //multer for file upload
   storage = multer.diskStorage({
     destination: "public/", // Destination directory for uploaded files
@@ -68,9 +68,10 @@ export class Server {
     this.updateStatus();
     this.getTimefromcallendly();
     this.getCallLogs();
-    this.stopSpecificJob();
+    this.stopSpecificSchedule();
     this.getAllJobSchedule();
     this.getAllJob();
+    this.stopSpecificJob();
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -450,88 +451,107 @@ export class Server {
     formattedDate: string,
   ) {
     const jobId = uuidv4();
-    await jobModel.create({
-      callstatus: jobstatus.QUEUED,
-      jobId,
-      agentId,
-      scheduledTime: formattedDate,
-    });
-    const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
-      try {
-        await jobModel.findOneAndUpdate(
-          { jobId },
-          { callstatus: jobstatus.ON_CALL },
-        );
-        const contactLimit = parseInt(limit);
-        let processedContacts = 0;
 
-        // const contacts = await contactModel
-        //   .find({ firstname: "Nick", lastname: "Bernadini", agentId })
-        //   .limit(contactLimit);
-        const contacts = await contactModel
-          .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-          .limit(contactLimit);
+    try {
+      // Create a new job entry in the database
+      await jobModel.create({
+        callstatus: jobstatus.QUEUED,
+        jobId,
+        agentId,
+        scheduledTime: formattedDate,
+        shouldContinueProcessing: true, // Initialize the flag for processing
+      });
 
-        for (const contact of contacts.reverse()) {
-          try {
-            const postdata = {
-              fromNumber,
-              toNumber: contact.phone,
-              userId: contact._id.toString(),
-              agentId,
-            };
-            await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-            await this.twilioClient.CreatePhoneCall(
-              postdata.fromNumber,
-              postdata.toNumber,
-              postdata.agentId,
-              postdata.userId,
-            );
-            console.log(
-              `Axios call successful for contact: ${contact.firstname}`,
-            );
-          } catch (error) {
-            console.error(
-              `Error processing contact ${contact.firstname}: ${
-                (error as Error).message || "Unknown error"
-              }`,
-            );
+      // Start the job
+      const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
+        try {
+          // Update the job status to indicate that it's in progress
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: jobstatus.ON_CALL },
+          );
+
+          const contactLimit = parseInt(limit);
+          let processedContacts = 0;
+
+          const contacts = await contactModel
+            .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+            .limit(contactLimit);
+
+          // Loop through contacts
+          for (const contact of contacts.reverse()) {
+            // Check if processing should be stopped
+            const job = await jobModel.findOne({ jobId });
+            if (!job || !job.shouldContinueProcessing) {
+              console.log("Job processing stopped.");
+              break; // Exit the loop if processing should be stopped
+            }
+
+            try {
+              // Process contact...
+              const postdata = {
+                fromNumber,
+                toNumber: contact.phone,
+                userId: contact._id.toString(),
+                agentId,
+              };
+              // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+              // await this.twilioClient.CreatePhoneCall(
+              //     postdata.fromNumber,
+              //     postdata.toNumber,
+              //     postdata.agentId,
+              //     postdata.userId,
+              // );
+              console.log(
+                `Axios call successful for contact: ${contact.firstname}`,
+              );
+
+              // Update the job entry with the number of processed contacts
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { $inc: { processedContacts: 1 } }, // Increment processedContacts by 1
+              );
+            } catch (error) {
+              console.error(
+                `Error processing contact ${contact.firstname}: ${
+                  (error as Error).message || "Unknown error"
+                }`,
+              );
+            }
+
+            // Wait for a specified time before processing the next contact
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+            processedContacts++;
           }
-          await new Promise((resolve) => setTimeout(resolve, 30000));
-          processedContacts++;
-          if (
-            processedContacts >= contacts.length ||
-            processedContacts >= contactLimit
-          ) {
-            break;
-          }
+
+          console.log("Contacts processed:", processedContacts);
+
+          // Call function to search and recall contacts if needed
+          await this.searchAndRecallContacts(
+            contactLimit,
+            agentId,
+            fromNumber,
+            jobId,
+            this.shouldContinueProcessing,
+          );
+        } catch (error) {
+          console.error(
+            `Error querying contacts: ${
+              (error as Error).message || "Unknown error"
+            }`,
+          );
         }
+      });
 
-        await jobModel.findOneAndUpdate(
-          { jobId },
-          { processedContacts: processedContacts },
-        );
-        console.log("Contacts processed:", processedContacts);
-        await this.searchAndRecallContacts(
-          contactLimit,
-          agentId,
-          fromNumber,
-          jobId,
-        );
-      } catch (error) {
-        console.error(
-          `Error querying contacts: ${
-            (error as Error).message || "Unknown error"
-          }`,
-        );
-      }
-    });
+      console.log(
+        `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
+      );
 
-    console.log(
-      `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
-    );
-
-    return { jobId, scheduledTime: scheduledTimePST };
+      return { jobId, scheduledTime: scheduledTimePST };
+    } catch (error) {
+      console.error("Error scheduling job:", error);
+      throw error; // Throw error for handling in the caller function
+    }
   }
 
   async searchAndRecallContacts(
@@ -539,32 +559,46 @@ export class Server {
     agentId: string,
     fromNumber: string,
     jobId: string,
+    shouldContinueProcessing: boolean,
   ) {
     try {
       let processedContacts = 0;
       let contacts = await contactModel
         .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
         .limit(contactLimit);
-      // let contacts = await contactModel
-      //   .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-      //   .limit(totalContacts);
+
+      // Loop through recalled contacts
       for (const contact of contacts.reverse()) {
+        // Check if processing should be stopped
+        const job = await jobModel.findOne({ jobId });
+        if (!job || !job.shouldContinueProcessing) {
+          console.log("Job processing stopped.");
+          break; // Exit the loop if processing should be stopped
+        }
+
         try {
+          // Process recalled contact...
           const postdata = {
             fromNumber,
             toNumber: contact.phone,
             userId: contact._id.toString(),
             agentId,
           };
-          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-          await this.twilioClient.CreatePhoneCall(
-            postdata.fromNumber,
-            postdata.toNumber,
-            postdata.agentId,
-            postdata.userId,
-          );
+          // await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          // await this.twilioClient.CreatePhoneCall(
+          //     postdata.fromNumber,
+          //     postdata.toNumber,
+          //     postdata.agentId,
+          //     postdata.userId,
+          // );
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
+          );
+
+          // Update the job entry with the number of processed recalled contacts
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { $inc: { processedContactsForRedial: 1 } }, // Increment processedContactsForRedial by 1
           );
         } catch (error) {
           const errorMessage = (error as Error).message || "Unknown error";
@@ -572,20 +606,12 @@ export class Server {
             `Error processing recalled contact ${contact.firstname}: ${errorMessage}`,
           );
         }
-        // Wait for 30 seconds before processing the next contact
+
+        // Wait for a specified time before processing the next recalled contact
         await new Promise((resolve) => setTimeout(resolve, 30000));
         processedContacts++;
-        if (
-          processedContacts >= contacts.length ||
-          processedContacts >= contactLimit
-        ) {
-          break;
-        }
       }
-      await jobModel.findOneAndUpdate(
-        { jobId },
-        { processedContactsForRedial: processedContacts },
-      );
+
       console.log("Recalled contacts processed:", processedContacts);
     } catch (error) {
       console.error("Error searching and recalling contacts:", error);
@@ -593,7 +619,13 @@ export class Server {
   }
 
   stopSpecificJob() {
-    this.app.post("/stop-job", async (req: Request, res: Response) => {
+    this.app.get("/stop-job", async (req: Request, res: Response) => {
+      this.shouldContinueProcessing = false; // Set the flag to stop processing
+      res.send("Processing stopped.");
+    });
+  }
+  stopSpecificSchedule() {
+    this.app.post("/cancel-schedule", async (req: Request, res: Response) => {
       const { jobId } = req.body; // Assuming you're sending jobId in the request body
       const scheduledJobs = schedule.scheduledJobs;
 
@@ -690,62 +722,66 @@ export class Server {
 
   getTimefromcallendly() {
     this.app.get("/calender", async (req: Request, res: Response) => {
-       try {
-    const response = await axios.get(
-      `https://api.calendly.com/user_availability_schedules`,
-      {
-        params: {
-          user: process.env.CALLENDY_URI,
-        },
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.CALLENDY_API}`,
-        },
-      }
-    );
+      try {
+        const response = await axios.get(
+          `https://api.calendly.com/user_availability_schedules`,
+          {
+            params: {
+              user: process.env.CALLENDY_URI,
+            },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.CALLENDY_API}`,
+            },
+          },
+        );
 
-    const availableTimesMap: { [day: string]: string[] } = {};
+        const availableTimesMap: { [day: string]: string[] } = {};
 
-    response.data.collection.forEach((schedule: any) => {
-      schedule.rules.forEach((rule: any) => {
-        if (rule.intervals && rule.intervals.length > 0) {
-          rule.intervals.forEach((interval: any) => {
-            const { from } = interval; // Destructure from
-            const [hour, minute] = from.split(":").map(Number); // Extract hour and minute
+        response.data.collection.forEach((schedule: any) => {
+          schedule.rules.forEach((rule: any) => {
+            if (rule.intervals && rule.intervals.length > 0) {
+              rule.intervals.forEach((interval: any) => {
+                const { from } = interval; // Destructure from
+                const [hour, minute] = from.split(":").map(Number); // Extract hour and minute
 
-            // Convert 24-hour format to 12-hour format
-            const period = hour >= 12 ? "pm" : "am";
-            const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
+                // Convert 24-hour format to 12-hour format
+                const period = hour >= 12 ? "pm" : "am";
+                const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
 
-            const formattedMinute = minute.toString().padStart(2, "0"); // Add leading zero if minute < 10
+                const formattedMinute = minute.toString().padStart(2, "0"); // Add leading zero if minute < 10
 
-            const formattedTime = `${formattedHour}:${formattedMinute}${period}`;
+                const formattedTime = `${formattedHour}:${formattedMinute}${period}`;
 
-            if (!availableTimesMap[rule.wday]) {
-              availableTimesMap[rule.wday] = [formattedTime];
-            } else {
-              availableTimesMap[rule.wday].push(formattedTime);
+                if (!availableTimesMap[rule.wday]) {
+                  availableTimesMap[rule.wday] = [formattedTime];
+                } else {
+                  availableTimesMap[rule.wday].push(formattedTime);
+                }
+              });
             }
           });
-        }
-      });
-    });
+        });
 
-    let content = "";
+        let content = "";
 
-    Object.keys(availableTimesMap).forEach((day: string) => {
-      const times = availableTimesMap[day];
-      const timeString = times.join(" or ");
-      content += `${day} at ${timeString}, `;
-    });
+        Object.keys(availableTimesMap).forEach((day: string) => {
+          const times = availableTimesMap[day];
+          const timeString = times.join(" or ");
+          content += `${day} at ${timeString}, `;
+        });
 
-    // Remove trailing comma and space
-    content = content.slice(0, -2);
+        // Remove trailing comma and space
+        content = content.slice(0, -2);
 
-    res.send(content);
-  } catch (error) {
-    console.error("Error fetching availability schedules from Calendly:", error);
-    res.send("Error fetching availability schedules from Calendly");}
+        res.send(content);
+      } catch (error) {
+        console.error(
+          "Error fetching availability schedules from Calendly:",
+          error,
+        );
+        res.send("Error fetching availability schedules from Calendly");
+      }
     });
   }
 }

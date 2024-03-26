@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "NODE_ENV=development nodemon src/index.ts",
-    "start": "NODE_ENV=development node dist/index.js",
-    "build": "npm install && tsc"
+    "start": "pm2-runtime start ecosystem.config.js --env production",
+    "build": "npm install && tsc",
+    "cluster": "pm2 start dist/server.js -i max"
   },
   "author": "",
   "license": "ISC",
@@ -26,6 +27,7 @@
     "node-schedule": "^2.1.1",
     "openai": "^4.26.0",
     "papaparse": "^5.4.1",
+    "pm2": "^5.3.1",
     "retell-sdk": "^2.3.4",
     "twilio": "^4.21.0",
     "uuid": "^9.0.1"
