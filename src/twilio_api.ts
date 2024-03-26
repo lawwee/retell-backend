@@ -88,7 +88,6 @@ export class TwilioClient {
         from: fromNumber,
       });
       console.log(`Call from: ${fromNumber} to: ${toNumber}`);
-      console.log(result)
       return result;
     } catch (error: any) {
       console.error("failed to retrieve caller information: ", error);
@@ -145,7 +144,6 @@ export class TwilioClient {
               
             },
           );
-          console.log("Call response: ", callResponse);
           await contactModel.findByIdAndUpdate(userId, {callId: callResponse.callDetail.callId, status: "ringing"})
           if (callResponse.callDetail) {
             // Start phone call websocket
