@@ -23,9 +23,10 @@ export interface IContact {
   phone: string;
   isusercalled: boolean;
   isDeleted: boolean;
-  callId: any;
+  callId: String;
   status: string;
   agentId: string;
+  referenceToCallId: any
 }
 
 export enum callstatusenum {

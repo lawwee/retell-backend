@@ -25,8 +25,7 @@ const ContactSchema = new Schema<IContact>(
       default: false,
     },
     callId: {
-      type: mongoose.Schema.Types.ObjectId,
-      default: ""
+      type: String,
     },
     agentId: {
       type: String,
@@ -35,6 +34,10 @@ const ContactSchema = new Schema<IContact>(
       type: String,
       enum: Object.values(callstatusenum),
       default: callstatusenum.NOT_CALLED,
+    },
+    referenceToCallId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "transcript",
     },
   },
   { timestamps: true },
@@ -76,10 +79,6 @@ const transcriptSchema = new Schema({
     type: String,
   },
   transcript: { type: String },
-  callerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Retell",
-  },
 });
 
 export const EventModel = model("transcript", transcriptSchema);
