@@ -23,9 +23,9 @@ export interface IContact {
   phone: string;
   isusercalled: boolean;
   isDeleted: boolean;
-  callId: string,
-  status: string,
-  agentId: string
+  callId: any;
+  status: string;
+  agentId: string;
 }
 
 export enum callstatusenum {
@@ -41,16 +41,15 @@ export enum callstatusenum {
 }
 
 export interface Itranscript {
-  transcript: string
+  transcript: string;
 }
 
-export enum jobstatus{
+export enum jobstatus {
   QUEUED = "queued",
   ON_CALL = "Calling",
   CALLED = "Called",
-  CANCELLED ="cancelled"
-
-} 
+  CANCELLED = "cancelled",
+}
 
 export interface Ijob {
   callstatus: string;
@@ -59,5 +58,5 @@ export interface Ijob {
   processedContactsForRedial: number;
   agentId: string;
   scheduledTime: string;
-  shouldContinueProcessing:boolean
+  shouldContinueProcessing: boolean;
 }

@@ -14,7 +14,7 @@ import {
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
-import { connectDb, contactModel, jobModel } from "./contacts/contact_model";
+import { connectDb, contactModel, jobModel , EventModel} from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
 import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
 import * as Papa from "papaparse";
@@ -31,6 +31,7 @@ import { FunctionCallingLlmClient } from "./llm_azure_openai_func_call";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
+import SmeeClient from "smee-client";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -68,7 +69,9 @@ export class Server {
     this.getCallLogs();
     this.stopSpecificSchedule();
     this.getAllJobSchedule();
+    this.getTranscriptAfterCallEnded()
     this.getAllJob();
+    this.getoneuser()
     this.stopSpecificJob();
     // this.stopSpecificJob();
 
@@ -84,6 +87,13 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
+  smee = new SmeeClient({
+    source: "https://smee.io/gRkyib7zF2UwwFV",
+    target: "https://retell-backend-yy86.onrender.com/webhook",
+    logger: console,
+  });
+
+  events = this.smee.start();
 
   handleRegisterCallAPI() {
     this.app.post(
@@ -489,10 +499,10 @@ export class Server {
               };
               await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
               await this.twilioClient.CreatePhoneCall(
-                  postdata.fromNumber,
-                  postdata.toNumber,
-                  postdata.agentId,
-                  postdata.userId,
+                postdata.fromNumber,
+                postdata.toNumber,
+                postdata.agentId,
+                postdata.userId,
               );
               console.log(
                 `Axios call successful for contact: ${contact.firstname}`,
@@ -569,10 +579,10 @@ export class Server {
           };
           await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
           await this.twilioClient.CreatePhoneCall(
-              postdata.fromNumber,
-              postdata.toNumber,
-              postdata.agentId,
-              postdata.userId,
+            postdata.fromNumber,
+            postdata.toNumber,
+            postdata.agentId,
+            postdata.userId,
           );
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
@@ -611,7 +621,7 @@ export class Server {
 
         const job = await jobModel.findOneAndUpdate(
           { jobId },
-          { shouldContinueProcessing: false },
+          { shouldContinueProcessing: false, callstatus: jobstatus.CANCELLED },
         );
 
         if (!job) {
@@ -746,6 +756,64 @@ export class Server {
         );
         res.send("Error fetching availability schedules from Calendly");
       }
+    });
+  }
+
+  // verifyRetellWebhookSignature(request: Request) {
+  //   const signature = request.header("X-Retell-Signature");
+  //   const retell = new RetellClient({ apiKey: process.env.RETELL_API_KEY });
+  //   return retell.verify(
+  //     JSON.stringify(request.body),
+  //     process.env.RETELL_API_KEY,
+  //     signature,
+  //   );
+  // }
+
+  async getTranscriptAfterCallEnded() {
+    this.app.post("/webhook", async (request: Request, response: Response) => {
+      const payload = request.body;
+      // const signatureVerified = this.verifyRetellWebhookSignature(request);
+      // if (!signatureVerified) {
+      //   // If signature verification fails, log an error and return a 401 Unauthorized response
+      //   console.error("Retell webhook signature verification failed.");
+      //   return response.status(401).json({ error: "Unauthorized" });
+      // }e
+      // Check if the event type is call_ended
+      try {
+        if (payload.event === "call_ended") {
+          // Extract call details from the event payload
+          const { event, call_id, transcript } = payload.data;
+
+          // Perform custom actions with the transcript, timestamps, etc.
+          console.log("Event", event);
+          await EventModel.create({
+            event: payload.event,
+            transcript,
+            callId: call_id
+          });
+
+          // Respond with acknowledgment
+          response.json({ Result: "Transcript saved to DB" });
+        } else {
+          // For other event types, if any, you can add corresponding logic here
+          console.log("Received event type:", payload.event);
+          response.json({ received: false, error: "Unsupported event type" });
+        }
+      } catch (error) {
+        console.log(error)
+      }
+      
+    });
+  }
+
+  getoneuser(){
+    this.app.post("/getone", async (request: Request, response: Response) => {
+      const { callId } = request.body;
+      const result = await contactModel.findOne({ callId }).populate({
+      path: 'callId', // Populate the callId field in the ContactSchema
+      model: 'TransciptModel' 
+    });
+      response.send(result)
     });
   }
 }
