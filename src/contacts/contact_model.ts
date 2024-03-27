@@ -1,4 +1,4 @@
-import {Schema, model } from "mongoose";
+import { Schema, model } from "mongoose";
 import mongoose from "mongoose";
 import { IContact, Ijob, callstatusenum, jobstatus } from "../types";
 
@@ -25,7 +25,7 @@ const ContactSchema = new Schema<IContact>(
       default: false,
     },
     callId: {
-      type: String,
+      type: String, // Reference to the nested field in the Event model
     },
     agentId: {
       type: String,
@@ -61,11 +61,23 @@ const jobschema = new Schema<Ijob>(
       type: String,
     },
     scheduledTime: { type: String },
-    shouldContinueProcessing:{type: Boolean, default: true}
+    shouldContinueProcessing: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
 
+const eventSchema = new Schema({
+  event: {
+    type: String,
+    required: true,
+  },
+  callId: {
+    type: String,
+  },
+  transcript: { type: String },
+});
+
+export const EventModel = model("transcript", eventSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);
 export const jobModel = model<Ijob>("RetellJOb", jobschema);
 const db = process.env.URL;
