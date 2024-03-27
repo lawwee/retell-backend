@@ -486,7 +486,8 @@ export class Server {
           let processedContacts = 0;
           const contacts = await contactModel
             .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-            .limit(contactLimit);
+            .limit(contactLimit)
+            .sort({ createdAt: "desc" });
 
           // Loop through contacts
           for (const contact of contacts.reverse()) {
@@ -567,7 +568,8 @@ export class Server {
       let processedContacts = 0;
       let contacts = await contactModel
         .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
-        .limit(contactLimit);
+        .limit(contactLimit)
+        .sort({ createdAt: "desc" });
 
       // Loop through recalled contacts
       for (const contact of contacts.reverse()) {
