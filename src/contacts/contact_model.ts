@@ -25,7 +25,8 @@ const ContactSchema = new Schema<IContact>(
       default: false,
     },
     callId: {
-      type: String, // Reference to the nested field in the Event model
+      type: mongoose.Schema.Types.ObjectId,
+      default: ""
     },
     agentId: {
       type: String,
@@ -66,7 +67,7 @@ const jobschema = new Schema<Ijob>(
   { timestamps: true },
 );
 
-const eventSchema = new Schema({
+const transcriptSchema = new Schema({
   event: {
     type: String,
     required: true,
@@ -75,9 +76,13 @@ const eventSchema = new Schema({
     type: String,
   },
   transcript: { type: String },
+  callerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Retell",
+  },
 });
 
-export const EventModel = model("transcript", eventSchema);
+export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);
 export const jobModel = model<Ijob>("RetellJOb", jobschema);
 const db = process.env.URL;
