@@ -14,7 +14,12 @@ import {
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
-import { connectDb, contactModel, jobModel , EventModel} from "./contacts/contact_model";
+import {
+  connectDb,
+  contactModel,
+  jobModel,
+  EventModel,
+} from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
 import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
 import * as Papa from "papaparse";
@@ -69,9 +74,9 @@ export class Server {
     this.getCallLogs();
     this.stopSpecificSchedule();
     this.getAllJobSchedule();
-    this.getTranscriptAfterCallEnded()
+    this.getTranscriptAfterCallEnded();
     this.getAllJob();
-    this.getoneuser()
+    this.getoneuser();
     this.stopSpecificJob();
     // this.stopSpecificJob();
 
@@ -786,12 +791,15 @@ export class Server {
 
           // Perform custom actions with the transcript, timestamps, etc.
           console.log("Event", event);
-          await EventModel.create({
+          const result = await EventModel.create({
             event: payload.event,
             transcript,
-            callId: call_id
+            callId: call_id,
           });
-
+          const result2 = await contactModel.findOneAndUpdate(
+            { callId: call_id },
+            { referenceToCallId: result._id },
+          );
           // Respond with acknowledgment
           response.json({ Result: "Transcript saved to DB" });
         } else {
@@ -800,20 +808,16 @@ export class Server {
           response.json({ received: false, error: "Unsupported event type" });
         }
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
-      
     });
   }
 
-  getoneuser(){
+  getoneuser() {
     this.app.post("/getone", async (request: Request, response: Response) => {
       const { callId } = request.body;
-      const result = await contactModel.findOne({ callId }).populate({
-      path: 'callId', // Populate the callId field in the ContactSchema
-      model: 'TransciptModel' 
-    });
-      response.send(result)
+      const result = await contactModel.findOne({ callId }).populate("callId");
+      response.send(result);
     });
   }
 }
