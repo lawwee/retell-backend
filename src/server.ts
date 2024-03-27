@@ -78,6 +78,7 @@ export class Server {
     this.getAllJob();
     this.getoneuser();
     this.stopSpecificJob();
+    this.deleteAll()
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -823,4 +824,13 @@ export class Server {
       response.send(result);
     });
   }
+
+  deleteAll(){
+    this.app.patch("/deleteAll", async (req: Request, res: Response) => {
+      const {agentId} =  req.body
+      const result =  await contactModel.updateMany({agentId}, {isDeleted: true})
+      res.send(result)
+    })
+  }
 }
+
