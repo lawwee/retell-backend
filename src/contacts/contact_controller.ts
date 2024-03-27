@@ -32,7 +32,8 @@ export const getAllContact = async (agentId: string): Promise<ContactDocument[] 
   try {
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: { $ne: true } })
-      .sort({ createdAt: "desc" });
+      .sort({ createdAt: "desc" })
+      .populate("referenceToCallId");
     return foundContacts;
   } catch (error) {
     console.error("Error fetching all contacts:", error);

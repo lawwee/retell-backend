@@ -816,7 +816,10 @@ export class Server {
   getoneuser() {
     this.app.post("/getone", async (request: Request, response: Response) => {
       const { callId } = request.body;
-      const result = await contactModel.findOne({ callId }).populate("callId");
+      const result = await contactModel
+        .findOne({ callId })
+        .populate("referenceToCallId");
+      console.log(result)
       response.send(result);
     });
   }
