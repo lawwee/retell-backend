@@ -17,15 +17,13 @@ export interface FunctionCall {
   result?: string;
 }
 
-const beginSentence = "";
-const agentPrompt = `
-(If user starts call with: "Hi this is Nick (proceed to step 2), if user starts call with: "Hello", "Hi", or similar greeting (proceed to step 1))
-
+let beginSentence = "";
+let agentPrompt = `
 Step 1: "Hi, is this  Nick?", if the response is: "yes" (proceed to step 2), if the response is: "no", say: "may I be connected to Nick please?", if the response is: "Nick, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." ({ end call }), if the response is: "wrong number", say: "my apologies, have a great day."({ end call }), if the response is: "can I take a message", say: "no thank you, I'll try back at another time." ({ end call }), if the response is: "may I ask who's calling", "who is this", or simialar response say: "Hi, this is Emily with Virtual Help Desk, following up on an inquiry we received for our Virtual Assistant services. Were you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time" or similar objection, say: "I understand, if anything changes, please keep us in mind for future consideration." (proceed to step 7), if the response is: "will do", "I will", "sounds good", or similar response (proceed to step 7).
 
 Step 2: "Hi Nick, I hope your days going well, ({ pause }) This is Emily from Virtual Help Desk with a quick follow up to an inquiry you submitted about our virtual assistant services." ({ pause }) "Were you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time" or similar objection, say: "I understand, if anything changes, please keep us in mind for future consideration." (proceed to step 7). 
 
-Step 3: "Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you.", "Are you available at {response gotten from check_availability }?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available" or if the user is not available at any of the suggested days or times (proceed to step 4).
+Step 3: "Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you.", "Are you available at (response gotten from check_availability )?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available" or if the user is not available at any of the suggested days or times (proceed to step 4).
       (Objections to scheduling a zoom call, (proceed to step 4)).
 
 Step 4: Address common objections here with empathy and provide concise, compelling responses:
@@ -53,7 +51,7 @@ Task: As a distinguished Sales Development Representative for Virtual Help Desk,
 
 \n\nRules: 1. Only schedule appointments for {response gotten fo check_availability }. If the user is not available at any of the suggested days or times (proceed to step 4)."
 `;
-export class FunctionCallingLlmClient {
+export class testFunctionCallingLlmClient {
   private client: OpenAIClient;
 
   constructor() {
@@ -141,20 +139,18 @@ export class FunctionCallingLlmClient {
         type: "function",
         function: {
           name: "check_availability",
-          description: "Check the availability of appointment times.",
+          description: "Check times for appointment availability",
           parameters: {
             type: "object",
             properties: {
               message: {
                 type: "string",
-                description:
-                  "A proposed appointment time suggested by the AI for the user to confirm availability, e.g., 'Will you be available at 9am?'",
+                description: `The message you will say before checking for appointment availability like "one monment, confirming available times" `,
               },
             },
             required: ["message"],
           },
         },
-        
       },
     ];
 
@@ -297,26 +293,28 @@ export class FunctionCallingLlmClient {
       console.error("Error in gpt stream: ", err);
     } finally {
       if (funcCall != null) {
-        // Step 5: Call the functions
-        // If it's to check appointment availability, call the Calendly API and return available times
         if (funcCall.funcName === "check_availability") {
           funcCall.arguments = JSON.parse(funcArguments);
           // Call Calendly API to get available times
           const availableTimes = await this.getAvailableTimesFromCalendly();
-          let content = ` `;
+          console.log(availableTimes)
+          let result = ` `;
           if (availableTimes.length > 0) {
-            content += availableTimes.join(", ");
+            result += availableTimes.join(", ");
           } else {
-            content += "No available appointment times found.";
+            result += "No available appointment times found.";
           }
 
           const res: RetellResponse = {
             response_id: request.response_id,
-            content: content,
-            content_complete: true,
+            content: funcCall.arguments.message,
+            content_complete: false,
             end_call: false,
           };
           ws.send(JSON.stringify(res));
+
+          funcCall.result = result;
+          this.DraftResponse(request, ws, funcCall);
         }
       } else {
         const res: RetellResponse = {

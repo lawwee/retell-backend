@@ -32,7 +32,7 @@ import { danielDemoLlmClient } from "./daniel_llm-openai";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import schedule from "node-schedule";
-import { FunctionCallingLlmClient } from "./llm_azure_openai_func_call";
+import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
@@ -78,6 +78,7 @@ export class Server {
     this.getAllJob();
     this.getoneuser();
     this.stopSpecificJob();
+    this.deleteAll()
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -134,7 +135,7 @@ export class Server {
         const user = await contactModel.findOne({ callId });
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
-          console.log("Call started with olivia");
+          console.log("Call started with ethan");
           const oclient = new ethanDemoLlmClient();
           oclient.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
@@ -485,7 +486,8 @@ export class Server {
           let processedContacts = 0;
           const contacts = await contactModel
             .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-            .limit(contactLimit);
+            .limit(contactLimit)
+            .sort({ createdAt: "desc" });
 
           // Loop through contacts
           for (const contact of contacts.reverse()) {
@@ -566,7 +568,8 @@ export class Server {
       let processedContacts = 0;
       let contacts = await contactModel
         .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
-        .limit(contactLimit);
+        .limit(contactLimit)
+        .sort({ createdAt: "desc" });
 
       // Loop through recalled contacts
       for (const contact of contacts.reverse()) {
@@ -752,7 +755,7 @@ export class Server {
 
         // Remove trailing comma and space
         content = content.slice(0, -2);
-
+        console.log(content)
         res.send(content);
       } catch (error) {
         console.error(
@@ -791,6 +794,7 @@ export class Server {
 
           // Perform custom actions with the transcript, timestamps, etc.
           console.log("Event", event);
+          console.log(transcript)
           const result = await EventModel.create({
             event: payload.event,
             transcript,
@@ -823,4 +827,13 @@ export class Server {
       response.send(result);
     });
   }
+
+  deleteAll(){
+    this.app.patch("/deleteAll", async (req: Request, res: Response) => {
+      const {agentId} =  req.body
+      const result =  await contactModel.updateMany({agentId}, {isDeleted: true})
+      res.send(result)
+    })
+  }
 }
+
