@@ -18,6 +18,7 @@ export class ethanDemoLlmClient {
       new AzureKeyCredential(process.env.AZURE_OPENAI_KEY),
     );
   }
+  
 
   // First sentence requested
   BeginMessage(ws: WebSocket, firstname: string, email: string) {
