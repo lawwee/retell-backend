@@ -145,6 +145,7 @@ export class TwilioClient {
             },
           );
           await contactModel.findByIdAndUpdate(userId, {callId: callResponse.callDetail.callId, status: "ringing"})
+          console.log("call response", callResponse)
           if (callResponse.callDetail) {
             // Start phone call websocket
             const response = new VoiceResponse();
