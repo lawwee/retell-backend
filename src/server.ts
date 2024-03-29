@@ -33,16 +33,18 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import schedule from "node-schedule";
 import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
+import { createObjectCsvWriter } from "csv-writer";
+import path from "path";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
 import SmeeClient from "smee-client";
+import { katherineDemoLlmClient } from "./be+well_llm_openai";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
   private retellClient: RetellClient;
   private twilioClient: TwilioClient;
-  //multer for file upload
   storage = multer.diskStorage({
     destination: "public/", // Destination directory for uploaded files
     filename: function (req, file, cb) {
@@ -50,13 +52,13 @@ export class Server {
     },
   });
   upload = multer({ storage: this.storage });
-  //con
   constructor() {
     this.app = expressWs(express()).app;
     this.httpServer = createServer(this.app);
     this.app.use(express.json());
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(express.static(path.join(__dirname, "public")));
 
     this.handleRetellLlmWebSocket();
     this.handleRegisterCallAPI();
@@ -78,7 +80,9 @@ export class Server {
     this.getAllJob();
     this.getoneuser();
     this.stopSpecificJob();
-    this.deleteAll()
+    this.deleteAll();
+    this.logsToCsv();
+    this.updatereference();
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -98,7 +102,6 @@ export class Server {
     target: "https://retell-backend-yy86.onrender.com/webhook",
     logger: console,
   });
-
   events = this.smee.start();
 
   handleRegisterCallAPI() {
@@ -134,6 +137,7 @@ export class Server {
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
 
+        //40878d8bd2d1a6fea9756ae2368bab6e
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan");
           const oclient = new ethanDemoLlmClient();
@@ -203,9 +207,9 @@ export class Server {
         }
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
-          console.log("Call started with emily");
-          const client = new danielDemoLlmClient();
-          client.BeginMessage(ws, user.firstname, user.email);
+          console.log("Call started with daniel/emily");
+          const client = new testFunctionCallingLlmClient();
+          client.BeginMessage(ws);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -229,6 +233,39 @@ export class Server {
             try {
               const request: RetellRequest = JSON.parse(data.toString());
               client.DraftResponse(request, ws);
+            } catch (err) {
+              console.error("Error in parsing LLM websocket message: ", err);
+              ws.close(1002, "Cannot parse incoming message.");
+            }
+          });
+        }
+        if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
+          console.log("Call started with ethan");
+          const oclient = new katherineDemoLlmClient();
+          oclient.BeginMessage(ws, user.firstname, user.email);
+          ws.on("error", (err) => {
+            console.error("Error received in LLM websocket client: ", err);
+          });
+          ws.on("close", async (err) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: callstatusenum.CALLED },
+            );
+            console.error("Closing llm ws for: ", callId);
+          });
+          ws.on("message", async (data: RawData, isBinary: boolean) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: "on call" },
+            );
+            console.log(data.toString());
+            if (isBinary) {
+              console.error("Got binary message instead of text in websocket.");
+              ws.close(1002, "Cannot find corresponding Retell LLM.");
+            }
+            try {
+              const request: RetellRequest = JSON.parse(data.toString());
+              oclient.DraftResponse(request, ws);
             } catch (err) {
               console.error("Error in parsing LLM websocket message: ", err);
               ws.close(1002, "Cannot parse incoming message.");
@@ -490,7 +527,7 @@ export class Server {
             .sort({ createdAt: "desc" });
 
           // Loop through contacts
-          for (const contact of contacts.reverse()) {
+          for (const contact of contacts) {
             try {
               // Check if processing should be stopped
               const job = await jobModel.findOne({ jobId });
@@ -570,9 +607,7 @@ export class Server {
         .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
         .limit(contactLimit)
         .sort({ createdAt: "desc" });
-
-      // Loop through recalled contacts
-      for (const contact of contacts.reverse()) {
+      for (const contact of contacts) {
         try {
           const job = await jobModel.findOne({ jobId });
           if (!job || job.shouldContinueProcessing !== true) {
@@ -595,8 +630,6 @@ export class Server {
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
           );
-
-          // Update the job entry with the number of processed recalled contacts
         } catch (error) {
           const errorMessage = (error as Error).message || "Unknown error";
           console.error(
@@ -610,7 +643,6 @@ export class Server {
         );
         processedContacts++;
       }
-
       console.log("Recalled contacts processed:", processedContacts);
     } catch (error) {
       console.error("Error searching and recalling contacts:", error);
@@ -621,12 +653,10 @@ export class Server {
     this.app.post("/stop-job", async (req: Request, res: Response) => {
       try {
         const { jobId } = req.body;
-
         if (!jobId) {
           console.log("No jobId provided.");
           return res.status(400).send("No jobId provided.");
         }
-
         const job = await jobModel.findOneAndUpdate(
           { jobId },
           { shouldContinueProcessing: false, callstatus: jobstatus.CANCELLED },
@@ -636,7 +666,6 @@ export class Server {
           console.log("No job found with the provided jobId:", jobId);
           return res.status(404).send("No job found with the provided jobId.");
         }
-
         console.log(`Processing stopped for job ${jobId}.`);
         return res.send("Processing stopped for job.");
       } catch (error: any) {
@@ -650,7 +679,7 @@ export class Server {
 
   stopSpecificSchedule() {
     this.app.post("/cancel-schedule", async (req: Request, res: Response) => {
-      const { jobId } = req.body; // Assuming you're sending jobId in the request body
+      const { jobId } = req.body;
       const scheduledJobs = schedule.scheduledJobs;
 
       if (!jobId) {
@@ -660,11 +689,7 @@ export class Server {
       if (!scheduledJobs.hasOwnProperty(jobId)) {
         return res.status(404).send(`Job with ID ${jobId} not found.`);
       }
-
-      // Cancel the job using the jobId
       const isCancelled = schedule.cancelJob(jobId);
-
-      // Wait for the cancellation process to finish
       if (isCancelled) {
         await jobModel.findOneAndUpdate(
           { jobId },
@@ -755,7 +780,7 @@ export class Server {
 
         // Remove trailing comma and space
         content = content.slice(0, -2);
-        console.log(content)
+        console.log(content);
         res.send(content);
       } catch (error) {
         console.error(
@@ -766,16 +791,6 @@ export class Server {
       }
     });
   }
-
-  // verifyRetellWebhookSignature(request: Request) {
-  //   const signature = request.header("X-Retell-Signature");
-  //   const retell = new RetellClient({ apiKey: process.env.RETELL_API_KEY });
-  //   return retell.verify(
-  //     JSON.stringify(request.body),
-  //     process.env.RETELL_API_KEY,
-  //     signature,
-  //   );
-  // }
 
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
@@ -794,7 +809,7 @@ export class Server {
 
           // Perform custom actions with the transcript, timestamps, etc.
           console.log("Event", event);
-          console.log(transcript)
+          console.log(transcript);
           const result = await EventModel.create({
             event: payload.event,
             transcript,
@@ -823,17 +838,98 @@ export class Server {
       const result = await contactModel
         .findOne({ callId })
         .populate("referenceToCallId");
-      console.log(result)
+      console.log(result);
       response.send(result);
     });
   }
 
-  deleteAll(){
+  deleteAll() {
     this.app.patch("/deleteAll", async (req: Request, res: Response) => {
-      const {agentId} =  req.body
-      const result =  await contactModel.updateMany({agentId}, {isDeleted: true})
-      res.send(result)
-    })
+      const { agentId } = req.body;
+      const result = await contactModel.updateMany(
+        { agentId },
+        { isDeleted: true },
+      );
+      res.send(result);
+    });
+  }
+
+  logsToCsv() {
+    this.app.post("/get-logs", async (req: Request, res: Response) => {
+      const { agentId, limit } = req.body;
+      const newlimit = parseInt(limit);
+      try {
+        const foundContacts = await contactModel
+          .find({ agentId, isDeleted: { $ne: true } })
+          .sort({ createdAt: "desc" })
+          .populate("referenceToCallId")
+          .limit(newlimit);
+
+        // Extract relevant fields from found contacts
+        const contactsData = foundContacts.map((contact) => ({
+          name: contact.firstname,
+          email: contact.email,
+          phone: contact.phone,
+          status: contact.status,
+          transcript: contact.referenceToCallId?.transcript || "",
+        }));
+
+        // Write contacts data to CSV file
+        const filePath = path.join(__dirname, "..", "public", "logs.csv");
+        console.log("File path:", filePath); // Log file path for debugging
+
+        const csvWriter = createObjectCsvWriter({
+          path: filePath,
+          header: [
+            { id: "name", title: "Name" },
+            { id: "email", title: "Email" },
+            { id: "phone", title: "Phone Number" },
+            { id: "status", title: "Status" },
+            { id: "transcript", title: "Transcript" },
+          ],
+        });
+
+        await csvWriter.writeRecords(contactsData);
+        console.log("CSV file logs.csv has been written successfully");
+
+        // Check if the file exists synchronously
+        if (fs.existsSync(filePath)) {
+          // Set the response headers to trigger file download
+          res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+          res.setHeader("Content-Type", "text/csv");
+
+          // Create a read stream from the CSV file and pipe it to the response
+          const fileStream = fs.createReadStream(filePath);
+          fileStream.pipe(res);
+        } else {
+          console.error("CSV file does not exist");
+          res.status(404).send("CSV file not found");
+        }
+      } catch (error) {
+        console.error(`Error retrieving contacts: ${error}`);
+        res.status(500).send(`Error retrieving contacts: ${error}`);
+      }
+    });
+  }
+
+  updatereference() {
+    this.app.get("/updates", async () => {
+      try {
+        // Update documents where referenceToCallId is missing
+        await contactModel.updateMany(
+          { referenceToCallId: { $exists: false } },
+          {
+            $set: {
+              referenceToCallId: null,
+            },
+          },
+        );
+
+        console.log("Documents updated successfully");
+      } catch (error) {
+        console.error("Error updating documents:", error);
+        throw error; // Throw the error to handle it in the caller function
+      }
+    });
   }
 }
-
