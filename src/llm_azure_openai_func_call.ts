@@ -140,16 +140,6 @@ export class testFunctionCallingLlmClient {
         function: {
           name: "check_availability",
           description: "Check times for appointment availability",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description: `The message you will say before checking for appointment availability `,
-              },
-            },
-            required: ["message"],
-          },
         },
       },
     ];
@@ -306,7 +296,7 @@ export class testFunctionCallingLlmClient {
 
           const res: RetellResponse = {
             response_id: request.response_id,
-            content: funcCall.arguments.message,
+            content: funcCall.arguments.message ,
             content_complete: false,
             end_call: false,
           };
