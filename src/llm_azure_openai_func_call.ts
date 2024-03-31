@@ -145,7 +145,7 @@ export class testFunctionCallingLlmClient {
             properties: {
               message: {
                 type: "string",
-                description: `The message you will say before checking for appointment availability like "one monment, confirming available times" `,
+                description: `The message you will say before checking for appointment availability `,
               },
             },
             required: ["message"],
