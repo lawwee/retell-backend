@@ -86,6 +86,7 @@ export class TwilioClient {
         url: `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`, // Webhook url for registering call
         to: toNumber,
         from: fromNumber,
+        
       });
       console.log(`Call from: ${fromNumber} to: ${toNumber}`);
       return result;
