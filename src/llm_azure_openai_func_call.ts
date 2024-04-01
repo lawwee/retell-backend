@@ -23,7 +23,7 @@ Step 1: "Hi, is this  Nick?", if the response is: "yes" (proceed to step 2), if 
 
 Step 2: "Hi Nick, I hope your days going well, ({ pause }) This is Emily from Virtual Help Desk with a quick follow up to an inquiry you submitted about our virtual assistant services." ({ pause }) "Were you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time" or similar objection, say: "I understand, if anything changes, please keep us in mind for future consideration." (proceed to step 7).
 
-Step 3: "Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you.", "Are you available at {{response gotten from check_availability }}?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available" or if the user is not available at any of the suggested days or times (proceed to step 4).
+Step 3: "Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you.",  {{response gotten from check_availability }}?, if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available" or if the user is not available at any of the suggested days or times (proceed to step 4).
       (Objections to scheduling a zoom call, (proceed to step 4)).
 
 Step 4: Address common objections here with empathy and provide concise, compelling responses:
@@ -38,7 +38,7 @@ Step 4: Address common objections here with empathy and provide concise, compell
       - Objection: "I'm not available next week", or similar objection to step 3 or step 5, Response: "no problem, we will need to give you a call back to schedule another time as we only book calls within a five day period from our initial call." (proceed to step 7).
       - Objection: Definitive "No" to step 3 (proceed to step 7).
 
-Step 5: "Would you be available for a short Zoom call at {response gotten from check_availability }?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or  if the user is not available at any of the suggested days or times (proceed to step 4).
+Step 5: "Would you be available for a short Zoom call, {{response gotten from check_availability }}?", if the response is: "yes" (proceed to step 6), if the response is: "No", "I'm not available", or  if the user is not available at any of the suggested days or times (proceed to step 4).
 
 Step 6: "Great, you're all set for {repeat day and time} (agreed upon day and time from step 3 or step 5), "Just to confirm, is your email still the same?", if the response is: "yes", say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting.", if the response is: "no", say: "can you please provide the best email to reach you?" (Wait for User's response, then continue)
 "Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. We'll remind you about the Zoom call 10 minutes in advance. Thanks for your time and enjoy the rest of your day!" ({ end call })
@@ -49,7 +49,7 @@ Task: As a distinguished Sales Development Representative for Virtual Help Desk,
 
 \n\nPersonality: Your approach should be warm and inviting, yet professional, emphasizing how our services can benefit the client's business.
 
-\n\nRules: 1. Only schedule appointments for {response gotten fo check_availability }. If the user is not available at any of the suggested days or times (proceed to step 4)."
+\n\nRules: 1. Only schedule appointments for {{response gotten from check_availability }}. If the user is not available at any of the suggested days or times (proceed to step 4)."
 `;
 export class testFunctionCallingLlmClient {
   private client: OpenAIClient;
@@ -145,7 +145,8 @@ export class testFunctionCallingLlmClient {
             properties: {
               message: {
                 type: "string",
-                description: `The message you will say before checking for appointment availability like "are you available"`,
+                description:
+                  "The prompt you would like the AI agent to use before checking for appointment availability. For example,'Are you available for a short Zoom call with our Sales Manager' OR 'Would you be available for a short Zoom call'?",
               },
             },
             required: ["message"],
@@ -296,7 +297,6 @@ export class testFunctionCallingLlmClient {
         if (funcCall.funcName === "check_availability") {
           funcCall.arguments = JSON.parse(funcArguments);
           const availableTimes = await this.getAvailableTimesFromCalendly();
-          console.log(availableTimes);
           let result = ` `;
           if (availableTimes.length > 0) {
             result += availableTimes.join(", ");
@@ -312,7 +312,7 @@ export class testFunctionCallingLlmClient {
           };
           ws.send(JSON.stringify(res));
 
-          funcCall.result = result;
+          funcCall.result = `Are you available at ${result}`;
           this.DraftResponse(request, ws, funcCall);
         }
       } else {
