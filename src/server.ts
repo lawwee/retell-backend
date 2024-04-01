@@ -101,7 +101,7 @@ export class Server {
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "http://http://35.227.169.15:8080/webhook",
+    target: "http://35.227.169.15:8080/webhook",
     logger: console,
   });
   events = this.smee.start();
@@ -130,7 +130,7 @@ export class Server {
       },
     );
   }
-
+  
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -802,11 +802,9 @@ export class Server {
       //   // If signature verification fails, log an error and return a 401 Unauthorized response
       //   console.error("Retell webhook signature verification failed.");
       //   return response.status(401).json({ error: "Unauthorized" });
-      // }e
-      // Check if the event type is call_ended
+      // }
       try {
         if (payload.event === "call_ended") {
-          // Extract call details from the event payload
           const { event, call_id, transcript } = payload.data;
 
           // Perform custom actions with the transcript, timestamps, etc.
