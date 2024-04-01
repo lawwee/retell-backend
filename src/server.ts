@@ -101,7 +101,7 @@ export class Server {
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "http://35.227.169.15:8080/webhook",
+    target: "https://retell-backend-yy86.onrender.com/webhook",
     logger: console,
   });
   events = this.smee.start();
@@ -130,7 +130,7 @@ export class Server {
       },
     );
   }
-  
+
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
