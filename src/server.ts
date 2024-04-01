@@ -38,6 +38,7 @@ import path from "path";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
+console.log("connected")
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
@@ -100,7 +101,7 @@ export class Server {
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "https://retell-backend-yy86.onrender.com/webhook",
+    target: "http://http://35.227.169.15:8080/webhook",
     logger: console,
   });
   events = this.smee.start();
@@ -118,7 +119,6 @@ export class Server {
             audioWebsocketProtocol: AudioWebsocketProtocol.Web,
             audioEncoding: AudioEncoding.S16le,
             sampleRate: 24000,
-            
           });
           // Send back the successful response to the client
           res.json(callResponse.callDetail);
