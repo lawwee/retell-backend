@@ -38,6 +38,7 @@ import path from "path";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
+console.log("connected")
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
@@ -118,7 +119,6 @@ export class Server {
             audioWebsocketProtocol: AudioWebsocketProtocol.Web,
             audioEncoding: AudioEncoding.S16le,
             sampleRate: 24000,
-            
           });
           // Send back the successful response to the client
           res.json(callResponse.callDetail);
@@ -210,7 +210,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new testFunctionCallingLlmClient();
+          const client = new danielDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -802,11 +802,9 @@ export class Server {
       //   // If signature verification fails, log an error and return a 401 Unauthorized response
       //   console.error("Retell webhook signature verification failed.");
       //   return response.status(401).json({ error: "Unauthorized" });
-      // }e
-      // Check if the event type is call_ended
+      // }
       try {
         if (payload.event === "call_ended") {
-          // Extract call details from the event payload
           const { event, call_id, transcript } = payload.data;
 
           // Perform custom actions with the transcript, timestamps, etc.
