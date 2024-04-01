@@ -149,17 +149,6 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
         function: {
           name: "check_availability",
           description: "Check times for appointment availability",
-          parameters: {
-            type: "object",
-            properties: {
-              message: {
-                type: "string",
-                description:
-                  "The prompt you would like the AI agent to use before checking for appointment availability. For example,'Are you available for a short Zoom call with our Sales Manager' OR 'Would you be available for a short Zoom call'?",
-              },
-            },
-            required: ["message"],
-          },
         },
       },
     ];
