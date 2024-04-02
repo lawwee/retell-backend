@@ -42,6 +42,7 @@ console.log("connected")
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
+import { testDemoLlmClient } from "./llm_openai_func_call";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -144,11 +145,10 @@ export class Server {
           agentId: "214e92da684138edf44368d371da764c",
         };
 
-        //40878d8bd2d1a6fea9756ae2368bab6e
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan/ olivia");
-          const oclient = new ethanDemoLlmClient();
-          oclient.BeginMessage(ws, user.firstname, user.email);
+          const oclient = new testDemoLlmClient();
+          oclient.BeginMessage(ws, user.firstname);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -247,7 +247,7 @@ export class Server {
           });
         }
         if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
-          console.log("Call started with ethan");
+          console.log("Call started with katherine");
           const oclient = new katherineDemoLlmClient();
           oclient.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
