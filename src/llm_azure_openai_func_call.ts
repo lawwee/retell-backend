@@ -271,6 +271,7 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
       );
 
       for await (const event of events) {
+        console.log(events)
         if (event.choices.length >= 1) {
           let delta = event.choices[0].delta;
           if (!delta) continue;
