@@ -151,6 +151,24 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
           description: "Check times for appointment availability",
         },
       },
+      {
+        type: "function",
+        function: {
+          name: "end_call",
+          description: "End the call only when user explicitly requests it.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                description:
+                  "The message you will say before ending the call with the customer.",
+              },
+            },
+            required: ["message"],
+          },
+        },
+      },
     ];
 
     return functions;
@@ -292,6 +310,18 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
       console.error("Error in gpt stream: ", err);
     } finally {
       if (funcCall != null) {
+        
+        if (funcCall.funcName === "end_call") {
+          funcCall.arguments = JSON.parse(funcArguments);
+          const res: RetellResponse = {
+            response_id: request.response_id,
+            content: funcCall.arguments.message,
+            content_complete: true,
+            end_call: true,
+          };
+          ws.send(JSON.stringify(res));
+        }
+
         if (funcCall.funcName === "check_availability") {
           funcCall.arguments = JSON.parse(funcArguments);
           const availableTimes = await this.getAvailableTimesFromCalendly();
