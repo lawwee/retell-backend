@@ -59,8 +59,8 @@ Step 1: "Hi, ${firstname}?", if the response is: "yes", “speaking”, or simil
 
 
       Step 6: "Great,{pause} you're all set for {repeat day and time} (agreed upon day and time from step 3 or step 5), <break time="1.5s" /> "Can you please provide the best email to send the calendar invite to?", (After response) say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting." (Wait for User's response, then continue) 
-"Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. <break time="1.5s" /> We'll remind you about the Zoom call 10 minutes in advance. <break time="1.5s" /> Thanks for your time and enjoy the rest of your day!" ({ end call })
-Step 7: If the call concludes without scheduling an appointment, remain courteous, ({pause}) ({ end call })`;
+"Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.?", if the response is: a number, say: "Perfect, thank you!", if the response is: "Im not sure" say: "No worries, our sales manager, Kyle, will be meeting with you. <break time="1.5s" /> We'll remind you about the Zoom call 10 minutes in advance. <break time="1.5s" /> Thanks for your time and enjoy the rest of your day!" {{ end call }}
+Step 7: If the call concludes without scheduling an appointment, remain courteous, ({pause}) {{ end call }}`;
     const res: RetellResponse = {
       response_id: 0,
       content: beginSentence,
