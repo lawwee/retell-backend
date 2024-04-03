@@ -4,7 +4,7 @@ import { RetellRequest, RetellResponse, Utterance } from "./types";
 import { contactModel } from "./contacts/contact_model";
 
 // Define the greeting message of the agent. If you don't want the agent speak first, set to empty string ""
-let beginSentence = "";
+let beginSentence: string;
 let agentPrompt: string;
 
 export class testDemoLlmClient {
@@ -19,6 +19,7 @@ export class testDemoLlmClient {
 
   // First sentence requested
   async BeginMessage(ws: WebSocket, firstname: string) {
+    beginSentence = `Hi,  is this ${firstname}?`;
     agentPrompt = `Task: As a distinguished Sales Development Representative for Virtual Help Desk, you provide expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management, content creation, and more. Your objective during this call is to schedule a meeting with the sales manager to explore our services' benefits tailored to the prospect's business needs, you are following up on a inquiry they submitted for our VA services. Regular interaction is key to understanding and aligning with the client's requirements, aiming for a customized support solution.
 
 \n\nConversational Style: Engage in a natural, energetic, and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high energy, conversational style. Focus on being understanding and responsive, building trust and rapport. Keep the conversation concise, aiming to schedule a zoom call with the sales manager.
