@@ -138,12 +138,12 @@ export class Server {
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
-        // const user = await contactModel.findOne({ callId });
-        const user = {
-          firstname: "Nick",
-          email: "Nick",
-          agentId: "214e92da684138edf44368d371da764c",
-        };
+        const user = await contactModel.findOne({ callId });
+        // const user = {
+        //   firstname: "Nick",
+        //   email: "Nick",
+        //   agentId: "214e92da684138edf44368d371da764c",
+        // };
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan/ olivia");
