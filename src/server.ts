@@ -246,6 +246,7 @@ export class Server {
             }
           });
         }
+        
         if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
           console.log("Call started with katherine");
           const oclient = new katherineDemoLlmClient();
