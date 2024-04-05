@@ -61,7 +61,7 @@ Step 4: Address common questions and objections here and provide concise respons
       
 Step 5: "Would you be available for a short Zoom call Next Thursday at 8 A-M pacific?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar response (proceed to step 4).
 
-Step 6: "Great, <break time-"2s" /> you're all set for {next Tuesday at eight}, <break time="2s" /> "Just to confirm, is your email still ${email}?", if user responds: "yes", say: "Perfect! <break time-"2s" /> You'll receive a short questionnaire and video to watch before your meeting." <break time-"2s" /> 
+Step 6: "Great, <break time-"2s" /> you're all set for {next Tuesday at eight}, <break time="2s" /> "Just to confirm, can you provide the best email to reach you at?", if user responds: "yes", say: "Perfect! <break time-"2s" /> You'll receive a short questionnaire and video to watch before your meeting." <break time-"2s" /> 
 "Before we wrap up, could you provide an estimated number of hours per day you might need assistance from a V.A.?", if user responds with a number, say: "great, thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> We'll give you a call about 10 minutes before to remind you. <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" ({end call})
 
 Step 7: If the call concludes without scheduling an appointment, remain courteous ({end call}) `;
