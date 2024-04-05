@@ -42,10 +42,6 @@ export class testFunctionCallingLlmClient {
 
 \n\nRules: 2. If user responds: "At the tone", "please record your message", "please leave your message for", "please leave your message after the tone", "You have reached the voicemail", "if you know your party's extension", "please dial it now", "press 0", "press 1", or "press (#)" {{end call}} immediately. 
 
-\n\nRules: 3. Ater saying "Goodbye" once, {{end call}} and never repeat
-
-
-
 Step 1: "Hi, is this ${firstname}?", if user responds: "yes" (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname} please?", if user responds: "${firstname}, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." {{end call}}
 If user responds: "wrong number", say: "my apologies, have a great day." {{end call}}
 If user responds: "can I take a message", say: "no thank you, I'll try back another time." {{end call}}
