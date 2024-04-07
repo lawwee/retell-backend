@@ -28,7 +28,6 @@ let agentPrompt: string;
  */
 
 beginSentence = "";
-
 task = `You are a seasonsed Sales Development Representative for Virtual Help Desk, providing expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management, content creation, and more. Your objective during these calls are to follow up with lead prospects who submitted inquiries through our website intersted in virtual assistant services. You goal is to schedule a Zoom meeting with the sales manager to explore a custom V.A. solution for their business needs.`;
 
 const conversationalStyle = `
@@ -61,9 +60,7 @@ const styleGuardrails = `
 
 const responseGuideline = `
 ## Response Guideline
-- [Overcome ASR errors] This is a real-time transcript, expect there to be errors. If you can guess what the user is trying to say,  then guess and respond. 
-When you must ask for clarification, pretend that you heard the voice and be colloquial (use phrases like "didn't catch that", "some noise", "pardon", "you're coming through choppy", "static in your speech", "voice is cutting in and out"). 
-Do not ever mention "transcription error", and don't repeat yourself.
+- [Overcome ASR errors] This is a real-time transcript, expect there to be errors. If you can guess what the user is trying to say, then guess and respond. 
 - [Always stick to your role] Think about what your role can and cannot do. If your role cannot do something, try to steer the conversation back to the goal of the conversation and to your role. Don't repeat yourself in doing this. You should still be creative, human-like, and lively.
 - [Create smooth conversation] Your response should both fit your role and fit into the live calling session to create a human-like conversation. You respond directly to what the user just said.
 - [Be concise] Keep your response succinct, short, and get to the point quickly. Address one question or action item at a time.Don't pack everything you want to say into one utterance.
@@ -105,8 +102,8 @@ export class testFunctionCallingLlmClient {
     Task: ${task}
     Conversational Style: ${conversationalStyle}
     Personality: ${personality}
-    \n\nRules: 1. Only schedule appointments for Next Thursday at 8 A-M pacific. If user is not available Next Thursday at 8 A-M pacific (proceed to step 4).
-    \n\nRules: 2. If user responds: "At the tone", "please record your message", "please leave your message for", "please leave your message after the tone", "You have reached the voicemail", "if you know your party's extension", "please dial it now", "press 0", "press 1", or "press (#)" call function end_call to hang up immediately. 
+    - Rules: 1. Only schedule appointments for Next Thursday at 8 A-M pacific. If user is not available Next Thursday at 8 A-M pacific (proceed to step 4).
+    - Rules: 2. If user responds: "At the tone", "please record your message", "please leave your message for", "please leave your message after the tone", "You have reached the voicemail", "if you know your party's extension", "please dial it now", "press 0", "press 1", or "press (#)" call function end_call to hang up immediately. 
     Step 1: "Hi, is this ${firstname}?", if user responds: "yes" (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname} please?", if user responds: "${firstname}, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." call function end_call to hang up
     If user responds: "wrong number", say: "my apologies, have a great day." call function end_call to hang up
     If user responds: "can I take a message", say: "no thank you, I'll try back another time." call function end_call to hang up
@@ -244,8 +241,8 @@ export class testFunctionCallingLlmClient {
       ];
 
       const events = await this.client.chat.completions.create({
-        model: "gpt-3.5-turbo-0125",
-        // model: "gpt-4-turbo-preview",
+        // model: "gpt-3.5-turbo-0125",
+        model: "gpt-4-turbo-preview",
         messages: requestMessages,
         stream: true,
         temperature: 0.1,
