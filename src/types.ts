@@ -61,3 +61,21 @@ export interface Ijob {
   scheduledTime: string;
   shouldContinueProcessing: boolean;
 }
+
+export interface Utterance {
+  role: "agent" | "user";
+  content: string;
+}
+
+export interface CustomLlmRequest {
+  response_id?: number;
+  transcript: Utterance[];
+  interaction_type: "update_only" | "response_required" | "reminder_required";
+}
+
+export interface CustomLlmResponse {
+  response_id: number;
+  content: string;
+  content_complete: boolean;
+  end_call: boolean;
+}
