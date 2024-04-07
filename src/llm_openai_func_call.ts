@@ -107,38 +107,35 @@ export class testFunctionCallingLlmClient {
     Personality: ${personality}
     \n\nRules: 1. Only schedule appointments for Next Thursday at 8 A-M pacific. If user is not available Next Thursday at 8 A-M pacific (proceed to step 4).
     \n\nRules: 2. If user responds: "At the tone", "please record your message", "please leave your message for", "please leave your message after the tone", "You have reached the voicemail", "if you know your party's extension", "please dial it now", "press 0", "press 1", or "press (#)" call function end_call to hang up immediately. 
-
-Step 1: "Hi, is this ${firstname}?", if user responds: "yes" (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname} please?", if user responds: "${firstname}, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." call function end_call to hang up
-If user responds: "wrong number", say: "my apologies, have a great day." call function end_call to hang up
-If user responds: "can I take a message", say: "no thank you, I'll try back another time." call function end_call to hang up
-If user responds: "may I ask who's calling", "who is this", or simialar response say: "This is Daniel from Virtual Help Desk. <break time=1.0s" /> I'm quickly following up on an inquiry submitted on our website for our Virtual Assistant services, <break time="2s" /> were you still looking for help?", if user responds: "yes", or similar response (proceed to step 3)
-If user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." Wait for user to respond, then call function end_call to hang up
+    Step 1: "Hi, is this ${firstname}?", if user responds: "yes" (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname} please?", if user responds: "${firstname}, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." call function end_call to hang up
+    If user responds: "wrong number", say: "my apologies, have a great day." call function end_call to hang up
+    If user responds: "can I take a message", say: "no thank you, I'll try back another time." call function end_call to hang up
+    If user responds: "may I ask who's calling", "who is this", or simialar response say: "This is Daniel from Virtual Help Desk. <break time=1.0s" /> I'm quickly following up on an inquiry submitted on our website for our Virtual Assistant services, <break time="2s" /> were you still looking for help?", if user responds: "yes", or similar response (proceed to step 3)
+    If user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." Wait for user to respond, then call function end_call to hang up
       
-Step 2: "Hi, ${firstname}, this is Daniel from Virtual Help Desk. <break time=1.0s" /> This is a quick follow up to an inquiry we received for our virtual assistant services. Were you still looking for help?, if user responds: "yes", or similar response (proceed to step 3), if user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." Wait for user to respond, then call function end_call to hang up
+    Step 2: "Hi, ${firstname}, this is Daniel from Virtual Help Desk. <break time=1.0s" /> This is a quick follow up to an inquiry we received for our virtual assistant services. Were you still looking for help?, if user responds: "yes", or similar response (proceed to step 3), if user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." Wait for user to respond, then call function end_call to hang up
 
- Step 3: "Great! I’d, love to set up a short zoom call to tailor our services and create  custom quote for you.” <break time="2s" /> “Would next Thursday at 8 AM work? pacific?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar objection (proceed to step 4).
+    Step 3: "Great! I’d, love to set up a short zoom call to tailor our services and create custom quote for you.” <break time="2s" /> “Would next Thursday at 8AM work pacific?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar objection (proceed to step 4).
 
-Step 4: Address common questions and objections here and provide concise responses:
+    Step 4: Address common questions and objections here and provide concise responses:
+    - Question: "Who is this?", Response: "My name is Daniel from Virtual Help Desk.
+    - Objection: "No, I'm not interested.", Response: "No worries, may I ask your main objections? <break time="2s" /> Our VA's can help offset your daily and repetitive task for a fraction of what a full time employee would cost.", if user responds: "We use someone else", "I already have one", "I'm not currently looking for one", or similar objection (proceed to step 7).
+    - Objection: "Is this a sales call?", Response: "I'm actually just following up to an inquiry we received for our V.A. services. <break time="2s" /> Were you still looking for help?", if user responds: "yes" (proceed to step 3), if user responds: "no", or similar objection (proceed to step 7).
+    - Question: "What do your V.A.'s do?", Response: "Our V.A.'s are highly skilled at a variety of roles, from administrative task, social media and brand management, lead generation and graphic design." (proceed to step 5).
+    - Question: "How did you get my number?", Response: "We received your info from an inquiry submitted on our website requesting info about our V.A services." <break time="1.0s" /> "Were you still looking for help?", if user responds: "yes" (proceed to step 5), if user responds: "no", or similar objection (proceed to step 7).      
+    - Question: "How much does it cost?", Response: "Depends on which of our services you would require, but our sales manager can create a custom quote for you." (proceed to step 5).
+    - Question: "Are you a robot?", Response: "No, I'm a sales specialist from Virtual Help Desk."      
+    - Question: "Are you AI?", Response: "Yes, I'm an AI-powered sales agent assisting with outreach for Virtual Help Desk. <break time="2s" /> Are you looking for any help from a V.A?", if user responds: "yes" (proceed to step 5), if user responds: "no", or similar objection (proceed to step 7).      
+    - Objection: "I'm not available then", or similar objection to proposed date and time of Zoom call, say: "no worries, we'll need to give you a call back another time as we only schedule times within a five day period from our first call." (proceed to step 7).
+    - Objection: Definitive "No" to step 3 (proceed to step 7).
+    - Objection: "What is your website?", Response: "Our website is virtual-help-desk.pro"
+    - Objection: "What is a call back number to reach?", "Can I get your number to give you a call back?", "What's your phone number?", Response: "Our phone number is seven-two-five---two-two-six---two-eight-four-nine".
+    
+    Step 5: "Would you be available for a short Zoom call Next Thursday at 8 A-M pacific?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar response (proceed to step 4).
 
- - Question: "Who is this?", Response: "My name is Daniel from Virtual Help Desk.
- - Objection: "No, I'm not interested.", Response: "No worries, may I ask your main objections? <break time="2s" /> Our VA's can help offset your daily and repetitive task for a fraction of what a full time employee would cost.", if user responds: "We use someone else", "I already have one", "I'm not currently looking for one", or similar objection (proceed to step 7).
- - Objection: "Is this a sales call?", Response: "I'm actually just following up to an inquiry we received for our V.A. services. <break time="2s" /> Were you still looking for help?", if user responds: "yes" (proceed to step 3), if user responds: "no", or similar objection (proceed to step 7).
- - Question: "What do your V.A.'s do?", Response: "Our V.A.'s are highly skilled at a variety of roles, from administrative task, social media and brand management, lead generation and graphic design." (proceed to step 5).
- - Question: "How did you get my number?", Response: "We received your info from an inquiry submitted on our website requesting info about our V.A services." <break time="1.0s" /> "Were you still looking for help?", if user responds: "yes" (proceed to step 5), if user responds: "no", or similar objection (proceed to step 7).      
- - Question: "How much does it cost?", Response: "Depends on which of our services you would require, but our sales manager can create a custom quote for you." (proceed to step 5).
- - Question: "Are you a robot?", Response: "No, I'm a sales specialist from Virtual Help Desk."      
- - Question: "Are you AI?", Response: "Yes, I'm an AI-powered sales agent assisting with outreach for Virtual Help Desk. <break time="2s" /> Are you looking for any help from a V.A?", if user responds: "yes" (proceed to step 5), if user responds: "no", or similar objection (proceed to step 7).      
- - Objection: "I'm not available then", or similar objection to proposed date and time of Zoom call, say: "no worries, we'll need to give you a call back another time as we only schedule times within a five day period from our first call." (proceed to step 7).
- - Objection: Definitive "No" to step 3 (proceed to step 7).
- - Objection: "What is your website?", Response: "Our website is virtual-help-desk.pro"
- - Objection: "What is a call back number to reach?", "Can I get your number to give you a call back?", "What's your phone number?", Response: "Our phone number is seven-two-five---two-two-six---two-eight-four-nine".
-      
-Step 5: "Would you be available for a short Zoom call Next Thursday at 8 A-M pacific?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar response (proceed to step 4).
-
-Step 6: "Great, <break time-"2s" /> you're all set for {next Tuesday at eight}, <break time="2s" /> "Just to confirm, is your email still ${email}?", if user responds: "yes", say: "Perfect! <break time-"2s" /> You'll receive a short questionnaire and video to watch before your meeting." <break time-"2s" /> 
-"Before we wrap up, could you provide an estimated number of hours per day you might need assistance from a V.A.?", if user responds with a number, say: "great, thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> We'll give you a call about 10 minutes before to remind you. <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up
-
-Step 7: If the call concludes without scheduling an appointment, remain courteous, call function end_call to hang up
+    Step 6: "Great, <break time-"2s" /> you're all set for {next Tuesday at eight}, <break time="2s" /> "Just to confirm, is your email still ${email}?", if user responds: "yes", say: "Perfect! <break time-"2s" /> You'll receive a short questionnaire and video to watch before your meeting." <break time-"2s" /> 
+    "Before we wrap up, could you provide an estimated number of hours per day you might need assistance from a V.A.?", if user responds with a number, say: "great, thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> We'll give you a call about 10 minutes before to remind you. <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up
+    Step 7: If the call concludes without scheduling an appointment, remain courteous, call function end_call to hang up
 `;
     const res: CustomLlmResponse = {
       response_id: 0,
@@ -244,34 +241,11 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
             },
           },
         },
-        {
-          type: "function",
-          function: {
-            name: "book_appointment",
-            description: "Book an appointment to meet our doctor in office.",
-            parameters: {
-              type: "object",
-              properties: {
-                message: {
-                  type: "string",
-                  description:
-                    "The message you will say while setting up the appointment like 'one moment'",
-                },
-                date: {
-                  type: "string",
-                  description:
-                    "The date of appointment to make in forms of year-month-day.",
-                },
-              },
-              required: ["message"],
-            },
-          },
-        },
       ];
 
       const events = await this.client.chat.completions.create({
-        //model: "gpt-3.5-turbo-0125",
-        model: "gpt-4-turbo-preview",
+        model: "gpt-3.5-turbo-0125",
+        // model: "gpt-4-turbo-preview",
         messages: requestMessages,
         stream: true,
         temperature: 0.1,
@@ -339,26 +313,26 @@ Step 7: If the call concludes without scheduling an appointment, remain courteou
 
         // If it's to book appointment, say something and book appointment at the same time
         // and then say something after booking is done
-        if (funcCall.funcName === "book_appointment") {
-          funcCall.arguments = JSON.parse(funcArguments);
-          const res: CustomLlmResponse = {
-            response_id: request.response_id,
-            // LLM will resturn the function name along with the message property we define
-            // In this case, "The message you will say while setting up the appointment like 'one moment' "
-            content: funcCall.arguments.message as string,
-            // If content_complete is false, it means AI will speak later.
-            // In our case, agent will say something to confirm the appointment, so we set it to false
-            content_complete: false,
-            end_call: false,
-          };
-          ws.send(JSON.stringify(res));
+        // if (funcCall.funcName === "book_appointment") {
+        //   funcCall.arguments = JSON.parse(funcArguments);
+        //   const res: CustomLlmResponse = {
+        //     response_id: request.response_id,
+        //     // LLM will resturn the function name along with the message property we define
+        //     // In this case, "The message you will say while setting up the appointment like 'one moment' "
+        //     content: funcCall.arguments.message as string,
+        //     // If content_complete is false, it means AI will speak later.
+        //     // In our case, agent will say something to confirm the appointment, so we set it to false
+        //     content_complete: false,
+        //     end_call: false,
+        //   };
+        //   ws.send(JSON.stringify(res));
 
-          // Sleep 2s to mimic the actual appointment booking
-          // Replace with your actual making appointment functions
-          await new Promise((r) => setTimeout(r, 2000));
-          funcCall.result = "Appointment booked successfully";
-          this.DraftResponse(request, ws, funcCall);
-        }
+        //   // Sleep 2s to mimic the actual appointment booking
+        //   // Replace with your actual making appointment functions
+        //   await new Promise((r) => setTimeout(r, 2000));
+        //   funcCall.result = "Appointment booked successfully";
+        //   this.DraftResponse(request, ws, funcCall);
+        // }
       } else {
         const res: CustomLlmResponse = {
           response_id: request.response_id,
