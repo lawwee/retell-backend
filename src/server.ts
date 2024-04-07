@@ -41,7 +41,7 @@ connectDb();
 console.log("connected")
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
-import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
+import { testFunctionCallingLlmClient } from "./llm_openai_func_call";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;

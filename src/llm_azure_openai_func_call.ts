@@ -19,7 +19,7 @@ export interface FunctionCall {
 
 let beginSentence: string;
 let agentPrompt: string;
-export class testFunctionCallingLlmClient {
+export class FunctionCallingLlmClient {
   private client: OpenAIClient;
 
   constructor() {
