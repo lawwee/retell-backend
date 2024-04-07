@@ -62,11 +62,6 @@ export interface Ijob {
   shouldContinueProcessing: boolean;
 }
 
-export interface Utterance {
-  role: "agent" | "user";
-  content: string;
-}
-
 export interface CustomLlmRequest {
   response_id?: number;
   transcript: Utterance[];
