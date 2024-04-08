@@ -39,6 +39,7 @@ export async function createEvent(email:string, eventTypeUuid:string, startTime:
     }
 }
 
+
 // // Example usage
 // (async () => {
 //     // List event types
