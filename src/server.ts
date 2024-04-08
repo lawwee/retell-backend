@@ -138,11 +138,6 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
-        // const user = {
-        //   firstname: "Nick",
-        //   email: "Nick",
-        //   agentId: "214e92da684138edf44368d371da764c",
-        // };
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan/ olivia");
@@ -180,7 +175,7 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          const client = new chloeDemoLlmClient();
+          const client = new testFunctionCallingLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -214,7 +209,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new testFunctionCallingLlmClient();
+          const client = new danielDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
