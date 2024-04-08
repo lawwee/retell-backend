@@ -186,8 +186,8 @@ export class testFunctionCallingLlmClient {
 State: Introduction
 
 Step 1: Greet the prospect and confirm their identity.
-- If the user starts the call with "Hi this is {user name}":
-  - Respond: "Hi {user name}, this is Chloe from Remote Solutions Team. <break time="2.0s" /> I'm reaching out to follow up on an inquiry we received for our virtual assistant services. <break time="2.5s" /> Were you still looking for help?"
+- If the user starts the call with "Hi this is ${firstname}":
+  - Respond: "Hi ${firstname}, this is Chloe from Remote Solutions Team. <break time="2.0s" /> I'm reaching out to follow up on an inquiry we received for our virtual assistant services. <break time="2.5s" /> Were you still looking for help?"
     - If the response is "yes", "possibly", or a similar positive response, proceed to Step 3.
     - If the response is "no", "not at this time", or a similar objection:
       - Respond: "I understand. No worries, if anything changes, please keep us in mind for future consideration."
