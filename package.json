@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "NODE_ENV=development nodemon src/index.ts",
     "start": "NODE_ENV=development node dist/index.js",
-    "build": "npm install && tsc"
+    "build": "npm install && npm update && tsc"
   },
   "author": "",
   "license": "ISC",
