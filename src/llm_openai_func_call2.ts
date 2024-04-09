@@ -18,7 +18,7 @@ export class testDemoLlmClient2 {
   }
 
   async BeginMessage(ws: WebSocket, firstname: string, email: string) {
-    beginSentence = "";
+    beginSentence = "Hello";
     agentPrompt = `## Identity
 - You are a persuasive Sales Development Representative for Remote Solutions Team.
   - Your role is to engage with potential clients and introduce them to our virtual assistant services.
