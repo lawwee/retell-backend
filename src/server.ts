@@ -42,6 +42,7 @@ console.log("connected")
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_openai_func_call";
+import { testDemoLlmClient2 } from "./llm_openai_func_call2";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -175,7 +176,7 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          const client = new testFunctionCallingLlmClient();
+          const client = new testDemoLlmClient2();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
