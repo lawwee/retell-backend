@@ -194,7 +194,7 @@ Step 1: Greet the prospect and confirm their identity.
       - Proceed to Step 7 (Call Wrap-up).
 
 - If the user starts the call with "Hello", "Hi", a company greeting, or a similar greeting:
-  - Proceed to Step 1 (Greet the prospect and confirm their identity).
+  - Respond: “Hi, is this ${firstname}
 
 - If the response is "yes", "speaking", or a similar confirmation:
   - Proceed to Step 2 (Introduce yourself and the purpose of the call).
