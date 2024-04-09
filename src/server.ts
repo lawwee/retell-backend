@@ -43,6 +43,7 @@ import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_openai_func_call";
 import { testDemoLlmClient2 } from "./llm_openai_func_call2";
+import { DailyStats } from "./contacts/call_log";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -86,6 +87,7 @@ export class Server {
     this.deleteAll();
     this.logsToCsv();
     this.updatereference();
+    this.statsForAgent()
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -216,10 +218,25 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED },
             );
+            await DailyStats.findOneAndUpdate(
+              { date: today, agentId: user.agentId},
+              {
+                $setOnInsert: {
+                  date: today,
+                  totalCalls: 1,
+                  callsAnswered: 1,
+                  callsNotAnswered: 0,
+                },
+              },
+              { upsert: true, new: true },
+            );
+
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -932,5 +949,68 @@ export class Server {
         throw error; // Throw the error to handle it in the caller function
       }
     });
+  }
+
+  statsForAgent(){
+    this.app.post("/get-stats", async (req: Request, res: Response)=> {
+      try {
+        let agents: string[] = [];
+        if (req.body.agents) {
+          // If agents are provided in the request body as an array, use them
+          agents = Array.isArray(req.body.agents)
+            ? req.body.agents
+            : [req.body.agents];
+        }
+
+        let date: Date;
+        if (req.body.date) {
+          // Attempt to parse the date from the request body
+          date = new Date(req.body.date);
+
+          // Check if the parsed date is valid
+          if (isNaN(date.getTime())) {
+            return res.status(400).json({ message: "Invalid date format" });
+          }
+        } else {
+          // If date is not provided, use the current date
+          date = new Date();
+        }
+        date.setHours(0, 0, 0, 0); // Set time to the beginning of the day
+
+        // Find the DailyStats documents for the specified date
+        const dailyStats = await DailyStats.find({ date });
+
+        // Create an object to map agent IDs to their daily stats
+        const statsMap: { [key: string]: any } = {};
+        dailyStats.forEach((stat: any) => {
+          statsMap[stat.agentId] = stat;
+        });
+
+        // Calculate total calls answered and not answered across all agents
+        let totalCallsAnswered = 0;
+        let totalCallsNotAnswered = 0;
+
+        agents.forEach((agentId: string) => {
+          if (statsMap[agentId]) {
+            const { callsAnswered, callsNotAnswered } = statsMap[agentId];
+            totalCallsAnswered += callsAnswered;
+            totalCallsNotAnswered += callsNotAnswered;
+          }
+        });
+
+        // Create a response object containing the aggregated stats
+        const aggregatedStats = {
+          totalCalls: totalCallsAnswered + totalCallsNotAnswered,
+          callsAnswered: totalCallsAnswered,
+          callsNotAnswered: totalCallsNotAnswered,
+        };
+
+        // Respond with the aggregated stats
+        res.json(aggregatedStats);
+      } catch (error) {
+        console.error("Error fetching daily stats:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    })
   }
 }

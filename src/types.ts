@@ -26,7 +26,7 @@ export interface IContact {
   callId: String;
   status: string;
   agentId: string;
-  referenceToCallId: any
+  referenceToCallId: any;
 }
 
 export enum callstatusenum {
@@ -62,6 +62,13 @@ export interface Ijob {
   shouldContinueProcessing: boolean;
 }
 
+export interface Ilogs {
+  date: Date;
+  totalCalls: number;
+  callsAnswered: Number;
+  callsNotAnswered: Number;
+  agentId: String;
+}
 export interface CustomLlmRequest {
   response_id?: number;
   transcript: Utterance[];

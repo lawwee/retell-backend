@@ -3,9 +3,14 @@ import { Request, Response } from "express";
 import { RetellClient } from "retell-sdk";
 import { contactModel } from "./contacts/contact_model";
 import expressWs from "express-ws";
-import { AudioEncoding, AudioWebsocketProtocol, CallStatus } from "retell-sdk/models/components";
+import {
+  AudioEncoding,
+  AudioWebsocketProtocol,
+  CallStatus,
+} from "retell-sdk/models/components";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { callstatusenum } from "./types";
+import { DailyStats } from "./contacts/call_log";
 
 export class TwilioClient {
   private twilio: Twilio;
@@ -86,7 +91,6 @@ export class TwilioClient {
         url: `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`, // Webhook url for registering call
         to: toNumber,
         from: fromNumber,
-        
       });
       console.log(`Call from: ${fromNumber} to: ${toNumber}`);
       return result;
@@ -124,28 +128,44 @@ export class TwilioClient {
       "/twilio-voice-webhook/:agentId/:userId",
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
-        const userId = req.params.userId
-        const answeredBy = req.body.AnsweredBy
+        const userId = req.params.userId;
+        const answeredBy = req.body.AnsweredBy;
         try {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
-            await contactModel.findByIdAndUpdate(userId, {status: callstatusenum.VOICEMAIL })
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            await contactModel.findByIdAndUpdate(userId, {
+              status: callstatusenum.VOICEMAIL,
+            });
+            await DailyStats.findOneAndUpdate(
+              { date: today, agentId },
+              {
+                $setOnInsert: {
+                  date: today,
+                  totalCalls: 1,
+                  callsAnswered: 0,
+                  callsNotAnswered: 1,
+                },
+              },
+              { upsert: true, new: true },
+            );
             return;
-          }else if (answeredBy){
-            return
+          } else if (answeredBy) {
+            return;
           }
-          const callResponse = await this.retellClient.registerCall(
-            {
-              agentId: agentId,
-              audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
-              audioEncoding: AudioEncoding.Mulaw,
-              sampleRate: 8000,
-              endCallAfterSilenceMs: 15000,
-              
-            },
-          );
-          await contactModel.findByIdAndUpdate(userId, {callId: callResponse.callDetail.callId, status: "ringing"})
+          const callResponse = await this.retellClient.registerCall({
+            agentId: agentId,
+            audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
+            audioEncoding: AudioEncoding.Mulaw,
+            sampleRate: 8000,
+            endCallAfterSilenceMs: 15000,
+          });
+          await contactModel.findByIdAndUpdate(userId, {
+            callId: callResponse.callDetail.callId,
+            status: "ringing",
+          });
           if (callResponse.callDetail) {
             // Start phone call websocket
             const response = new VoiceResponse();
