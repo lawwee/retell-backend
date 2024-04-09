@@ -3,7 +3,6 @@ import { WebSocket } from "ws";
 import { RetellRequest, RetellResponse, Utterance } from "./types";
 import { checkAvailability } from "./callendly";
 
-
 let beginSentence: string;
 let agentPrompt: string;
 
@@ -189,14 +188,14 @@ State: Introduction
 
 Step 1: Greet the prospect and confirm their identity.
 - If the user starts the call with "Hi this is ${firstname}":
-  - Respond: "Hi ${firstname}
-    - If the response is "yes", "possibly", or a similar positive response, proceed to Step 2.
+  - Respond: "Hi ${firstname}, this is Chloe from Remote Solutions Team. <break time="2.0s" /> I'm reaching out to follow up on an inquiry we received for our virtual assistant services. <break time="2.5s" /> Were you still looking for help?"
+    - If the response is "yes", "possibly", or a similar positive response, proceed to Step 3.
     - If the response is "no", "not at this time", or a similar objection:
       - Respond: "I understand. No worries, if anything changes, please keep us in mind for future consideration."
       - Proceed to Step 7 (Call Wrap-up).
 
 - If the user starts the call with "Hello", "Hi", a company greeting, or a similar greeting:
-- Respond: “Hi, is this ${firstname}
+- Respond: “Hi, is this ${firstname}
 
 - If the response is "yes", "speaking", or a similar confirmation:
   - Proceed to Step 2 (Introduce yourself and the purpose of the call).
@@ -388,16 +387,16 @@ Step 7: If the call concludes without scheduling an appointment:
               end_call: false,
             };
             ws.send(JSON.stringify(res));
-        //   } else if (delta.content.includes("bookAppointment")) {
-        //     const appointmentTime = ""; // Extract the agreed-upon time from the conversation
-        //     const appointmentDetails = await bookAppointment(appointmentTime);
-        //     const res: RetellResponse = {
-        //       response_id: request.response_id,
-        //       content: `Great! I've scheduled your Zoom call with our sales manager for ${appointmentDetails.time}. An invitation has been sent to your email at ${appointmentDetails.email}. Please let me know if you have any further questions.`,
-        //       content_complete: false,
-        //       end_call: false,
-        //     };
-        //     ws.send(JSON.stringify(res));
+            //   } else if (delta.content.includes("bookAppointment")) {
+            //     const appointmentTime = ""; // Extract the agreed-upon time from the conversation
+            //     const appointmentDetails = await bookAppointment(appointmentTime);
+            //     const res: RetellResponse = {
+            //       response_id: request.response_id,
+            //       content: `Great! I've scheduled your Zoom call with our sales manager for ${appointmentDetails.time}. An invitation has been sent to your email at ${appointmentDetails.email}. Please let me know if you have any further questions.`,
+            //       content_complete: false,
+            //       end_call: false,
+            //     };
+            //     ws.send(JSON.stringify(res));
           } else {
             const res: RetellResponse = {
               response_id: request.response_id,
