@@ -39,6 +39,7 @@ const ContactSchema = new Schema<IContact>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "transcript",
     },
+    
   },
   { timestamps: true },
 );
