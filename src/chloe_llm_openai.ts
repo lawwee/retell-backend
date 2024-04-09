@@ -181,8 +181,10 @@ export class chloeDemoLlmClient {
      - If the user confirms their interest, proceed to Step 3.
      - If the user remains unsure or disinterested, politely end the call.
 
+## Conversation Flow
 
 State: Introduction
+
 Step 1: Greet the prospect and confirm their identity.
 - If the user starts the call with "Hi this is ${firstname}":
   - Respond: "Hi ${firstname}, this is Chloe from Remote Solutions Team. <break time="2.0s" /> I'm reaching out to follow up on an inquiry we received for our virtual assistant services. <break time="2.5s" /> Were you still looking for help?"
