@@ -4,7 +4,6 @@ const dailyStatsSchema = new Schema<Ilogs>({
   date: {
     type: Date,
     required: true,
-    unique: true,
   },
   totalCalls: {
     type: Number,
