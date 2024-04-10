@@ -156,10 +156,27 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED },
             );
+              await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
+                {
+                  $setOnInsert: {
+                    date: today,
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                    callsNotAnswered: 0,
+                  },
+                },
+                { upsert: true, new: true },
+              );
+
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -190,10 +207,27 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED },
             );
+              await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
+                {
+                  $setOnInsert: {
+                    date: today,
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                    callsNotAnswered: 0,
+                  },
+                },
+                { upsert: true, new: true },
+              );
+
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
