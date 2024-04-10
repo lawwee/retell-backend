@@ -94,6 +94,7 @@ export class Server {
     this.logsToCsv();
     this.updatereference();
     this.statsForAgent();
+    this.peopleStatsLog()
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -997,11 +998,87 @@ export class Server {
 
   statsForAgent() {
     this.app.post("/get-stats", async (req: Request, res: Response) => {
+    //  try {
+    //    const agent1 = "214e92da684138edf44368d371da764c";
+    //    const agent2 = "0411eeeb12d17a340941e91a98a766d0";
+    //    const agent3 = "86f0db493888f1da69b7d46bfaecd360";
+    //    const { date } = req.body;
+
+    //    // Find documents for each agent
+    //    const foundAgent1 = await DailyStats.findOne({
+    //      myDate: date,
+    //      agentId: agent1,
+    //    });
+    //    const foundAgent2 = await DailyStats.findOne({
+    //      myDate: date,
+    //      agentId: agent2,
+    //    });
+    //    const foundAgent3 = await DailyStats.findOne({
+    //      myDate: date,
+    //      agentId: agent3,
+    //    });
+
+    //    // Initialize variables to store aggregated stats
+    //    let newTotalCalls = 0;
+    //    let newTotalAnsweredCalls = 0;
+    //    let newTotalNotAnsweredCalls = 0;
+
+    //    // Calculate totals only if documents are found
+    //    if (foundAgent1) {
+    //      newTotalCalls += foundAgent1.totalCalls || 0;
+    //      newTotalAnsweredCalls += foundAgent1.callsAnswered || 0;
+    //      newTotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
+    //    }
+    //    if (foundAgent2) {
+    //      newTotalCalls += foundAgent2.totalCalls || 0;
+    //      newTotalAnsweredCalls += foundAgent2.callsAnswered || 0;
+    //      newTotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
+    //    }
+    //    if (foundAgent3) {
+    //      newTotalCalls += foundAgent3.totalCalls || 0;
+    //      newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
+    //      newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
+    //    }
+
+    //    const agentIds = [
+    //      "214e92da684138edf44368d371da764c",
+    //      "0411eeeb12d17a340941e91a98a766d0",
+    //      "86f0db493888f1da69b7d46bfaecd360",
+    //    ]; // Array of agent IDs
+
+    //    const logIds =  [
+    //     foundAgent1._id,
+    //     foundAgent2._id,
+    //     foundAgent3._id
+    //    ]
+    //    const dailyStats = await contactModel
+    //      .find({
+    //        agentId: { $in: agentIds },
+    //        linktocallLogModel: { $in: logIds },
+    //      })
+    //      .populate("linktocallLogModel");
+    //    // Respond with the aggregated stats
+    //    res.json({
+    //      newTotalNotAnsweredCalls,
+    //      newTotalAnsweredCalls,
+    //      newTotalCalls,
+    //      dailyStats
+    //    });
+    //  } catch (error) {
+    //    console.error("Error fetching daily stats:", error);
+    //    res.status(500).json({ message: "Internal server error" });
+    //  }
+
      try {
        const agent1 = "214e92da684138edf44368d371da764c";
        const agent2 = "0411eeeb12d17a340941e91a98a766d0";
        const agent3 = "86f0db493888f1da69b7d46bfaecd360";
        const { date } = req.body;
+
+       // Validate date
+       if (!date) {
+         throw new Error("Date is missing in the request body");
+       }
 
        // Find documents for each agent
        const foundAgent1 = await DailyStats.findOne({
@@ -1038,17 +1115,53 @@ export class Server {
          newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
          newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
        }
-
-       // Respond with the aggregated stats
+      
+       console.log("ihi",{logId1: foundAgent1?._id,
+         logId2: foundAgent2?._id,
+         logId3:foundAgent3?._id})
+       // Respond with the aggregated stats and dailyStats
        res.json({
          newTotalNotAnsweredCalls,
          newTotalAnsweredCalls,
          newTotalCalls,
+        logId1: foundAgent1?._id,
+         logId2: foundAgent2?._id,
+         logId3:foundAgent3?._id,
        });
      } catch (error) {
        console.error("Error fetching daily stats:", error);
        res.status(500).json({ message: "Internal server error" });
      }
     });
+  }
+
+
+  peopleStatsLog(){
+    this.app.post("/get-metadata", async (req: Request, res:Response) => {
+      try {
+        const { logId1, logId2, logId3 } = req.body;
+        const agentIds = [
+          "214e92da684138edf44368d371da764c",
+          "0411eeeb12d17a340941e91a98a766d0",
+          "86f0db493888f1da69b7d46bfaecd360",
+        ]; // Array of agent IDs
+
+        const logIds = [
+          logId1,
+          logId2,
+          logId3
+        ].filter((id) => id); // Filter out undefined or null values
+        console.log(logIds)
+        const dailyStats = await contactModel
+          .find({
+            agentId: { $in: agentIds },
+            linktocallLogModel: { $in: logIds },
+          })
+          .sort({ createdAt: "desc" });
+          res.json({dailyStats})
+      } catch (error) {
+        console.log(error)
+      }
+    })
   }
 }
