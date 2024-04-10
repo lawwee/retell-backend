@@ -19,8 +19,8 @@ const dailyStatsSchema = new Schema<Ilogs>({
   },
   agentId: {
     type: String
-  }
-});
+  },
+}, {timestamps: true});
 
 // Create model for daily call statistics
 export const DailyStats = model("DailyStats", dailyStatsSchema);
