@@ -95,6 +95,7 @@ export class Server {
     this.updatereference();
     this.statsForAgent();
     this.peopleStatsLog()
+    this.updateLog()
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -1134,8 +1135,6 @@ export class Server {
      }
     });
   }
-
-
   peopleStatsLog(){
     this.app.post("/get-metadata", async (req: Request, res:Response) => {
       try {
@@ -1157,11 +1156,58 @@ export class Server {
             agentId: { $in: agentIds },
             linktocallLogModel: { $in: logIds },
           })
-          .sort({ createdAt: "desc" });
+          .sort({ createdAt: "desc" })
+          .populate("referenceToCallId");
           res.json({dailyStats})
       } catch (error) {
         console.log(error)
       }
+    })
+  }
+  updateLog(){
+    this.app.post("/updateLog", async (req: Request, res: Response) => {
+       try {
+         // Fetch the documents that need to be updated
+         const documentsToUpdate = await contactModel
+           .find({
+             updatedAt: { $ne: null },
+             agentId: "0411eeeb12d17a340941e91a98a766d0",
+             status: "called-answered",
+           })
+           .sort({ updatedAt: -1 });
+ // Limit the number of documents fetched
+
+         // Update each document
+         const updateResults = [];
+         for (const doc of documentsToUpdate) {
+           const result = await contactModel.updateOne(
+             { _id: doc._id },
+             { $set: { linktocallLogModel: "6615d9d3ed452636ea7491ee" } },
+           );
+           updateResults.push(result);
+         }
+
+         res.json(updateResults.length);
+       } catch (error) {
+         console.error(error);
+         res.status(500).json({ error: "Internal server error" });
+       }
+      //  try {
+      //    // Update the first 1000 documents to remove the specified field
+      //    const updateResult = await contactModel.updateMany(
+      //      {
+      //        updatedAt: { $ne: null },
+      //        agentId: "214e92da684138edf44368d371da764c",
+      //      },
+      //      { $unset: { linktocallLogModel: "" } }, // Replace 'fieldNameToDelete' with the name of the field you want to delete
+      //      { limit: 1000 },
+      //    );
+
+      //    res.json(updateResult);
+      //  } catch (error) {
+      //    console.error(error);
+      //    res.status(500).json({ error: "Internal server error" });
+      //  }
     })
   }
 }
