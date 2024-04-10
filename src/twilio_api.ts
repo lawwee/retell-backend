@@ -138,22 +138,23 @@ export class TwilioClient {
            today.setHours(0, 0, 0, 0);
 
            const todayString = today.toISOString().split("T")[0];
-
+           const result = await DailyStats.findOneAndUpdate(
+             { myDate: todayString, agentId },
+             {
+               $setOnInsert: {
+                agentId,
+                 myDate: todayString,
+                 totalCalls: 1,
+                 callsAnswered: 0,
+                 callsNotAnswered: 1,
+               },
+             },
+             { upsert: true, new: true },
+           );
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
+              linktocallLogModel: result._id
             });
-            await DailyStats.findOneAndUpdate(
-              { myDate: todayString, agentId },
-              {
-                $setOnInsert: {
-                  date: today,
-                  totalCalls: 1,
-                  callsAnswered: 0,
-                  callsNotAnswered: 1,
-                },
-              },
-              { upsert: true, new: true },
-            );
             return;
           } else if (answeredBy) {
             return;
