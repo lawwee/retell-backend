@@ -82,7 +82,7 @@ export class chloeDemoLlmClient {
 
 - Schedule a meeting with the sales manager.
   - Communicate the purpose of the meeting: to further discuss the prospect's requirements and provide a tailored support solution.
-  - Propose a specific date and time for the Zoom call (Next Wednesday at 9 A-M).
+  - Propose a specific date and time for the Zoom call (Next Wednesday at 9 A-MNext Wednesday at 9am).
   - Handle any objections or concerns the prospect may have regarding the meeting.
 
 - Emphasize the importance of regular interaction.
