@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, mongo } from "mongoose";
 import mongoose from "mongoose";
 import { IContact, Ijob, callstatusenum, jobstatus } from "../types";
 
@@ -39,7 +39,10 @@ const ContactSchema = new Schema<IContact>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "transcript",
     },
-    
+    linktocallLogModel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DailyStats",
+    },
   },
   { timestamps: true },
 );

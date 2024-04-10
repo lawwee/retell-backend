@@ -160,23 +160,24 @@ export class Server {
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
 
+             const result = await DailyStats.findOneAndUpdate(
+               { myDate: todayString, agentId: user.agentId },
+               {
+                 $setOnInsert: {
+                   agentId: user.agentId,
+                   myDate: todayString,
+                   totalCalls: 1,
+                   callsAnswered: 1,
+                   callsNotAnswered: 0,
+                 },
+               },
+               { upsert: true, new: true },
+             );
+
             await contactModel.findOneAndUpdate(
               { callId },
-              { status: callstatusenum.CALLED },
+              { status: callstatusenum.CALLED, linktocallLogModel: result._id },
             );
-              await DailyStats.findOneAndUpdate(
-                { myDate: todayString, agentId: user.agentId },
-                {
-                  $setOnInsert: {
-                    date: today,
-                    totalCalls: 1,
-                    callsAnswered: 1,
-                    callsNotAnswered: 0,
-                  },
-                },
-                { upsert: true, new: true },
-              );
-
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -211,23 +212,24 @@ export class Server {
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
 
+             const result = await DailyStats.findOneAndUpdate(
+               { myDate: todayString, agentId: user.agentId },
+               {
+                 $setOnInsert: {
+                   agentId: user.agentId,
+                   myDate: todayString,
+                   totalCalls: 1,
+                   callsAnswered: 1,
+                   callsNotAnswered: 0,
+                 },
+               },
+               { upsert: true, new: true },
+             );
+
             await contactModel.findOneAndUpdate(
               { callId },
-              { status: callstatusenum.CALLED },
+              { status: callstatusenum.CALLED, linktocallLogModel: result._id },
             );
-              await DailyStats.findOneAndUpdate(
-                { myDate: todayString, agentId: user.agentId },
-                {
-                  $setOnInsert: {
-                    date: today,
-                    totalCalls: 1,
-                    callsAnswered: 1,
-                    callsNotAnswered: 0,
-                  },
-                },
-                { upsert: true, new: true },
-              );
-
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -262,23 +264,23 @@ export class Server {
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
 
+             const result = await DailyStats.findOneAndUpdate(
+               { myDate: todayString, agentId: user.agentId },
+               {
+                 $setOnInsert: {
+                   agentId: user.agentId,
+                   myDate: todayString,
+                   totalCalls: 1,
+                   callsAnswered: 1,
+                   callsNotAnswered: 0,
+                 },
+               },
+               { upsert: true, new: true },
+             );
             await contactModel.findOneAndUpdate(
               { callId },
-              { status: callstatusenum.CALLED },
+              { status: callstatusenum.CALLED, linktocallLogModel: result._id },
             );
-            await DailyStats.findOneAndUpdate(
-              { myDate: todayString, agentId: user.agentId },
-              {
-                $setOnInsert: {
-                  date: today,
-                  totalCalls: 1,
-                  callsAnswered: 1,
-                  callsNotAnswered: 0,
-                },
-              },
-              { upsert: true, new: true },
-            );
-
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -1001,11 +1003,6 @@ export class Server {
        const agent3 = "86f0db493888f1da69b7d46bfaecd360";
        const { date } = req.body;
 
-      //  const today = new Date();
-      //  today.setHours(0, 0, 0, 0);
-
-      //  const todayString = today.toISOString().split("T")[0];
-      //  console.log("todaysting", todayString)
        // Find documents for each agent
        const foundAgent1 = await DailyStats.findOne({
          myDate: date,
