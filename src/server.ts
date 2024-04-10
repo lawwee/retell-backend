@@ -1210,4 +1210,32 @@ export class Server {
       //  }
     })
   }
+
+  peopleStatToCsv(){
+    this.app.post("/get-metadata-csv", async (req, res) => {
+      try {
+        const { logId1, logId2, logId3 } = req.body;
+        const agentIds = [
+          "214e92da684138edf44368d371da764c",
+          "0411eeeb12d17a340941e91a98a766d0",
+          "86f0db493888f1da69b7d46bfaecd360",
+        ]; // Array of agent IDs
+
+        const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
+
+        const dailyStats = await contactModel
+          .find({
+            agentId: { $in: agentIds },
+            linktocallLogModel: { $in: logIds },
+          })
+          .sort({ createdAt: "desc" })
+          .populate("referenceToCallId");
+
+          
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+  }
 }
