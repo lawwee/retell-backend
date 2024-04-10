@@ -1,8 +1,8 @@
 import {Schema, model} from "mongoose";
 import { Ilogs } from "../types";
 const dailyStatsSchema = new Schema<Ilogs>({
-  date: {
-    type: Date,
+  myDate: {
+    type: String,
     required: true,
   },
   totalCalls: {

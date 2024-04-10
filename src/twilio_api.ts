@@ -134,13 +134,16 @@ export class TwilioClient {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+           const today = new Date();
+           today.setHours(0, 0, 0, 0);
+
+           const todayString = today.toISOString().split("T")[0];
+
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
             });
             await DailyStats.findOneAndUpdate(
-              { date: today, agentId },
+              { myDate: todayString, agentId },
               {
                 $setOnInsert: {
                   date: today,

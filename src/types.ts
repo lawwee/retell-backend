@@ -63,10 +63,10 @@ export interface Ijob {
 }
 
 export interface Ilogs {
-  date: Date;
+  myDate: String;
   totalCalls: number;
-  callsAnswered: Number;
-  callsNotAnswered: Number;
+  callsAnswered: number;
+  callsNotAnswered: number;
   agentId: String;
 }
 export interface CustomLlmRequest {

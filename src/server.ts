@@ -21,7 +21,13 @@ import {
   EventModel,
 } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
-import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
+import {
+  IContact,
+  Ilogs,
+  RetellRequest,
+  callstatusenum,
+  jobstatus,
+} from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
@@ -38,7 +44,7 @@ import path from "path";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
-console.log("connected")
+console.log("connected");
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_openai_func_call";
@@ -87,7 +93,7 @@ export class Server {
     this.deleteAll();
     this.logsToCsv();
     this.updatereference();
-    this.statsForAgent()
+    this.statsForAgent();
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -133,7 +139,7 @@ export class Server {
       },
     );
   }
-  
+
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -150,10 +156,27 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED },
             );
+              await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
+                {
+                  $setOnInsert: {
+                    date: today,
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                    callsNotAnswered: 0,
+                  },
+                },
+                { upsert: true, new: true },
+              );
+
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -184,10 +207,27 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED },
             );
+              await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
+                {
+                  $setOnInsert: {
+                    date: today,
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                    callsNotAnswered: 0,
+                  },
+                },
+                { upsert: true, new: true },
+              );
+
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -218,14 +258,16 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED },
             );
             await DailyStats.findOneAndUpdate(
-              { date: today, agentId: user.agentId},
+              { myDate: todayString, agentId: user.agentId },
               {
                 $setOnInsert: {
                   date: today,
@@ -258,7 +300,7 @@ export class Server {
             }
           });
         }
-        
+
         if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
           console.log("Call started with katherine");
           const oclient = new katherineDemoLlmClient();
@@ -951,66 +993,65 @@ export class Server {
     });
   }
 
-  statsForAgent(){
-    this.app.post("/get-stats", async (req: Request, res: Response)=> {
-      try {
-        let agents: string[] = [];
-        if (req.body.agents) {
-          // If agents are provided in the request body as an array, use them
-          agents = Array.isArray(req.body.agents)
-            ? req.body.agents
-            : [req.body.agents];
-        }
+  statsForAgent() {
+    this.app.post("/get-stats", async (req: Request, res: Response) => {
+     try {
+       const agent1 = "214e92da684138edf44368d371da764c";
+       const agent2 = "0411eeeb12d17a340941e91a98a766d0";
+       const agent3 = "86f0db493888f1da69b7d46bfaecd360";
+       const { date } = req.body;
 
-        let date: Date;
-        if (req.body.date) {
-          // Attempt to parse the date from the request body
-          date = new Date(req.body.date);
+      //  const today = new Date();
+      //  today.setHours(0, 0, 0, 0);
 
-          // Check if the parsed date is valid
-          if (isNaN(date.getTime())) {
-            return res.status(400).json({ message: "Invalid date format" });
-          }
-        } else {
-          // If date is not provided, use the current date
-          date = new Date();
-        }
-        date.setHours(0, 0, 0, 0); // Set time to the beginning of the day
+      //  const todayString = today.toISOString().split("T")[0];
+      //  console.log("todaysting", todayString)
+       // Find documents for each agent
+       const foundAgent1 = await DailyStats.findOne({
+         myDate: date,
+         agentId: agent1,
+       });
+       const foundAgent2 = await DailyStats.findOne({
+         myDate: date,
+         agentId: agent2,
+       });
+       const foundAgent3 = await DailyStats.findOne({
+         myDate: date,
+         agentId: agent3,
+       });
 
-        // Find the DailyStats documents for the specified date
-        const dailyStats = await DailyStats.find({ date });
+       // Initialize variables to store aggregated stats
+       let newTotalCalls = 0;
+       let newTotalAnsweredCalls = 0;
+       let newTotalNotAnsweredCalls = 0;
 
-        // Create an object to map agent IDs to their daily stats
-        const statsMap: { [key: string]: any } = {};
-        dailyStats.forEach((stat: any) => {
-          statsMap[stat.agentId] = stat;
-        });
+       // Calculate totals only if documents are found
+       if (foundAgent1) {
+         newTotalCalls += foundAgent1.totalCalls || 0;
+         newTotalAnsweredCalls += foundAgent1.callsAnswered || 0;
+         newTotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
+       }
+       if (foundAgent2) {
+         newTotalCalls += foundAgent2.totalCalls || 0;
+         newTotalAnsweredCalls += foundAgent2.callsAnswered || 0;
+         newTotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
+       }
+       if (foundAgent3) {
+         newTotalCalls += foundAgent3.totalCalls || 0;
+         newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
+         newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
+       }
 
-        // Calculate total calls answered and not answered across all agents
-        let totalCallsAnswered = 0;
-        let totalCallsNotAnswered = 0;
-
-        agents.forEach((agentId: string) => {
-          if (statsMap[agentId]) {
-            const { callsAnswered, callsNotAnswered } = statsMap[agentId];
-            totalCallsAnswered += callsAnswered;
-            totalCallsNotAnswered += callsNotAnswered;
-          }
-        });
-
-        // Create a response object containing the aggregated stats
-        const aggregatedStats = {
-          totalCalls: totalCallsAnswered + totalCallsNotAnswered,
-          callsAnswered: totalCallsAnswered,
-          callsNotAnswered: totalCallsNotAnswered,
-        };
-
-        // Respond with the aggregated stats
-        res.json(aggregatedStats);
-      } catch (error) {
-        console.error("Error fetching daily stats:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    })
+       // Respond with the aggregated stats
+       res.json({
+         newTotalNotAnsweredCalls,
+         newTotalAnsweredCalls,
+         newTotalCalls,
+       });
+     } catch (error) {
+       console.error("Error fetching daily stats:", error);
+       res.status(500).json({ message: "Internal server error" });
+     }
+    });
   }
 }
