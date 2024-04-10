@@ -63,7 +63,7 @@ export interface Ijob {
 }
 
 export interface Ilogs {
-  date: Date;
+  date: string;
   totalCalls: number;
   callsAnswered: Number;
   callsNotAnswered: Number;
