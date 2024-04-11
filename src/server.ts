@@ -158,24 +158,40 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+            let result
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
+            // Find the document with the given criteria
+            const findResult = await DailyStats.findOne({
+              myDate: todayString,
+              agentId: user.agentId,
+            });
 
-             const result = await DailyStats.findOneAndUpdate(
-               { myDate: todayString, agentId: user.agentId },
-               {
-                 $setOnInsert: {
-                   agentId: user.agentId,
-                   myDate: todayString,
-                   totalCalls: 1,
-                   callsAnswered: 1,
-                   callsNotAnswered: 0,
-                 },
-               },
-               { upsert: true, new: true },
-             );
+            if (!findResult) {
+              // If the document doesn't exist, create it with the required fields
+               result = await DailyStats.create({
+                agentId: user.agentId,
+                myDate: todayString,
+                totalCalls: 1,
+                callsAnswered: 1,
+                callsNotAnswered: 0,
+              });
+            } else {
+              // If the document exists, update the required fields
+               result = await DailyStats.findOneAndUpdate(
+                { myDate: todayString , agentId: user.agentId},
+                {
+                  $inc: {
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                  },
+                },
+                { new: true },
+              );
+            }
 
+            // Continue with the rest of your code
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED, linktocallLogModel: result._id },
@@ -210,24 +226,39 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split("T")[0];
+             let result;
+             const today = new Date();
+             today.setHours(0, 0, 0, 0);
+             const todayString = today.toISOString().split("T")[0];
+             // Find the document with the given criteria
+             const findResult = await DailyStats.findOne({
+               myDate: todayString,
+               agentId: user.agentId,
+             });
 
-             const result = await DailyStats.findOneAndUpdate(
-               { myDate: todayString, agentId: user.agentId },
-               {
-                 $setOnInsert: {
-                   agentId: user.agentId,
-                   myDate: todayString,
-                   totalCalls: 1,
-                   callsAnswered: 1,
-                   callsNotAnswered: 0,
+             if (!findResult) {
+               // If the document doesn't exist, create it with the required fields
+               result = await DailyStats.create({
+                 agentId: user.agentId,
+                 myDate: todayString,
+                 totalCalls: 1,
+                 callsAnswered: 1,
+                 callsNotAnswered: 0,
+               });
+             } else {
+               // If the document exists, update the required fields
+               result = await DailyStats.findOneAndUpdate(
+                 { myDate: todayString, agentId: user.agentId },
+
+                 {
+                   $inc: {
+                     totalCalls: 1,
+                     callsAnswered: 1,
+                   },
                  },
-               },
-               { upsert: true, new: true },
-             );
-
+                 { new: true },
+               );
+             }
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED, linktocallLogModel: result._id },
@@ -262,23 +293,38 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
+            let result;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
+            // Find the document with the given criteria
+            const findResult = await DailyStats.findOne({
+              myDate: todayString,
+              agentId: user.agentId,
+            });
 
-             const result = await DailyStats.findOneAndUpdate(
-               { myDate: todayString, agentId: user.agentId },
-               {
-                 $setOnInsert: {
-                   agentId: user.agentId,
-                   myDate: todayString,
-                   totalCalls: 1,
-                   callsAnswered: 1,
-                   callsNotAnswered: 0,
-                 },
-               },
-               { upsert: true, new: true },
-             );
+            if (!findResult) {
+              // If the document doesn't exist, create it with the required fields
+              result = await DailyStats.create({
+                agentId: user.agentId,
+                myDate: todayString,
+                totalCalls: 1,
+                callsAnswered: 1,
+                callsNotAnswered: 0,
+              });
+            } else {
+              // If the document exists, update the required fields
+              result = await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
+                {
+                  $inc: {
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                  },
+                },
+                { new: true },
+              );
+            }
             await contactModel.findOneAndUpdate(
               { callId },
               { status: callstatusenum.CALLED, linktocallLogModel: result._id },
@@ -1116,10 +1162,7 @@ export class Server {
          newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
          newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
        }
-      
-       console.log("ihi",{logId1: foundAgent1?._id,
-         logId2: foundAgent2?._id,
-         logId3:foundAgent3?._id})
+    
        // Respond with the aggregated stats and dailyStats
        res.json({
          newTotalNotAnsweredCalls,

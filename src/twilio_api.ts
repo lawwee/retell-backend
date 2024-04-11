@@ -134,26 +134,41 @@ export class TwilioClient {
           // Respond with TwiML to hang up the call if its machine
           if (answeredBy && answeredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
-           const today = new Date();
-           today.setHours(0, 0, 0, 0);
+            let result;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+            // Find the document with the given criteria
+            const findResult = await DailyStats.findOne({
+              myDate: todayString,
+              agentId
+            });
 
-           const todayString = today.toISOString().split("T")[0];
-           const result = await DailyStats.findOneAndUpdate(
-             { myDate: todayString, agentId },
-             {
-               $setOnInsert: {
+            if (!findResult) {
+              // If the document doesn't exist, create it with the required fields
+              result = await DailyStats.create({
                 agentId,
-                 myDate: todayString,
-                 totalCalls: 1,
-                 callsAnswered: 0,
-                 callsNotAnswered: 1,
-               },
-             },
-             { upsert: true, new: true },
-           );
+                myDate: todayString,
+                totalCalls: 1,
+                callsAnswered: 0,
+                callsNotAnswered: 1,
+              });
+            } else {
+              // If the document exists, update the required fields
+              result = await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId },
+                {
+                  $inc: {
+                    totalCalls: 1,
+                    callsNotAnswered: 1,
+                  },
+                },
+                { new: true },
+              );
+            }
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
-              linktocallLogModel: result._id
+              linktocallLogModel: result._id,
             });
             return;
           } else if (answeredBy) {
