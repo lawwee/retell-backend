@@ -43,6 +43,9 @@ const ContactSchema = new Schema<IContact>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "DailyStats",
     },
+    datesCalled: {
+      type: [String], 
+    },
   },
   { timestamps: true },
 );

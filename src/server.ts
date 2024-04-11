@@ -44,7 +44,7 @@ import path from "path";
 process.env.TZ = "America/Los_Angeles";
 
 connectDb();
-console.log("connected");
+
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./be+well_llm_openai";
 import { testFunctionCallingLlmClient } from "./llm_openai_func_call";
@@ -94,8 +94,8 @@ export class Server {
     this.logsToCsv();
     this.updatereference();
     this.statsForAgent();
-    this.peopleStatsLog()
-    this.updateLog()
+    this.peopleStatsLog();
+    this.updateLog();
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -158,7 +158,7 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-            let result
+            let result;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
@@ -170,7 +170,7 @@ export class Server {
 
             if (!findResult) {
               // If the document doesn't exist, create it with the required fields
-               result = await DailyStats.create({
+              result = await DailyStats.create({
                 agentId: user.agentId,
                 myDate: todayString,
                 totalCalls: 1,
@@ -179,8 +179,8 @@ export class Server {
               });
             } else {
               // If the document exists, update the required fields
-               result = await DailyStats.findOneAndUpdate(
-                { myDate: todayString , agentId: user.agentId},
+              result = await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
                 {
                   $inc: {
                     totalCalls: 1,
@@ -194,7 +194,11 @@ export class Server {
             // Continue with the rest of your code
             await contactModel.findOneAndUpdate(
               { callId },
-              { status: callstatusenum.CALLED, linktocallLogModel: result._id },
+              {
+                status: callstatusenum.CALLED,
+                linktocallLogModel: result._id,
+                $push: { datesCalled: todayString },
+              },
             );
             console.error("Closing llm ws for: ", callId);
           });
@@ -226,42 +230,46 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-             let result;
-             const today = new Date();
-             today.setHours(0, 0, 0, 0);
-             const todayString = today.toISOString().split("T")[0];
-             // Find the document with the given criteria
-             const findResult = await DailyStats.findOne({
-               myDate: todayString,
-               agentId: user.agentId,
-             });
+            let result;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+            // Find the document with the given criteria
+            const findResult = await DailyStats.findOne({
+              myDate: todayString,
+              agentId: user.agentId,
+            });
 
-             if (!findResult) {
-               // If the document doesn't exist, create it with the required fields
-               result = await DailyStats.create({
-                 agentId: user.agentId,
-                 myDate: todayString,
-                 totalCalls: 1,
-                 callsAnswered: 1,
-                 callsNotAnswered: 0,
-               });
-             } else {
-               // If the document exists, update the required fields
-               result = await DailyStats.findOneAndUpdate(
-                 { myDate: todayString, agentId: user.agentId },
+            if (!findResult) {
+              // If the document doesn't exist, create it with the required fields
+              result = await DailyStats.create({
+                agentId: user.agentId,
+                myDate: todayString,
+                totalCalls: 1,
+                callsAnswered: 1,
+                callsNotAnswered: 0,
+              });
+            } else {
+              // If the document exists, update the required fields
+              result = await DailyStats.findOneAndUpdate(
+                { myDate: todayString, agentId: user.agentId },
 
-                 {
-                   $inc: {
-                     totalCalls: 1,
-                     callsAnswered: 1,
-                   },
-                 },
-                 { new: true },
-               );
-             }
+                {
+                  $inc: {
+                    totalCalls: 1,
+                    callsAnswered: 1,
+                  },
+                },
+                { new: true },
+              );
+            }
             await contactModel.findOneAndUpdate(
               { callId },
-              { status: callstatusenum.CALLED, linktocallLogModel: result._id },
+              {
+                status: callstatusenum.CALLED,
+                linktocallLogModel: result._id,
+                $push: { datesCalled: todayString },
+              },
             );
             console.error("Closing llm ws for: ", callId);
           });
@@ -327,7 +335,11 @@ export class Server {
             }
             await contactModel.findOneAndUpdate(
               { callId },
-              { status: callstatusenum.CALLED, linktocallLogModel: result._id },
+              {
+                status: callstatusenum.CALLED,
+                linktocallLogModel: result._id,
+                $push: { datesCalled: todayString },
+              },
             );
             console.error("Closing llm ws for: ", callId);
           });
@@ -1045,196 +1057,128 @@ export class Server {
 
   statsForAgent() {
     this.app.post("/get-stats", async (req: Request, res: Response) => {
-    //  try {
-    //    const agent1 = "214e92da684138edf44368d371da764c";
-    //    const agent2 = "0411eeeb12d17a340941e91a98a766d0";
-    //    const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-    //    const { date } = req.body;
+      try {
+        const agent1 = "214e92da684138edf44368d371da764c";
+        const agent2 = "0411eeeb12d17a340941e91a98a766d0";
+        const agent3 = "86f0db493888f1da69b7d46bfaecd360";
+        const { date } = req.body;
 
-    //    // Find documents for each agent
-    //    const foundAgent1 = await DailyStats.findOne({
-    //      myDate: date,
-    //      agentId: agent1,
-    //    });
-    //    const foundAgent2 = await DailyStats.findOne({
-    //      myDate: date,
-    //      agentId: agent2,
-    //    });
-    //    const foundAgent3 = await DailyStats.findOne({
-    //      myDate: date,
-    //      agentId: agent3,
-    //    });
+        // Validate date
+        if (!date) {
+          throw new Error("Date is missing in the request body");
+        }
 
-    //    // Initialize variables to store aggregated stats
-    //    let newTotalCalls = 0;
-    //    let newTotalAnsweredCalls = 0;
-    //    let newTotalNotAnsweredCalls = 0;
+        // Find documents for each agent
+        const foundAgent1 = await DailyStats.findOne({
+          myDate: date,
+          agentId: agent1,
+        });
+        const foundAgent2 = await DailyStats.findOne({
+          myDate: date,
+          agentId: agent2,
+        });
+        const foundAgent3 = await DailyStats.findOne({
+          myDate: date,
+          agentId: agent3,
+        });
 
-    //    // Calculate totals only if documents are found
-    //    if (foundAgent1) {
-    //      newTotalCalls += foundAgent1.totalCalls || 0;
-    //      newTotalAnsweredCalls += foundAgent1.callsAnswered || 0;
-    //      newTotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
-    //    }
-    //    if (foundAgent2) {
-    //      newTotalCalls += foundAgent2.totalCalls || 0;
-    //      newTotalAnsweredCalls += foundAgent2.callsAnswered || 0;
-    //      newTotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
-    //    }
-    //    if (foundAgent3) {
-    //      newTotalCalls += foundAgent3.totalCalls || 0;
-    //      newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
-    //      newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
-    //    }
+        // Initialize variables to store aggregated stats
+        let newTotalCalls = 0;
+        let newTotalAnsweredCalls = 0;
+        let newTotalNotAnsweredCalls = 0;
 
-    //    const agentIds = [
-    //      "214e92da684138edf44368d371da764c",
-    //      "0411eeeb12d17a340941e91a98a766d0",
-    //      "86f0db493888f1da69b7d46bfaecd360",
-    //    ]; // Array of agent IDs
+        // Calculate totals only if documents are found
+        if (foundAgent1) {
+          newTotalCalls += foundAgent1.totalCalls || 0;
+          newTotalAnsweredCalls += foundAgent1.callsAnswered || 0;
+          newTotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
+        }
+        if (foundAgent2) {
+          newTotalCalls += foundAgent2.totalCalls || 0;
+          newTotalAnsweredCalls += foundAgent2.callsAnswered || 0;
+          newTotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
+        }
+        if (foundAgent3) {
+          newTotalCalls += foundAgent3.totalCalls || 0;
+          newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
+          newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
+        }
 
-    //    const logIds =  [
-    //     foundAgent1._id,
-    //     foundAgent2._id,
-    //     foundAgent3._id
-    //    ]
-    //    const dailyStats = await contactModel
-    //      .find({
-    //        agentId: { $in: agentIds },
-    //        linktocallLogModel: { $in: logIds },
-    //      })
-    //      .populate("linktocallLogModel");
-    //    // Respond with the aggregated stats
-    //    res.json({
-    //      newTotalNotAnsweredCalls,
-    //      newTotalAnsweredCalls,
-    //      newTotalCalls,
-    //      dailyStats
-    //    });
-    //  } catch (error) {
-    //    console.error("Error fetching daily stats:", error);
-    //    res.status(500).json({ message: "Internal server error" });
-    //  }
-
-     try {
-       const agent1 = "214e92da684138edf44368d371da764c";
-       const agent2 = "0411eeeb12d17a340941e91a98a766d0";
-       const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-       const { date } = req.body;
-
-       // Validate date
-       if (!date) {
-         throw new Error("Date is missing in the request body");
-       }
-
-       // Find documents for each agent
-       const foundAgent1 = await DailyStats.findOne({
-         myDate: date,
-         agentId: agent1,
-       });
-       const foundAgent2 = await DailyStats.findOne({
-         myDate: date,
-         agentId: agent2,
-       });
-       const foundAgent3 = await DailyStats.findOne({
-         myDate: date,
-         agentId: agent3,
-       });
-
-       // Initialize variables to store aggregated stats
-       let newTotalCalls = 0;
-       let newTotalAnsweredCalls = 0;
-       let newTotalNotAnsweredCalls = 0;
-
-       // Calculate totals only if documents are found
-       if (foundAgent1) {
-         newTotalCalls += foundAgent1.totalCalls || 0;
-         newTotalAnsweredCalls += foundAgent1.callsAnswered || 0;
-         newTotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
-       }
-       if (foundAgent2) {
-         newTotalCalls += foundAgent2.totalCalls || 0;
-         newTotalAnsweredCalls += foundAgent2.callsAnswered || 0;
-         newTotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
-       }
-       if (foundAgent3) {
-         newTotalCalls += foundAgent3.totalCalls || 0;
-         newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
-         newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
-       }
-    
-       // Respond with the aggregated stats and dailyStats
-       res.json({
-         newTotalNotAnsweredCalls,
-         newTotalAnsweredCalls,
-         newTotalCalls,
-        logId1: foundAgent1?._id,
-         logId2: foundAgent2?._id,
-         logId3:foundAgent3?._id,
-       });
-     } catch (error) {
-       console.error("Error fetching daily stats:", error);
-       res.status(500).json({ message: "Internal server error" });
-     }
+        // Respond with the aggregated stats and dailyStats
+        res.json({
+          newTotalNotAnsweredCalls,
+          newTotalAnsweredCalls,
+          newTotalCalls,
+          logId1: foundAgent1?._id,
+          logId2: foundAgent2?._id,
+          logId3: foundAgent3?._id,
+        });
+      } catch (error) {
+        console.error("Error fetching daily stats:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
     });
   }
-  peopleStatsLog(){
-    this.app.post("/get-metadata", async (req: Request, res:Response) => {
+  peopleStatsLog() {
+    this.app.post("/get-metadata", async (req: Request, res: Response) => {
       try {
-        const { logId1, logId2, logId3 } = req.body;
+        const { logId1, logId2, logId3, date } = req.body;
         const agentIds = [
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
           "86f0db493888f1da69b7d46bfaecd360",
         ]; // Array of agent IDs
 
-        const logIds = [
-          logId1,
-          logId2,
-          logId3
-        ].filter((id) => id); // Filter out undefined or null values
-        console.log(logIds)
+        const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
         const dailyStats = await contactModel
           .find({
-            agentId: { $in: agentIds },
-            linktocallLogModel: { $in: logIds },
+            $and: [
+              { agentId: { $in: agentIds } }, // Check if agentId belongs to agentIds array
+              { linktocallLogModel: { $in: logIds } }, // Check if linktocallLogModel belongs to logIds array
+              { status: { $in: ["called-answered", "called-NA-VM"] } },
+              {
+                datesCalled: {
+                  $elemMatch: { $eq: date }, 
+                },
+              },
+            ],
           })
           .sort({ createdAt: "desc" })
           .populate("referenceToCallId");
-          res.json({dailyStats})
+        res.json({ dailyStats });
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
-    })
+    });
   }
-  updateLog(){
+  updateLog() {
     this.app.post("/updateLog", async (req: Request, res: Response) => {
-       try {
-         // Fetch the documents that need to be updated
-         const documentsToUpdate = await contactModel
-           .find({
-             updatedAt: { $ne: null },
-             agentId: "0411eeeb12d17a340941e91a98a766d0",
-             status: "called-answered",
-           })
-           .sort({ updatedAt: -1 });
- // Limit the number of documents fetched
+      try {
+        // Fetch the documents that need to be updated
+        const documentsToUpdate = await contactModel
+          .find({
+            updatedAt: { $ne: null },
+            agentId: "0411eeeb12d17a340941e91a98a766d0",
+            status: "called-answered",
+          })
+          .sort({ updatedAt: -1 });
+        // Limit the number of documents fetched
 
-         // Update each document
-         const updateResults = [];
-         for (const doc of documentsToUpdate) {
-           const result = await contactModel.updateOne(
-             { _id: doc._id },
-             { $set: { linktocallLogModel: "6615d9d3ed452636ea7491ee" } },
-           );
-           updateResults.push(result);
-         }
+        // Update each document
+        const updateResults = [];
+        for (const doc of documentsToUpdate) {
+          const result = await contactModel.updateOne(
+            { _id: doc._id },
+            { $set: { linktocallLogModel: "6615d9d3ed452636ea7491ee" } },
+          );
+          updateResults.push(result);
+        }
 
-         res.json(updateResults.length);
-       } catch (error) {
-         console.error(error);
-         res.status(500).json({ error: "Internal server error" });
-       }
+        res.json(updateResults.length);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
       //  try {
       //    // Update the first 1000 documents to remove the specified field
       //    const updateResult = await contactModel.updateMany(
@@ -1251,10 +1195,10 @@ export class Server {
       //    console.error(error);
       //    res.status(500).json({ error: "Internal server error" });
       //  }
-    })
+    });
   }
 
-  peopleStatToCsv(){
+  peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
         const { logId1, logId2, logId3 } = req.body;
@@ -1273,8 +1217,6 @@ export class Server {
           })
           .sort({ createdAt: "desc" })
           .populate("referenceToCallId");
-
-          
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
