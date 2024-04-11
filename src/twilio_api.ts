@@ -169,6 +169,7 @@ export class TwilioClient {
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
               linktocallLogModel: result._id,
+              $push: { datesCalled: todayString }
             });
             return;
           } else if (answeredBy) {

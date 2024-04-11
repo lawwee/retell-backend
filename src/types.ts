@@ -27,7 +27,8 @@ export interface IContact {
   status: string;
   agentId: string;
   referenceToCallId: any;
-  linktocallLogModel: any
+  linktocallLogModel: any;
+  datesCalled: string[]
 }
 
 export enum callstatusenum {
