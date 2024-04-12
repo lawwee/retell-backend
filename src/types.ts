@@ -29,6 +29,7 @@ export interface IContact {
   referenceToCallId: any;
   linktocallLogModel: any;
   datesCalled: string[]
+  answeredByVM:boolean
 }
 
 export enum callstatusenum {
@@ -41,6 +42,7 @@ export enum callstatusenum {
   VOICEMAIL = "called-NA-VM",
   CANCELED = "canceled",
   NOT_CALLED = "not called",
+
 }
 
 export interface Itranscript {

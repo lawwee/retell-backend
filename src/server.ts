@@ -32,9 +32,9 @@ import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
 import moment from "moment-timezone";
-import { chloeDemoLlmClient } from "./chloe_llm_openai";
-import { ethanDemoLlmClient } from "./ethan_llm_openai";
-import { danielDemoLlmClient } from "./daniel_llm-openai";
+import { chloeDemoLlmClient } from "./VA-GROUP-LLM/chloe_llm_openai";
+import { ethanDemoLlmClient } from "./VA-GROUP-LLM/ethan_llm_openai";
+import { danielDemoLlmClient } from "./VA-GROUP-LLM/daniel_llm-openai";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import schedule from "node-schedule";
@@ -46,9 +46,9 @@ process.env.TZ = "America/Los_Angeles";
 connectDb();
 
 import SmeeClient from "smee-client";
-import { katherineDemoLlmClient } from "./be+well_llm_openai";
-import { testFunctionCallingLlmClient } from "./llm_openai_func_call";
-import { testDemoLlmClient2 } from "./llm_openai_func_call2";
+import { katherineDemoLlmClient } from "./Other-LLM/be+well_llm_openai";
+import { testFunctionCallingLlmClient } from "./TEST-LLM/llm_openai_func_call";
+import { testDemoLlmClient2 } from "./TEST-LLM/llm_openai_func_call2";
 import { DailyStats } from "./contacts/call_log";
 export class Server {
   private httpServer: HTTPServer;
@@ -96,6 +96,7 @@ export class Server {
     this.statsForAgent();
     this.peopleStatsLog();
     this.updateLog();
+    this.peopleStatToCsv()
     // this.stopSpecificJob();
 
     this.retellClient = new RetellClient({
@@ -174,7 +175,7 @@ export class Server {
                 agentId: user.agentId,
                 myDate: todayString,
                 totalCalls: 1,
-                callsAnswered: 1,
+                callsAnswered: 0,
                 callsNotAnswered: 0,
               });
             } else {
@@ -184,7 +185,6 @@ export class Server {
                 {
                   $inc: {
                     totalCalls: 1,
-                    callsAnswered: 1,
                   },
                 },
                 { new: true },
@@ -246,7 +246,7 @@ export class Server {
                 agentId: user.agentId,
                 myDate: todayString,
                 totalCalls: 1,
-                callsAnswered: 1,
+                callsAnswered: 0,
                 callsNotAnswered: 0,
               });
             } else {
@@ -257,7 +257,6 @@ export class Server {
                 {
                   $inc: {
                     totalCalls: 1,
-                    callsAnswered: 1,
                   },
                 },
                 { new: true },
@@ -317,7 +316,7 @@ export class Server {
                 agentId: user.agentId,
                 myDate: todayString,
                 totalCalls: 1,
-                callsAnswered: 1,
+                callsAnswered: 0,
                 callsNotAnswered: 0,
               });
             } else {
@@ -327,7 +326,6 @@ export class Server {
                 {
                   $inc: {
                     totalCalls: 1,
-                    callsAnswered: 1,
                   },
                 },
                 { new: true },
@@ -577,7 +575,7 @@ export class Server {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
           { agentId },
-          { status: "not called" },
+          { status: "not called", answeredByVM: false },
         );
         res.json({ result });
       },
@@ -927,22 +925,20 @@ export class Server {
       // }
       try {
         if (payload.event === "call_ended") {
-          const { event, call_id, transcript } = payload.data;
+          const { event, call_id, transcript, recording_url } = payload.data;
 
           // Perform custom actions with the transcript, timestamps, etc.
-          console.log("Event", event);
           console.log(transcript);
           const result = await EventModel.create({
             event: payload.event,
             transcript,
             callId: call_id,
+            recordingUrl: recording_url,
           });
-          const result2 = await contactModel.findOneAndUpdate(
+          await contactModel.findOneAndUpdate(
             { callId: call_id },
             { referenceToCallId: result._id },
           );
-          // Respond with acknowledgment
-          response.json({ Result: "Transcript saved to DB" });
         } else {
           // For other event types, if any, you can add corresponding logic here
           console.log("Received event type:", payload.event);
@@ -1104,10 +1100,12 @@ export class Server {
           newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
         }
 
+        const finalAnsweredCall =
+          newTotalAnsweredCalls + (newTotalCalls - newTotalNotAnsweredCalls);
         // Respond with the aggregated stats and dailyStats
         res.json({
           newTotalNotAnsweredCalls,
-          newTotalAnsweredCalls,
+          finalAnsweredCall,
           newTotalCalls,
           logId1: foundAgent1?._id,
           logId2: foundAgent2?._id,
@@ -1130,7 +1128,12 @@ export class Server {
         ]; // Array of agent IDs
 
         const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
-        const dailyStats = await contactModel.find( {datesCalled: { $in: [date] }, agentId: { $in: agentIds }})
+        const dailyStats = await contactModel.find({
+          datesCalled: { $in: [date] },
+          agentId: { $in: agentIds },
+          isDeleted:{$ne: true}
+        });
+        
         res.json({ dailyStats });
       } catch (error) {
         console.log(error);
@@ -1187,7 +1190,7 @@ export class Server {
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
-        const { logId1, logId2, logId3 } = req.body;
+        const { logId1, logId2, logId3, date } = req.body;
         const agentIds = [
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
@@ -1196,13 +1199,59 @@ export class Server {
 
         const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
 
+        // const dailyStats = await contactModel
+        //   .find({
+        //     agentId: { $in: agentIds },
+        //     linktocallLogModel: { $in: logIds },
+        //   })
+        //   .sort({ createdAt: "desc" })
+        //   .populate("referenceToCallId");
         const dailyStats = await contactModel
           .find({
+            datesCalled: { $in: [date] },
             agentId: { $in: agentIds },
-            linktocallLogModel: { $in: logIds },
+            isDeleted: { $ne: true },
           })
           .sort({ createdAt: "desc" })
           .populate("referenceToCallId");
+        //   .populate("referenceToCallId");
+        // Extract relevant fields from found contacts
+        const contactsData = dailyStats.map((contact) => ({
+          name: contact.firstname,
+          email: contact.email,
+          phone: contact.phone,
+          status: contact.status,
+          transcript: contact.referenceToCallId?.transcript || "",
+        }));
+
+        // Write contacts data to CSV file
+        const filePath = path.join(__dirname, "..", "public", "stats.csv");
+        console.log("File path:", filePath); // Log file path for debugging
+
+        const csvWriter = createObjectCsvWriter({
+          path: filePath,
+          header: [
+            { id: "name", title: "Name" },
+            { id: "email", title: "Email" },
+            { id: "phone", title: "Phone Number" },
+            { id: "status", title: "Status" },
+            { id: "transcript", title: "Transcript" },
+          ],
+        });
+
+        await csvWriter.writeRecords(contactsData);
+        console.log("CSV file logs.csv has been written successfully");
+
+        // Check if the file exists synchronously
+        if (fs.existsSync(filePath)) {
+          // Set the response headers to trigger file download
+          res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+          res.setHeader("Content-Type", "text/csv");
+
+          // Create a read stream from the CSV file and pipe it to the response
+          const fileStream = fs.createReadStream(filePath);
+          fileStream.pipe(res);
+        }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });

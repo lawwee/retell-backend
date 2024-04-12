@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { WebSocket } from "ws";
-import { RetellRequest, RetellResponse, Utterance } from "./types";
+import { RetellRequest, RetellResponse, Utterance } from "../types";
 
 let beginSentence: string;
 let agentPrompt: string;

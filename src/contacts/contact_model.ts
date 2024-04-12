@@ -44,7 +44,11 @@ const ContactSchema = new Schema<IContact>(
       ref: "DailyStats",
     },
     datesCalled: {
-      type: [String], 
+      type: [String],
+    },
+    answeredByVM: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },
@@ -86,6 +90,7 @@ const transcriptSchema = new Schema({
     type: String,
   },
   transcript: { type: String },
+  recordingUrl: { type: String },
 });
 
 export const EventModel = model("transcript", transcriptSchema);

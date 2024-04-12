@@ -158,7 +158,7 @@
 
 import OpenAI from "openai";
 import { WebSocket } from "ws";
-import { RetellRequest, RetellResponse, Utterance } from "./types";
+import { RetellRequest, RetellResponse, Utterance } from "../types";
 
 // Define the greeting message of the agent. If you don't want the agent speak first, set to empty string ""
 let beginSentence: string;
