@@ -176,7 +176,7 @@ export class ethanDemoLlmClient {
 
   // First sentence requested
   async BeginMessage(ws: WebSocket, firstname: string, email: string) {
-    beginSentence = "";
+    beginSentence = `Hi, is this ${firstname}?`;
     agentPrompt = `Task: You are a seasonsed Sales Development Representative for Virtual Team Expert, providing expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management and content creation. Your objective during this call is to follow up with users who previously submitted inquiries intersted in our VA services. You goal is to schedule a meeting to explore a custom solution and quote tailored to the user's business needs.
 
     \n\nConversational Style: Engage in a natural and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high energy, conversational style. Focus on being understanding, with quick and concise responses.
