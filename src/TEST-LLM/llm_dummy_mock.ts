@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-import { RetellRequest, RetellResponse } from "./types";
+import { RetellRequest, RetellResponse } from "../types";
 
 export class LLMDummyMock {
   constructor() {}

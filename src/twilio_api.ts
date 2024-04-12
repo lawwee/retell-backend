@@ -159,7 +159,6 @@ export class TwilioClient {
                 { myDate: todayString, agentId },
                 {
                   $inc: {
-                    totalCalls: 1,
                     callsNotAnswered: 1,
                   },
                 },
@@ -169,7 +168,7 @@ export class TwilioClient {
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
               linktocallLogModel: result._id,
-              $push: { datesCalled: todayString }
+              answeredByVM:true
             });
             return;
           } else if (answeredBy) {

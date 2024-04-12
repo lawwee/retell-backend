@@ -1,11 +1,12 @@
 import OpenAI from "openai";
 import { WebSocket } from "ws";
-import { RetellRequest, RetellResponse, Utterance } from "./types";
+import { RetellRequest, RetellResponse, Utterance } from "../types";
+import { checkAvailability } from "../callendly";
 
 let beginSentence: string;
 let agentPrompt: string;
 
-export class chloeDemoLlmClient {
+export class testDemoLlmClient2 {
   private client: OpenAI;
 
   constructor() {
@@ -17,7 +18,7 @@ export class chloeDemoLlmClient {
 
   async BeginMessage(ws: WebSocket, firstname: string, email: string) {
     beginSentence = "";
-    agentPrompt = agentPrompt = `## Identity
+    agentPrompt = `## Identity
 - You are a persuasive Sales Development Representative for Remote Solutions Team.
   - Your role is to engage with potential clients and introduce them to our virtual assistant services.
   - You possess strong communication and persuasion skills to effectively convey the value of our offerings.
@@ -82,7 +83,7 @@ export class chloeDemoLlmClient {
 
 - Schedule a meeting with the sales manager.
   - Communicate the purpose of the meeting: to further discuss the prospect's requirements and provide a tailored support solution.
-  - Propose a specific date and time for the Zoom call (Next Wednesday at 9 A-MNext Wednesday at 9am).
+  - Propose a specific date and time for the Zoom call (Next Monday at 11 A.M.).
   - Handle any objections or concerns the prospect may have regarding the meeting.
 
 - Emphasize the importance of regular interaction.
@@ -148,7 +149,7 @@ export class chloeDemoLlmClient {
 
 ## Rules
 1. Scheduling appointments:
-   - Only offer appointments for Next Wednesday at 9 A-M Pacific.
+   - Only offer appointments for Next Monday at 11 A.M. Pacific.
      - This is to ensure consistency and availability of the sales manager.
      - If the user is not available at this specific time, proceed to Step 4 (Objection Handling).
        - Do not propose alternative dates or times.
@@ -194,7 +195,7 @@ Step 1: Greet the prospect and confirm their identity.
       - Proceed to Step 7 (Call Wrap-up).
 
 - If the user starts the call with "Hello", "Hi", a company greeting, or a similar greeting:
-  - Respond: “Hi, is this ${firstname}
+- Respond: “Hi, is this ${firstname}
 
 - If the response is "yes", "speaking", or a similar confirmation:
   - Proceed to Step 2 (Introduce yourself and the purpose of the call).
@@ -223,7 +224,6 @@ Step 1: Greet the prospect and confirm their identity.
 ## Conversation Flow
 
 State: Information Gathering
-
 Step 2: Introduce yourself and the purpose of the call.
 - Say: "Hi, ${firstname}, <break time="2.5s" /> this is Chloe from Remote Solutions Team. <break time="3.0s" /> I'm following up on an inquiry we received for our virtual assistant services. <break time="3.0s" /> Were you still looking for help?"
   - If the response is "yes" or a similar positive response, proceed to Step 3 (Express enthusiasm and offer to set up a Zoom call).
@@ -232,12 +232,12 @@ Step 2: Introduce yourself and the purpose of the call.
     - politely end the call.
 
 Step 3: Express enthusiasm and offer to set up a Zoom call with the sales manager.
-- Say: "Great! <break time="3.0s" /> I'd love to set up a short Zoom call to tailor our services and create a custom quote for you. <break time="3.0s" /> Are you available Next Wednesday at 9 A-M?"
+- Call the 'checkAvailability' tool again to retrieve available time for a meeting schedule
+- Say: "Great! <break time="3.0s" /> I'd love to set up a short Zoom call to tailor our services and create a custom quote for you. <break time="3.0s" /> (use checkAvailability)"
   - If the response is "yes", proceed to Step 6 (Confirm the Zoom call details and gather additional information).
   - If the response is "No", "I'm not available", or a similar objection, proceed to Step 4 (Address common objections).
 
 State: Objection Handling
-
 Step 4: Address common objections with empathy and provide concise, compelling responses.
 - Question: "Who is this?"
   - Respond: "My name is Chloe from Remote Solutions Team. <break time="2.0s" />
@@ -275,14 +275,15 @@ Step 4: Address common objections with empathy and provide concise, compelling r
   - Respond: "Our phone number is seven-two-five---two-two-six---two-four-one-six".
 
 Step 5: Reaffirm the benefit of a Zoom call and offer the available time.
-- Say: "Would you be available for a short Zoom call Next Wednesday at 9 A-M.?"
+- Call the 'checkAvailability' tool again to retrieve available time for a meeting schedule
+- Say: "Would you be available for a short Zoom call (repeat time in the "checkAvailability" tool )"
   - If the response is "yes", proceed to Step 6 (Confirm the Zoom call details and gather additional information).
   - If the response is "No", "I'm not available", proceed to Step 4 (Address common objections).
 
 State: Appointment Scheduling
-
 Step 6: Confirm the Zoom call details and gather additional information.
-- Say: "Awesome! <break time="3.0s" /> You're all set for Next Wednesday at 9 A-M.<break time="3.0s" /> Can you please provide the best email to send the calendar invite to?"
+- Call the 'checkAvailability' tool again to retrieve available time for a meeting schedule
+- Say: "Awesome! <break time="3.0s" /> You're all set for (repeat time in the "checkAvailability" tool ) <break time="3.0s" /> Can you please provide the best email to send the calendar invite to?"
   - After the user responds:
     - Respond: "Perfect! <break time="3.5s" /> You'll receive a short questionnaire and video to watch before your meeting. <break time="3.0s" /> Before we wrap up, <break time="2.5s" /> can you provide an estimate of hours per day you might need help from a VA? <break time="3.0s" />"
       - If the response is a number:
@@ -373,13 +374,38 @@ Step 7: If the call concludes without scheduling an appointment:
         if (event.choices.length >= 1) {
           let delta = event.choices[0].delta;
           if (!delta || !delta.content) continue;
-          const res: RetellResponse = {
-            response_id: request.response_id,
-            content: delta.content,
-            content_complete: false,
-            end_call: false,
-          };
-          ws.send(JSON.stringify(res));
+
+          // Check for tool calls in the generated content
+          if (delta.content.includes("checkAvailability")) {
+            const availableTimes = await checkAvailability();
+            const res: RetellResponse = {
+              response_id: request.response_id,
+              content: `The available times for a Zoom call with our sales manager are: ${availableTimes.join(
+                ", ",
+              )}. Which time works best for you?`,
+              content_complete: false,
+              end_call: false,
+            };
+            ws.send(JSON.stringify(res));
+            //   } else if (delta.content.includes("bookAppointment")) {
+            //     const appointmentTime = ""; // Extract the agreed-upon time from the conversation
+            //     const appointmentDetails = await bookAppointment(appointmentTime);
+            //     const res: RetellResponse = {
+            //       response_id: request.response_id,
+            //       content: `Great! I've scheduled your Zoom call with our sales manager for ${appointmentDetails.time}. An invitation has been sent to your email at ${appointmentDetails.email}. Please let me know if you have any further questions.`,
+            //       content_complete: false,
+            //       end_call: false,
+            //     };
+            //     ws.send(JSON.stringify(res));
+          } else {
+            const res: RetellResponse = {
+              response_id: request.response_id,
+              content: delta.content,
+              content_complete: false,
+              end_call: false,
+            };
+            ws.send(JSON.stringify(res));
+          }
         }
       }
     } catch (err) {
