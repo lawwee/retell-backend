@@ -1222,6 +1222,7 @@ export class Server {
           phone: contact.phone,
           status: contact.status,
           transcript: contact.referenceToCallId?.transcript || "",
+          call_recording_url: contact.referenceToCallId.recordingUrl,
         }));
 
         // Write contacts data to CSV file
@@ -1236,6 +1237,7 @@ export class Server {
             { id: "phone", title: "Phone Number" },
             { id: "status", title: "Status" },
             { id: "transcript", title: "Transcript" },
+            {id:"call_recording_url", title:"Call_Recording_Url"}
           ],
         });
 
