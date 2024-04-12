@@ -1130,21 +1130,7 @@ export class Server {
         ]; // Array of agent IDs
 
         const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
-        const dailyStats = await contactModel
-          .find({
-            $and: [
-              { agentId: { $in: agentIds } }, // Check if agentId belongs to agentIds array
-              { linktocallLogModel: { $in: logIds } }, // Check if linktocallLogModel belongs to logIds array
-              { status: { $in: ["called-answered", "called-NA-VM"] } },
-              {
-                datesCalled: {
-                  $elemMatch: { $eq: date }, 
-                },
-              },
-            ],
-          })
-          .sort({ createdAt: "desc" })
-          .populate("referenceToCallId");
+        const dailyStats = await contactModel.find( {datesCalled: { $in: [date] }, agentId: { $in: agentIds }})
         res.json({ dailyStats });
       } catch (error) {
         console.log(error);
