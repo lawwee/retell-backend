@@ -487,7 +487,7 @@ export class Server {
           {
             name: "appointment_date_checking",
             state_prompt:
-              '## Steps:\nFolow the steps here \n1. Call funcion check_availability and list the available times for appointment \n2 when done listing available times call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n ',
+              "## Steps:\nFolow the steps here \n1. Call funcion check_availability and list the available times for appointment",
             edges: [],
             tools: [
               {
@@ -525,7 +525,7 @@ export class Server {
           user_email: result.email,
         },
       });
-      console.log(llm.llm_id);
+      console.log(llm.states);
       console.log(agent.agent_id);
       res.send(registerCallResponse2);
     });
