@@ -478,7 +478,8 @@ export class Server {
               '## Steps:\nFollow the steps here to ask questions to user\n1. introduce yourself by this is Ethan from Virtual Team Expert and ask for user\'s name if user has not provided their name.\n  - if the user says this is wrong number, call function end_call to hang up and say sorry for the confusion.\n2. Say [I\'m following up on an inquiry that was submitted for our virtual assistant services. Were you still looking for help?]\n  - if the response is no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n3. ask if user is open to have a zoom call to tailor our services and create a custom quote for you.\n  - if yes, transition to appointment_date_checking\n  - if clearly no (not interested at all), call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n  - if user is hesitant, reaffirm the benefit of zoom call and proceed to step 4\n4. ask Would you be open for a short Zoom call with us? \n  - if yes, transition to appointment_date_checking\n  - if still no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n',
             edges: [
               {
-                description: "Transition to check available appointment dates if user agrees to a zoom call",
+                description:
+                  "Transition to check available appointment dates if user agrees to a zoom call",
                 destination_state_name: "appointment_date_checking",
               },
             ],
@@ -487,7 +488,7 @@ export class Server {
           {
             name: "appointment_date_checking",
             state_prompt:
-              "## Steps:\nFolow the steps here \n1. Call funcion check_availability and list the available times for appointment",
+              '## Schedule Rule\nCurrent time is {{current_time}}. Schedule only within the current calendar year and future dates. User\'s email {{user_email}}.\n\nTask:\n1. Ask user for a range of availability for the zoom call.\n2. Call function check_availability to check for availability in the provided time range.\n   - If available, inform user of the options and ask to select from them.\n   - If nearby times are available, inform user about those options.\n   - If no times are available, ask user to select another range, then repeat step 2.\n3. Confirm the selected date, time, and timezone with the user: "Just to confirm, you want to book the appointment at ...". Ensure the chosen time is from the available slots.\n4. Once confirmed, say "Thank you", use end_call to hang up.',
             edges: [],
             tools: [
               {
@@ -495,7 +496,8 @@ export class Server {
                   "Huhh give a moment while i check what time is available for you.",
                 speak_after_execution: true,
                 name: "check_availability",
-                description: "get the available appointment date to schedule a meeting .",
+                description:
+                  "get the available appointment date to schedule a meeting .",
                 type: "custom",
                 speak_during_execution: true,
                 url: "https://retell-backend-yy86.onrender.com/calender",
