@@ -475,10 +475,10 @@ export class Server {
           {
             name: "intro",
             state_prompt:
-              '## Steps:\nFollow the steps here to ask questions to user\n1. introduce yourself by this is Ethan from Virtual Team Expert and ask for user\'s name if user has not provided their name.\n  - if the user says this is wrong number, call function end_call to hang up and say sorry for the confusion.\n2. Say [I\'m following up on an inquiry that was submitted for our virtual assistant services. Were you still looking for help?]\n  - if the response is no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n3. ask if user is open to have a zoom call to tailor our services and create a custom quote for you.\n  - if yes, transition to appointment_date_checking\n  - if clearly no (not interested at all), call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n  - if user is hesitant, reaffirm the benefit of zoom call and proceed to step 4\n4. ask Would you be open for a short Zoom call with us? \n  - if yes, transition to appointment_booking\n  - if still no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n',
+              '## Steps:\nFollow the steps here to ask questions to user\n1. introduce yourself by this is Ethan from Virtual Team Expert and ask for user\'s name if user has not provided their name.\n  - if the user says this is wrong number, call function end_call to hang up and say sorry for the confusion.\n2. Say [I\'m following up on an inquiry that was submitted for our virtual assistant services. Were you still looking for help?]\n  - if the response is no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n3. ask if user is open to have a zoom call to tailor our services and create a custom quote for you.\n  - if yes, transition to appointment_date_checking\n  - if clearly no (not interested at all), call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n  - if user is hesitant, reaffirm the benefit of zoom call and proceed to step 4\n4. ask Would you be open for a short Zoom call with us? \n  - if yes, transition to appointment_date_checking\n  - if still no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n',
             edges: [
               {
-                description: "Transition to check available appointment dates",
+                description: "Transition to check available appointment dates if user agrees to a zoom call",
                 destination_state_name: "appointment_date_checking",
               },
             ],
@@ -487,7 +487,7 @@ export class Server {
           {
             name: "appointment_date_checking",
             state_prompt:
-              '## Steps:\n1 Call funcion check_availability and list the available times for appointment \n2 when done listing available times call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n ',
+              '## Steps:\nFolow the steps here \n1. Call funcion check_availability and list the available times for appointment \n2 when done listing available times call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n ',
             edges: [],
             tools: [
               {
@@ -495,7 +495,7 @@ export class Server {
                   "Huhh give a moment while i check what time is available for you.",
                 speak_after_execution: true,
                 name: "check_availability",
-                description: "Check the calendar for available slots.",
+                description: "get the available appointment date to schedule a meeting .",
                 type: "custom",
                 speak_during_execution: true,
                 url: "https://retell-backend-yy86.onrender.com/calender",
