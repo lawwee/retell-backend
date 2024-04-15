@@ -983,7 +983,7 @@ export class Server {
   }
 
   getTimefromcallendly() {
-    this.app.get("/calender", async (req: Request, res: Response) => {
+    this.app.post("/calender", async (req: Request, res: Response) => {
       try {
         const response = await axios.get(
           `https://api.calendly.com/user_availability_schedules`,
