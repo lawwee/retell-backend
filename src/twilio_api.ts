@@ -176,6 +176,7 @@ export class TwilioClient {
               from_number: from,
               to_number: to,
               metadata: { twilio_call_sid: callSid },
+              end_call_after_silence_ms: 15000,
             });
           await contactModel.findByIdAndUpdate(userId, {
             callId: callResponse.call_id,
