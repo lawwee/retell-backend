@@ -517,6 +517,7 @@ export class Server {
         audio_encoding: "s16le",
         audio_websocket_protocol: "twilio",
         sample_rate: 24000,
+        end_call_after_silence_ms: 15000
       });
       const registerCallResponse2 = await this.retellClient.call.create({
         from_number: fromNumber,
@@ -525,6 +526,7 @@ export class Server {
         retell_llm_dynamic_variables: {
           user_firstname: result.firstname,
           user_email: result.email,
+          
         },
       });
       console.log(llm.states);
