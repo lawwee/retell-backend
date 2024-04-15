@@ -3,11 +3,7 @@ import express, { Request, Response } from "express";
 import expressWs from "express-ws";
 import { Server as HTTPServer, createServer } from "http";
 import { RawData, WebSocket } from "ws";
-import { RetellClient } from "retell-sdk";
-import {
-  AudioEncoding,
-  AudioWebsocketProtocol,
-} from "retell-sdk/models/components";
+import { Retell } from "retell-sdk";
 import {
   createContact,
   deleteOneContact,
@@ -21,6 +17,7 @@ import {
   EventModel,
 } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
+import { CustomLlmRequest, CustomLlmResponse } from "./types";
 import {
   IContact,
   Ilogs,
@@ -42,18 +39,15 @@ import schedule from "node-schedule";
 import { createObjectCsvWriter } from "csv-writer";
 import path from "path";
 process.env.TZ = "America/Los_Angeles";
-
 connectDb();
-
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./Other-LLM/be+well_llm_openai";
-import { testFunctionCallingLlmClient } from "./TEST-LLM/llm_openai_func_call";
-import { testDemoLlmClient2 } from "./TEST-LLM/llm_openai_func_call2";
 import { DailyStats } from "./contacts/call_log";
+import { RegisterCallResponse } from "retell-sdk/resources/call";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
-  private retellClient: RetellClient;
+  private retellClient: Retell;
   private twilioClient: TwilioClient;
   storage = multer.diskStorage({
     destination: "public/", // Destination directory for uploaded files
@@ -96,14 +90,15 @@ export class Server {
     this.statsForAgent();
     this.peopleStatsLog();
     this.updateLog();
-    this.peopleStatToCsv()
+    this.peopleStatToCsv();
     // this.stopSpecificJob();
+    this.createPhoneCall2()
 
-    this.retellClient = new RetellClient({
+    this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
 
-    this.twilioClient = new TwilioClient();
+    this.twilioClient = new TwilioClient(this.retellClient);
     this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
 
@@ -126,14 +121,14 @@ export class Server {
         const { agentId, id } = req.body;
 
         try {
-          const callResponse = await this.retellClient.registerCall({
-            agentId: agentId,
-            audioWebsocketProtocol: AudioWebsocketProtocol.Web,
-            audioEncoding: AudioEncoding.S16le,
-            sampleRate: 24000,
+          const callResponse: RegisterCallResponse= await this.retellClient.call.register({
+            agent_id: agentId,
+            audio_websocket_protocol: "web",
+            audio_encoding: "s16le",
+            sample_rate: 24000,
           });
           // Send back the successful response to the client
-          res.json(callResponse.callDetail);
+          res.json(callResponse);
         } catch (error) {
           console.error("Error registering call:", error);
           // Send an error response back to the client
@@ -150,11 +145,26 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
+          const timeoutId = setTimeout(() => {
+            if (ws) ws.close(1002, "Timeout after 60 seconds");
+          }, 1000 * 60);
+
+          // Send config to Retell server
+          const config: CustomLlmResponse = {
+            response_type: "config",
+            config: {
+              auto_reconnect: true,
+              call_details: true,
+            },
+          };
+          ws.send(JSON.stringify(config));
+
+          // Start sending the begin message to signal the client is ready
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan/ olivia");
-          const oclient = new ethanDemoLlmClient();
-          oclient.BeginMessage(ws, user.firstname, user.email);
+          const client = new ethanDemoLlmClient();
+          client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
@@ -207,17 +217,31 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            console.log(data.toString());
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
             }
-            try {
-              const request: RetellRequest = JSON.parse(data.toString());
-              oclient.DraftResponse(request, ws);
-            } catch (err) {
-              console.error("Error in parsing LLM websocket message: ", err);
-              ws.close(1002, "Cannot parse incoming message.");
+            const request: CustomLlmRequest = JSON.parse(data.toString());
+            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+            // Not all of them need to be handled, only response_required and reminder_required.
+            if (request.interaction_type === "ping_pong") {
+              let pingpongResponse: CustomLlmResponse = {
+                response_type: "ping_pong",
+                timestamp: request.timestamp,
+              };
+              ws.send(JSON.stringify(pingpongResponse));
+            } else if (request.interaction_type === "call_details") {
+              console.log("call details: ", request.call);
+              // print call detailes
+            } else if (request.interaction_type === "update_only") {
+              // process live transcript update if needed
+            } else if (
+              request.interaction_type === "reminder_required" ||
+              request.interaction_type === "response_required"
+            ) {
+              console.clear();
+              console.log("req", request);
+              client.DraftResponse(request, ws);
             }
           });
         }
@@ -282,12 +306,27 @@ export class Server {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
             }
-            try {
-              const request: RetellRequest = JSON.parse(data.toString());
+            const request: CustomLlmRequest = JSON.parse(data.toString());
+            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+            // Not all of them need to be handled, only response_required and reminder_required.
+            if (request.interaction_type === "ping_pong") {
+              let pingpongResponse: CustomLlmResponse = {
+                response_type: "ping_pong",
+                timestamp: request.timestamp,
+              };
+              ws.send(JSON.stringify(pingpongResponse));
+            } else if (request.interaction_type === "call_details") {
+              console.log("call details: ", request.call);
+              // print call detailes
+            } else if (request.interaction_type === "update_only") {
+              // process live transcript update if needed
+            } else if (
+              request.interaction_type === "reminder_required" ||
+              request.interaction_type === "response_required"
+            ) {
+              console.clear();
+              console.log("req", request);
               client.DraftResponse(request, ws);
-            } catch (err) {
-              console.error("Error in parsing LLM websocket message: ", err);
-              ws.close(1002, "Cannot parse incoming message.");
             }
           });
         }
@@ -339,6 +378,7 @@ export class Server {
                 $push: { datesCalled: todayString },
               },
             );
+            clearTimeout(timeoutId);
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -351,12 +391,27 @@ export class Server {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
             }
-            try {
-              const request: RetellRequest = JSON.parse(data.toString());
+            const request: CustomLlmRequest = JSON.parse(data.toString());
+            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+            // Not all of them need to be handled, only response_required and reminder_required.
+            if (request.interaction_type === "ping_pong") {
+              let pingpongResponse: CustomLlmResponse = {
+                response_type: "ping_pong",
+                timestamp: request.timestamp,
+              };
+              ws.send(JSON.stringify(pingpongResponse));
+            } else if (request.interaction_type === "call_details") {
+              console.log("call details: ", request.call);
+              // print call detailes
+            } else if (request.interaction_type === "update_only") {
+              // process live transcript update if needed
+            } else if (
+              request.interaction_type === "reminder_required" ||
+              request.interaction_type === "response_required"
+            ) {
+              console.clear();
+              console.log("req", request);
               client.DraftResponse(request, ws);
-            } catch (err) {
-              console.error("Error in parsing LLM websocket message: ", err);
-              ws.close(1002, "Cannot parse incoming message.");
             }
           });
         }
@@ -397,6 +452,63 @@ export class Server {
       },
     );
   }
+
+
+
+   createPhoneCall2() {
+    this.app.post("/phone2", async (req: Request, res: Response) => {
+      const { fromNumber, toNumber} = req.body
+      //  const registerCallResponse = await this.retellClient.call.register({
+      //    agent_id: "oBeDLoLOeuAbiuaMFXRtDOLriTJ5tSxD",
+      //    audio_encoding: "s16le",
+      //    audio_websocket_protocol: "twilio",
+      //    sample_rate: 24000,
+      //  });
+       console.log("here")
+      const registerCallResponse2 = await this.retellClient.call.create({
+        from_number: fromNumber,
+        to_number: toNumber,
+        override_agent_id: "0411eeeb12d17a340941e91a98a766d0",
+      });
+      // const registerCallResponse2 = await this.retellClient.call.register({
+      //    agent_id: registerCallResponse.agent_id,
+      //    audio_encoding: registerCallResponse.audio_encoding,
+      //    audio_websocket_protocol:
+      //      registerCallResponse.audio_websocket_protocol,
+      //    sample_rate: registerCallResponse.sample_rate,
+      //  });
+       console.log(registerCallResponse2);
+       res.send(registerCallResponse2)
+
+    })
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   handleContactSaving() {
     this.app.post("/users/create", async (req: Request, res: Response) => {
@@ -1079,37 +1191,34 @@ export class Server {
         });
 
         // Initialize variables to store aggregated stats
-        let newTotalCalls = 0;
-        let newTotalAnsweredCalls = 0;
-        let newTotalNotAnsweredCalls = 0;
+        let TotalCalls = 0;
+        let TotalAnsweredCalls = 0;
+        let TotalNotAnsweredCalls = 0;
 
         // Calculate totals only if documents are found
         if (foundAgent1) {
-          newTotalCalls += foundAgent1.totalCalls || 0;
-          newTotalAnsweredCalls += foundAgent1.callsAnswered || 0;
-          newTotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
+          TotalCalls += foundAgent1.totalCalls || 0;
+          TotalAnsweredCalls += foundAgent1.callsAnswered || 0;
+          TotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
         }
         if (foundAgent2) {
-          newTotalCalls += foundAgent2.totalCalls || 0;
-          newTotalAnsweredCalls += foundAgent2.callsAnswered || 0;
-          newTotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
+          TotalCalls += foundAgent2.totalCalls || 0;
+          TotalAnsweredCalls += foundAgent2.callsAnswered || 0;
+          TotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
         }
         if (foundAgent3) {
-          newTotalCalls += foundAgent3.totalCalls || 0;
-          newTotalAnsweredCalls += foundAgent3.callsAnswered || 0;
-          newTotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
+          TotalCalls += foundAgent3.totalCalls || 0;
+          TotalAnsweredCalls += foundAgent3.callsAnswered || 0;
+          TotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
         }
 
-        const finalAnsweredCall =
-          newTotalAnsweredCalls + (newTotalCalls - newTotalNotAnsweredCalls);
+        const TotalAnsweredCall =
+          TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
         // Respond with the aggregated stats and dailyStats
         res.json({
-          newTotalNotAnsweredCalls,
-          finalAnsweredCall,
-          newTotalCalls,
-          logId1: foundAgent1?._id,
-          logId2: foundAgent2?._id,
-          logId3: foundAgent3?._id,
+          TotalNotAnsweredCalls,
+          TotalAnsweredCall,
+          TotalCalls,
         });
       } catch (error) {
         console.error("Error fetching daily stats:", error);
@@ -1131,9 +1240,9 @@ export class Server {
         const dailyStats = await contactModel.find({
           datesCalled: { $in: [date] },
           agentId: { $in: agentIds },
-          isDeleted:{$ne: true}
+          isDeleted: { $ne: true },
         });
-        
+
         res.json({ dailyStats });
       } catch (error) {
         console.log(error);
@@ -1237,7 +1346,7 @@ export class Server {
             { id: "phone", title: "Phone Number" },
             { id: "status", title: "Status" },
             { id: "transcript", title: "Transcript" },
-            {id:"call_recording_url", title:"Call_Recording_Url"}
+            { id: "call_recording_url", title: "Call_Recording_Url" },
           ],
         });
 
