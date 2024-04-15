@@ -1,29 +1,23 @@
 import twilio, { Twilio } from "twilio";
 import { Request, Response } from "express";
-import { RetellClient } from "retell-sdk";
 import { contactModel } from "./contacts/contact_model";
 import expressWs from "express-ws";
-import {
-  AudioEncoding,
-  AudioWebsocketProtocol,
-  CallStatus,
-} from "retell-sdk/models/components";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { callstatusenum } from "./types";
 import { DailyStats } from "./contacts/call_log";
+import { RegisterCallResponse } from "retell-sdk/resources";
+import Retell from "retell-sdk";
 
 export class TwilioClient {
   private twilio: Twilio;
-  private retellClient: RetellClient;
+  private retellClient: Retell;
 
-  constructor() {
+  constructor(retellClient: Retell) {
     this.twilio = twilio(
       process.env.TWILIO_ACCOUNT_ID,
       process.env.TWILIO_AUTH_TOKEN,
     );
-    this.retellClient = new RetellClient({
-      apiKey: process.env.RETELL_API_KEY,
-    });
+    this.retellClient = retellClient;
   }
 
   // Create a new phone number and route it to use this server.
@@ -75,15 +69,14 @@ export class TwilioClient {
     await this.twilio.incomingPhoneNumbers(phoneNumberKey).remove();
   };
 
-  // Create an outbound call
   CreatePhoneCall = async (
     fromNumber: string,
     toNumber: string,
     agentId: string,
-    userId: string,
+    userId: string
   ) => {
     try {
-      const result = await this.twilio.calls.create({
+      await this.twilio.calls.create({
         machineDetection: "Enable", // detects if the other party is IVR
         machineDetectionTimeout: 8,
         asyncAmd: "true", // call webhook when determined whether it is machine
@@ -93,9 +86,8 @@ export class TwilioClient {
         from: fromNumber,
       });
       console.log(`Call from: ${fromNumber} to: ${toNumber}`);
-      return result;
     } catch (error: any) {
-      console.error("failed to retrieve caller information: ", error);
+      console.error("failer to retrieve caller information: ", error);
     }
   };
 
@@ -127,12 +119,13 @@ export class TwilioClient {
     app.post(
       "/twilio-voice-webhook/:agentId/:userId",
       async (req: Request, res: Response) => {
-        const agentId = req.params.agentId;
+        const agentId = req.params.agent_id;
         const userId = req.params.userId;
-        const answeredBy = req.body.AnsweredBy;
+        const { AnsweredBy, from, to, callSid } = req.body;
+
         try {
           // Respond with TwiML to hang up the call if its machine
-          if (answeredBy && answeredBy === "machine_start") {
+          if (AnsweredBy && AnsweredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
             let result;
             const today = new Date();
@@ -141,7 +134,7 @@ export class TwilioClient {
             // Find the document with the given criteria
             const findResult = await DailyStats.findOne({
               myDate: todayString,
-              agentId
+              agentId,
             });
 
             if (!findResult) {
@@ -168,29 +161,32 @@ export class TwilioClient {
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
               linktocallLogModel: result._id,
-              answeredByVM:true
+              answeredByVM: true,
             });
             return;
-          } else if (answeredBy) {
+          } else if (AnsweredBy) {
             return;
           }
-          const callResponse = await this.retellClient.registerCall({
-            agentId: agentId,
-            audioWebsocketProtocol: AudioWebsocketProtocol.Twilio,
-            audioEncoding: AudioEncoding.Mulaw,
-            sampleRate: 8000,
-            endCallAfterSilenceMs: 15000,
-          });
+          const callResponse: RegisterCallResponse =
+            await this.retellClient.call.register({
+              agent_id: agentId,
+              audio_websocket_protocol: "twilio",
+              audio_encoding: "mulaw",
+              sample_rate: 8000,
+              from_number: from,
+              to_number: to,
+              metadata: { twilio_call_sid: callSid },
+            });
           await contactModel.findByIdAndUpdate(userId, {
-            callId: callResponse.callDetail.callId,
+            callId: callResponse.call_id,
             status: "ringing",
           });
-          if (callResponse.callDetail) {
+          if (callResponse) {
             // Start phone call websocket
             const response = new VoiceResponse();
             const start = response.connect();
             const stream = start.stream({
-              url: `wss://api.retellai.com/audio-websocket/${callResponse.callDetail.callId}`,
+              url: `wss://api.retellai.com/audio-websocket/${callResponse.call_id}`,
             });
             res.set("Content-Type", "text/xml");
             res.send(response.toString());

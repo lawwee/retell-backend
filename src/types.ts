@@ -73,15 +73,88 @@ export interface Ilogs {
   callsNotAnswered: number;
   agentId: String;
 }
-export interface CustomLlmRequest {
-  response_id?: number;
-  transcript: Utterance[];
-  interaction_type: "update_only" | "response_required" | "reminder_required";
+
+
+// Retell -> Your Server Events
+interface PingPongRequest {
+  interaction_type: "ping_pong";
+  timestamp: number;
 }
 
-export interface CustomLlmResponse {
+interface CallDetailsRequest {
+  interaction_type: "call_details";
+  call: any;
+}
+
+interface UpdateOnlyRequest {
+  interaction_type: "update_only";
+  transcript: Utterance[];
+  turntaking?: "agent_turn" | "user_turn";
+}
+
+export interface ResponseRequiredRequest {
+  interaction_type: "response_required";
+  transcript: Utterance[];
+  response_id: number;
+}
+
+export interface ReminderRequiredRequest {
+  interaction_type: "reminder_required";
+  transcript: Utterance[];
+  response_id: number;
+}
+
+export type CustomLlmRequest =
+  | PingPongRequest
+  | CallDetailsRequest
+  | UpdateOnlyRequest
+  | ResponseRequiredRequest
+  | ReminderRequiredRequest;
+
+// Your Server -> Retell Events
+
+interface ConfigResponse {
+  response_type: "config";
+  config: {
+    auto_reconnect: boolean;
+    call_details: boolean;
+  };
+}
+
+interface PingPongResponse {
+  response_type: "ping_pong";
+  timestamp: number;
+}
+
+interface ResponseResponse {
+  response_type: "response";
   response_id: number;
   content: string;
   content_complete: boolean;
-  end_call: boolean;
+  no_interruption_allowed?: boolean;
+  end_call?: boolean;
+  transfer_number?: string;
+}
+
+interface AgentInterruptResponse {
+  response_type: "agent_interrupt";
+  interrupt_id: number;
+  content: string;
+  content_complete: boolean;
+  no_interruption_allowed?: boolean;
+  end_call?: boolean;
+  transfer_number?: string;
+}
+
+export type CustomLlmResponse =
+  | ConfigResponse
+  | PingPongResponse
+  | ResponseResponse
+  | AgentInterruptResponse;
+
+export interface FunctionCall {
+  id: string;
+  funcName: string;
+  arguments: Record<string, any>;
+  result?: string;
 }
