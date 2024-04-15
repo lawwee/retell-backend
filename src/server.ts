@@ -458,12 +458,12 @@ export class Server {
    createPhoneCall2() {
     this.app.post("/phone2", async (req: Request, res: Response) => {
       const { fromNumber, toNumber} = req.body
-      //  const registerCallResponse = await this.retellClient.call.register({
-      //    agent_id: "oBeDLoLOeuAbiuaMFXRtDOLriTJ5tSxD",
-      //    audio_encoding: "s16le",
-      //    audio_websocket_protocol: "twilio",
-      //    sample_rate: 24000,
-      //  });
+       const registerCallResponse = await this.retellClient.call.register({
+         agent_id: "oBeDLoLOeuAbiuaMFXRtDOLriTJ5tSxD",
+         audio_encoding: "s16le",
+         audio_websocket_protocol: "twilio",
+         sample_rate: 24000,
+       });
        console.log("here")
       const registerCallResponse2 = await this.retellClient.call.create({
         from_number: fromNumber,
