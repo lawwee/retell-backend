@@ -508,30 +508,30 @@ export class Server {
       //   starting_state: "intro",
       //   begin_message: "Hi, is this {{user_firstname}}",
       // });
-      // const agent: AgentResponse = await this.retellClient.agent.update(
-      //   "0411eeeb12d17a340941e91a98a766d0",
-      //   { llm_websocket_url: "http://retellai.com/retell-llm-new/6e28fc57e6a8d44226df765cc07b69a5" },
-      // );
-      await this.retellClient.call.register({
-        agent_id: "0411eeeb12d17a340941e91a98a766d0",
-        audio_encoding: "s16le",
-        audio_websocket_protocol: "twilio",
-        sample_rate: 24000,
-        end_call_after_silence_ms: 15000
-      });
-      const registerCallResponse2 = await this.retellClient.call.create({
-        from_number: fromNumber,
-        to_number: toNumber,
-        override_agent_id: "0411eeeb12d17a340941e91a98a766d0",
-        retell_llm_dynamic_variables: {
-          user_firstname: result.firstname,
-          user_email: result.email,
+      const agent: AgentResponse = await this.retellClient.agent.update(
+        "0411eeeb12d17a340941e91a98a766d0",
+        { llm_websocket_url: "http://retellai.com/retell-llm-new/6e28fc57e6a8d44226df765cc07b69a5" },
+      );
+      // await this.retellClient.call.register({
+      //   agent_id: "0411eeeb12d17a340941e91a98a766d0",
+      //   audio_encoding: "s16le",
+      //   audio_websocket_protocol: "twilio",
+      //   sample_rate: 24000,
+      //   end_call_after_silence_ms: 15000
+      // });
+      // const registerCallResponse2 = await this.retellClient.call.create({
+      //   from_number: fromNumber,
+      //   to_number: toNumber,
+      //   override_agent_id: "0411eeeb12d17a340941e91a98a766d0",
+      //   retell_llm_dynamic_variables: {
+      //     user_firstname: result.firstname,
+      //     user_email: result.email,
           
-        },
-      });
+      //   },
+      // });
       // console.log(llm.states);
       // console.log(agent.agent_id);
-      res.send(registerCallResponse2);
+      res.send(agent);
     });
   }
 
