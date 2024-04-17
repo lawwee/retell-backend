@@ -148,8 +148,8 @@ export class Server {
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
         const timeoutId = setTimeout(() => {
-          if (ws) ws.close(1002, "Timeout after 60 seconds");
-        }, 1000 * 60);
+          if (ws) ws.close(1002, "Timeout after 120 seconds");
+        }, 1000 * 120);
 
         // Send config to Retell server
         const config: CustomLlmResponse = {
