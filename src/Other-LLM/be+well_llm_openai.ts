@@ -275,7 +275,7 @@ Step 7: If the call concludes without agreeing to a sample collection to be sent
         model: "gpt-3.5-turbo-1106",
         messages: requestMessages,
         stream: true,
-        temperature: 0.3,
+        temperature: 0.2,
         frequency_penalty: 1,
         max_tokens: 200,
       });
