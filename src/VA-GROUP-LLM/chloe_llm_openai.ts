@@ -677,7 +677,7 @@ Step 7: If the call concludes without scheduling an appointment (end_call)`;
         model: "gpt-3.5-turbo-1106",
         messages: requestMessages,
         stream: true,
-        temperature: 0.1,
+        temperature: 0.2,
         frequency_penalty: 1,
         max_tokens: 200,
       });
