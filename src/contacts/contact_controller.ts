@@ -8,10 +8,10 @@ export const createContact = async (
   email: string,
   phone: string,
   agentId: string
-): Promise<IContact | null> => {
+): Promise<IContact | string> => {
   try {
-    if (!firstname || !lastname || !email || !phone) {
-      throw new Error("Missing required fields");
+    if (!firstname || !email || !phone) {
+      return "Missing required fields"
     }
     const createdContact = await contactModel.create({
       firstname,
@@ -28,7 +28,7 @@ export const createContact = async (
 };
 
 type ContactDocument = Omit<Document & IContact, "_id">;
-export const getAllContact = async (agentId: string): Promise<ContactDocument[] | null> => {
+export const getAllContact = async (agentId: string): Promise<ContactDocument[] | string> => {
   try {
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: { $ne: true } })
@@ -37,7 +37,7 @@ export const getAllContact = async (agentId: string): Promise<ContactDocument[] 
     return foundContacts;
   } catch (error) {
     console.error("Error fetching all contacts:", error);
-    return null;
+    return "error getting contact";
   }
 };
 
@@ -51,7 +51,7 @@ export const deleteOneContact = async (id: string) => {
     return deleteContact;
   } catch (error) {
     console.error("Error deleting contact:", error);
-    return null
+    return "delete failed, something went wrong"
   }
 };
 
@@ -65,6 +65,6 @@ export const updateOneContact = async (id: string, updateFields: object) => {
     return updatedContact;
   } catch (error) {
     console.error("Error updating contact:", error);
-    return null;
+    return "could not update contact";
   }
 };
