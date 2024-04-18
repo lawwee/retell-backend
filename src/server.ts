@@ -45,6 +45,7 @@ import { katherineDemoLlmClient } from "./Other-LLM/be+well_llm_openai";
 import { DailyStats } from "./contacts/call_log";
 import { RegisterCallResponse } from "retell-sdk/resources/call";
 import { AgentResponse, LlmResponse } from "retell-sdk/resources";
+import { test2FunctionCallingLlmClient } from "./TEST-LLM/llm_openai_func_call2";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -335,7 +336,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new danielDemoLlmClient();
+          const client = new test2FunctionCallingLlmClient()
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
