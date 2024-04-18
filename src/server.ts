@@ -166,7 +166,7 @@ export class Server {
 
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan/ olivia");
-          const client = new ethanDemoLlmClient();
+          const client = new test2FunctionCallingLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -336,7 +336,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new test2FunctionCallingLlmClient()
+          const client = new danielDemoLlmClient()
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
