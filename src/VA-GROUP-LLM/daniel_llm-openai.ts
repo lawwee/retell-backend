@@ -11,7 +11,7 @@ import {
 
 let beginSentence: string
 let agentPrompt: string
-export class ethanDemoLlmClient {
+export class danielDemoLlmClient {
   private client: OpenAI;
 
   constructor() {

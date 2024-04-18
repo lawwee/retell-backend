@@ -45,7 +45,7 @@ import { katherineDemoLlmClient } from "./Other-LLM/be+well_llm_openai";
 import { DailyStats } from "./contacts/call_log";
 import { RegisterCallResponse } from "retell-sdk/resources/call";
 import { AgentResponse, LlmResponse } from "retell-sdk/resources";
-import { test2FunctionCallingLlmClient } from "./TEST-LLM/llm_openai_func_call2";
+// import { test2FunctionCallingLlmClient } from "./TEST-LLM/llm_openai_func_call2";
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
