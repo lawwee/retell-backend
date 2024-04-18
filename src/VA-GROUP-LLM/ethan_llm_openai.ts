@@ -280,7 +280,7 @@ export class ethanDemoLlmClient {
 
     try {
       const events = await this.client.chat.completions.create({
-        model: "gpt-3.5-turbo-1106",
+        model: "gpt-4-turbo",
         messages: requestMessages,
         stream: true,
         temperature: 0.2,
