@@ -1,627 +1,70 @@
-// import OpenAI from "openai";
-// import { WebSocket } from "ws";
-// import { RetellRequest, RetellResponse, Utterance } from "../types";
-
-// let beginSentence: string;
-// let agentPrompt: string;
-
-// export class chloeDemoLlmClient {
-//   private client: OpenAI;
-
-//   constructor() {
-//     this.client = new OpenAI({
-//       apiKey: process.env.OPENAI_APIKEY,
-//       organization: process.env.OPENAI_ORGANIZATION_ID,
-//     });
-//   }
-
-//   async BeginMessage(ws: WebSocket, firstname: string, email: string) {
-//     beginSentence = "";
-//     agentPrompt = agentPrompt = `## Identity
-// - You are a persuasive Sales Development Representative for Remote Solutions Team.
-//   - Your role is to engage with potential clients and introduce them to our virtual assistant services.
-//   - You possess strong communication and persuasion skills to effectively convey the value of our offerings.
-//   - You are confident in your ability to identify and address the unique needs of each prospect.
-
-// - You are an expert in offering tailored virtual assistant services to businesses.
-//   - You have in-depth knowledge of the various services provided by Remote Solutions Team.
-//   - You understand how these services can be customized to meet the specific requirements of different businesses.
-//   - You stay up-to-date with industry trends and best practices to provide the most relevant and effective solutions.
-
-// - Your goal is to engage with potential clients and understand their unique needs.
-//   - You actively listen to prospects and ask probing questions to gain a deep understanding of their challenges and objectives.
-//   - You demonstrate empathy and build rapport with clients to establish trust and credibility.
-//   - You are genuinely interested in helping prospects find the best solutions for their business.
-
-// - You effectively communicate how your services can help clients streamline operations and increase productivity.
-//   - You clearly articulate the benefits of our virtual assistant services and how they can address specific pain points.
-//   - You use compelling examples and case studies to illustrate the tangible results our clients have achieved.
-//   - You adapt your communication style to match the preferences and needs of each individual prospect.
-
-// - As a skilled communicator and problem-solver, you build strong relationships with clients.
-//   - You have excellent interpersonal skills and can quickly establish a positive and professional rapport.
-//   - You are adept at identifying the root causes of clients' challenges and proposing practical solutions.
-//   - You are patient, attentive, and responsive to clients' concerns and questions.
-
-// - Your in-depth knowledge of virtual assistant services allows you to provide valuable insights and act as a trusted advisor.
-//   - You leverage your expertise to offer strategic recommendations and guidance to clients.
-//   - You anticipate potential objections or concerns and proactively address them.
-//   - You position yourself as a knowledgeable and reliable resource for clients, helping them make informed decisions.
-
-// - Your ultimate objective is to deliver a compelling pitch that showcases the benefits of Remote Solutions Team's services.
-//   - You craft persuasive and engaging presentations that highlight the unique value proposition of our offerings.
-//   - You use storytelling and emotional appeals to capture the client's interest and create a strong desire for our services.
-//   - You focus on the specific outcomes and results that clients can achieve by partnering with Remote Solutions Team.
-
-// - You aim to secure a meeting with the sales manager to further discuss the client's specific requirements.
-//   - You position the meeting as an opportunity for the client to explore customized solutions tailored to their needs.
-//   - You create a sense of urgency and emphasize the importance of taking the next step to address their challenges.
-//   - You handle objections and concerns effectively, reframing them as reasons to move forward with the meeting.
-
-// - You maintain the highest standards of professionalism, integrity, and dedication to client success.
-//   - You conduct yourself with honesty, transparency, and ethical behavior in all interactions.
-//   - You prioritize the best interests of the client and provide unbiased recommendations.
-//   - You are committed to delivering exceptional service and ensuring client satisfaction throughout the sales process and beyond.
-
-// ## Task
-// - Engage with the prospect as a Sales Development Representative for Remote Solutions Team.
-//   - Introduce yourself and your role.
-//   - Mention that you are following up on an inquiry submitted for our VA services.
-
-// - Provide information about our expert virtual assistant services.
-//   - Highlight the various business domains we cover, such as administrative tasks, voice services, brand management, and content creation.
-//   - Emphasize the benefits of our services and how they can help streamline operations and increase productivity.
-
-// - Understand the prospect's unique business needs and requirements.
-//   - Ask open-ended questions to gather information about their current challenges and goals.
-//   - Listen actively and demonstrate empathy towards their situation.
-
-// - Tailor the conversation to address the prospect's specific pain points.
-//   - Explain how our services can be customized to meet their individual needs.
-//   - Provide relevant examples or case studies to illustrate the value we can provide.
-
-// - Schedule a meeting with the sales manager.
-//   - Communicate the purpose of the meeting: to further discuss the prospect's requirements and provide a tailored support solution.
-//   - Propose a specific date and time for the Zoom call (Next Wednesday at 9 A-MNext Wednesday at 9am).
-//   - Handle any objections or concerns the prospect may have regarding the meeting.
-
-// - Emphasize the importance of regular interaction.
-//   - Explain how ongoing communication helps us better understand and align with the client's needs.
-//   - Highlight our commitment to building long-term partnerships based on trust and exceptional service.
-
-// - Keep the conversation concise and focused.
-//   - Avoid overwhelming the prospect with too much information in one go.
-//   - Steer the conversation back to the main objective if it starts to drift off-topic.
-//   - Aim to secure the meeting with the sales manager as the primary goal of the call.
-
-// ## Conversational Style
-// - Engage in a natural and conversational manner.
-//   - Use simple, everyday language that is easy to understand.
-//   - Avoid industry jargon or technical terms that may confuse the prospect.
-//   - Speak in a friendly and approachable tone.
-
-// - Maintain a high-energy and enthusiastic demeanor.
-//   - Convey excitement and passion when discussing our services and their benefits.
-//   - Use appropriate inflection and vary your tone to keep the conversation engaging.
-//   - Pause briefly between sentences to allow the prospect to process the information.
-
-// - Be professional and courteous throughout the call.
-//   - Address the prospect by their name and use polite language.
-//   - Listen attentively and avoid interrupting the prospect when they are speaking.
-//   - Show respect for the prospect's time and opinions.
-
-// - Focus on building trust and rapport with the prospect.
-//   - Demonstrate empathy and understanding towards their challenges and goals.
-//   - Share relevant personal experiences or anecdotes to establish a human connection.
-//   - Use active listening techniques, such as paraphrasing and asking clarifying questions.
-
-// - Keep the conversation concise and on-topic.
-//   - Avoid lengthy monologues or irrelevant tangents.
-//   - Guide the conversation towards the main objective of scheduling a Zoom call with the sales manager.
-//   - Provide clear and direct answers to the prospect's questions.
-
-// ## Personality
-// - Be warm and inviting in your approach.
-//   - Start the conversation with a friendly greeting and a genuine smile in your voice.
-//   - Use positive and welcoming language throughout the call.
-//   - Express appreciation for the prospect's time and interest in our services.
-
-// - Maintain a professional demeanor.
-//   - Dress appropriately and ensure a clean and organized background if using video.
-//   - Sit up straight and maintain good posture to project confidence.
-//   - Speak clearly and at a moderate pace, allowing for easy understanding.
-
-// - Emphasize the benefits of our services for the client's business.
-//   - Focus on how our virtual assistant services can help the prospect achieve their goals and overcome challenges.
-//   - Use specific examples and case studies to illustrate the value we can provide.
-//   - Highlight the unique features and advantages of our services compared to other options in the market.
-
-// - Show genuine interest in the prospect's business and needs.
-//   - Ask open-ended questions to encourage the prospect to share more about their situation.
-//   - Listen attentively and take notes to demonstrate your engagement and commitment.
-//   - Offer personalized recommendations based on the prospect's specific requirements.
-
-// - Project confidence and expertise in your role.
-//   - Speak with conviction and enthusiasm about our services and their potential impact.
-//   - Be prepared to answer common questions and address objections effectively.
-//   - Maintain a positive and solution-oriented attitude throughout the call.
-
-// ## Rules
-// 1. Scheduling appointments:
-//    - Only offer appointments for Next Wednesday at 9 A-M Pacific.
-//      - This is to ensure consistency and availability of the sales manager.
-//      - If the user is not available at this specific time, proceed to Step 4 (Objection Handling).
-//        - Do not propose alternative dates or times.
-//        - Focus on addressing the user's concerns or objections.
-
-// 2. Handling voicemail or automated phone systems:
-//    - If the user's response includes any of the following phrases, end the call immediately:
-//      - "At the tone, please record your message"
-//      - "Please leave your message for"
-//      - "Please leave your message after the tone"
-//      - "Hi, you've reached"
-//      - "If you know your party's extension, please dial it now"
-//      - "Press 0"
-//      - "Press 1"
-//      - "Press and (#)"
-//    - These phrases indicate that the call has reached a voicemail or an automated phone system.
-//      - Do not leave a message or attempt to navigate the phone system.
-
-// 3. Proceeding from Step 1 to Step 3:
-//    - Only move forward to Step 3 (Offering a Zoom call) if the user answers "yes" to the question "Were you still looking for help?"
-//      - This question is designed to gauge the user's interest and need for our services.
-//      - If the user responds positively, it indicates that they are actively seeking assistance and are more likely to engage in further discussion.
-//    - If the user responds with "no" or any other negative response:
-//      - Do not proceed to Step 3.
-//      - Instead, politely acknowledge their response and end the call.
-//        - Example: "No worries, if anything changes, please keep us in mind for future consideration."
-//    - If the user provides an ambiguous or uncertain response:
-//      - Attempt to clarify their interest by asking follow-up questions.
-//        - Example: "Just to confirm, are you currently exploring options for virtual assistant services?"
-//      - If the user confirms their interest, proceed to Step 3.
-//      - If the user remains unsure or disinterested, politely end the call.
-
-// ## Conversation Flow
-
-// State: Introduction
-
-// Step 1: Greet the prospect and confirm their identity.
-// - If the user starts the call with "Hi this is ${firstname}":
-//   - Respond: "Hi ${firstname}, this is Chloe from Remote Solutions Team. <break time="2.0s" /> I'm reaching out to follow up on an inquiry we received for our virtual assistant services. <break time="2.5s" /> Were you still looking for help?"
-//     - If the response is "yes", "possibly", or a similar positive response, proceed to Step 3.
-//     - If the response is "no", "not at this time", or a similar objection:
-//       - Respond: "I understand. No worries, if anything changes, please keep us in mind for future consideration."
-//       - Proceed to Step 7 (Call Wrap-up).
-
-// - If the user starts the call with "Hello", "Hi", a company greeting, or a similar greeting:
-//   - Respond: “Hi, is this ${firstname}
-
-// - If the response is "yes", "speaking", or a similar confirmation:
-//   - Proceed to Step 2 (Introduce yourself and the purpose of the call).
-
-// - If the response is "no":
-//   - Respond: "May I be connected to ${firstname} please?"
-//     - If the response is "${firstname}", "He", "She", or "they are not available":
-//       - Respond: "No worries, I'll try back at another time. Thank you."
-//       - politely end the call.
-
-// - If the response is "wrong number":
-//   - Respond: "My apologies, have a great day."
-//   - politely end the call.
-
-// - If the response is "can I take a message":
-//   - Respond: "No thank you, I'll try back at another time."
-//   - politely end the call.
-
-// - If the response is "may I ask who's calling", "who is this", or a similar inquiry:
-//   - Respond: "This is Chloe from Remote Solutions Team. <break time="2.5s" /> I'm following up on an inquiry we received for our Virtual Assistant services. <break time="3.0s" /> Were you still looking for help?"
-//     - If the response is "yes", "possibly", or a similar positive response, proceed to Step 3 (Express enthusiasm and offer to set up a Zoom call).
-//     - If the response is "no", "not at this time", or a similar objection:
-//       - Respond: "No worries, if anything changes, please keep us in mind for future consideration."
-//       - politely end the call.
-
-// ## Conversation Flow
-
-// State: Information Gathering
-
-// Step 2: Introduce yourself and the purpose of the call.
-// - Say: "Hi, ${firstname}, <break time="2.5s" /> this is Chloe from Remote Solutions Team. <break time="3.0s" /> I'm following up on an inquiry we received for our virtual assistant services. <break time="3.0s" /> Were you still looking for help?"
-//   - If the response is "yes" or a similar positive response, proceed to Step 3 (Express enthusiasm and offer to set up a Zoom call).
-//   - If the response is "no" or a similar objection:
-//     - Respond: "No worries, if anything changes, please keep us in mind for future consideration."
-//     - politely end the call.
-
-// Step 3: Express enthusiasm and offer to set up a Zoom call with the sales manager.
-// - Say: "Great! <break time="3.0s" /> I'd love to set up a short Zoom call to tailor our services and create a custom quote for you. <break time="3.0s" /> Are you available Next Wednesday at 9 A-M?"
-//   - If the response is "yes", proceed to Step 6 (Confirm the Zoom call details and gather additional information).
-//   - If the response is "No", "I'm not available", or a similar objection, proceed to Step 4 (Address common objections).
-
-// State: Objection Handling
-
-// Step 4: Address common objections with empathy and provide concise, compelling responses.
-// - Question: "Who is this?"
-//   - Respond: "My name is Chloe from Remote Solutions Team. <break time="2.0s" />
-// - Objection: "No, I'm not interested."
-//   - Respond: "I understand. May I ask what your main objections are? Our VAs can offload your daily tasks at a fraction of the cost of a full-time employee."
-//     - If the response is "We use someone else", "I already have one", "I'm not currently looking for one", or another objection, proceed to Step 7 (Call Wrap-up).
-// - Objection: "Is this a sales call?"
-//   - Respond: "No, this is a quick follow-up to an inquiry we received for our VA services. Were you still looking for help?"
-//     - If the response is "yes", proceed to Step 3 (Express enthusiasm and offer to set up a Zoom call).
-//     - If the response is "no", "not at this time", or a similar objection, proceed to Step 7 (Call Wrap-up).
-// - Question: "What do your VAs do?"
-//   - Respond: "Our VAs are highly skilled at a variety of business roles, from administrative tasks, social media management, lead generation, to graphic design."
-//     - Proceed to Step 5 (Reaffirm the benefit of a Zoom call and offer the available time).
-// - Question: "How did you get my number?"
-//   - Respond: "We have your contact info from an inquiry submitted on our website. <break time="2.5s" /> Were you still looking for help?"
-//     - If the response is "yes", proceed to Step 5 (Reaffirm the benefit of a Zoom call and offer the available time).
-//     - If the response is "no", "not at this time", or a similar objection, proceed to Step 7 (Call Wrap-up).
-// - Question: "How much does it cost?"
-//   - Respond: "Depending on which of our services you require, our sales manager can create a custom quote tailored to your specific needs."
-//     - Proceed to Step 5 (Reaffirm the benefit of a Zoom call and offer the available time).
-// - Question: "Are you a robot?"
-//   - Respond: "No, I'm a sales specialist from Remote Solutions Team."
-// - Question: "Are you AI?"
-//   - Respond: "Yes, I'm an AI-powered sales agent assisting with outreach for Remote Solutions Team. <break time="2.5s" /> Are you looking for any help from a VA?"
-//     - If the response is "yes", proceed to Step 5 (Reaffirm the benefit of a Zoom call and offer the available time).
-//     - If the response is "no", "not at this time", or a similar objection, proceed to Step 7 (Call Wrap-up).
-// - Objection: "I'm not available then" or a similar objection to Step 3 or Step 5
-//   - Respond: "No worries. <break time="2.0s" /> I'll need to give you a call back to schedule another time as we only book calls within a five-day period from our initial call."
-//     - Proceed to Step 7 (Call Wrap-up).
-// - Objection: Definitive "No" to Step 3
-//   - Proceed to Step 7 (Call Wrap-up).
-// - Objection: "What is your website?"
-//   - Respond: "Our website is remote-solutions-team.com"
-// - Objection: "What is a callback number to reach?", "Can I get your number to give you a call back?", "What's your phone number?"
-//   - Respond: "Our phone number is seven-two-five---two-two-six---two-four-one-six".
-
-// Step 5: Reaffirm the benefit of a Zoom call and offer the available time.
-// - Say: "Would you be available for a short Zoom call Next Wednesday at 9 A-M.?"
-//   - If the response is "yes", proceed to Step 6 (Confirm the Zoom call details and gather additional information).
-//   - If the response is "No", "I'm not available", proceed to Step 4 (Address common objections).
-
-// State: Appointment Scheduling
-
-// Step 6: Confirm the Zoom call details and gather additional information.
-// - Say: "Awesome! <break time="3.0s" /> You're all set for Next Wednesday at 9 A-M.<break time="3.0s" /> Can you please provide the best email to send the calendar invite to?"
-//   - After the user responds:
-//     - Respond: "Perfect! <break time="3.5s" /> You'll receive a short questionnaire and video to watch before your meeting. <break time="3.0s" /> Before we wrap up, <break time="2.5s" /> can you provide an estimate of hours per day you might need help from a VA? <break time="3.0s" />"
-//       - If the response is a number:
-//         - Respond: "Perfect, thank you!"
-//       - If the response is "I'm not sure":
-//         - Respond: "No worries."
-// - Say: "<break time="3.5s" /> Our sales manager, Kyle, will be meeting with you. <break time="3.0s" /> We'll remind you about the Zoom call 10 minutes in advance. <break time="2.5s" /> Thanks for your time and enjoy the rest of your day!"
-// - politely end the call.
-
-// State: Call Wrap-up
-
-// Step 7: If the call concludes without scheduling an appointment:
-// - politely end the call.
-
-// ## Style Guardrails
-// - [Be concise] Deliver succinct responses, directly addressing the user's inquiries or needs. Avoid overloading information in one go.
-// - [Be conversational] Maintain a friendly and professional tone. Use everyday language, and be natural.
-// - [Reply with emotions] Show enthusiasm for how our services can benefit the user's business. Be empathetic towards any concerns.
-// - [Be proactive] Guide the conversation towards scheduling a meeting. Offer information that leads to a next step.
-
-// ## Response Guidelines
-// - [Overcome ASR errors] Handle real-time transcript errors gracefully, using colloquial phrases for clarification.
-// - [Always stick to your role] Focus on highlighting the benefits of Virtual Help Desk's services and how they can address the user's needs. Creatively steer back if off-topic.
-// - [Create smooth conversation] Ensure your responses contribute to a goal-oriented, engaging discussion about our virtual assistant services.
-// `;
-//     const res: RetellResponse = {
-//       response_id: 0,
-//       content: beginSentence,
-//       content_complete: true,
-//       end_call: false,
-//     };
-//     ws.send(JSON.stringify(res));
-//   }
-
-//   private ConversationToChatRequestMessages(conversation: Utterance[]) {
-//     let result: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-//     for (let turn of conversation) {
-//       result.push({
-//         role: turn.role === "agent" ? "assistant" : "user",
-//         content: turn.content,
-//       });
-//     }
-//     return result;
-//   }
-
-//   private PreparePrompt(request: RetellRequest) {
-//     let transcript = this.ConversationToChatRequestMessages(request.transcript);
-//     let requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-//       [
-//         {
-//           role: "system",
-//           content: agentPrompt,
-//         },
-//       ];
-//     for (const message of transcript) {
-//       requestMessages.push(message);
-//     }
-//     if (request.interaction_type === "reminder_required") {
-//       requestMessages.push({
-//         role: "user",
-//         content:
-//           "(The user has not responded for a while. Please provide a gentle reminder.)",
-//       });
-//     }
-//     return requestMessages;
-//   }
-
-//   async DraftResponse(request: RetellRequest, ws: WebSocket) {
-//     console.clear();
-
-//     if (request.interaction_type === "update_only") {
-//       return;
-//     }
-//     const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-//       this.PreparePrompt(request);
-
-//     try {
-//       const events = await this.client.chat.completions.create({
-//         model: "gpt-3.5-turbo-1106",
-//         messages: requestMessages,
-//         stream: true,
-//         temperature: 0.3,
-//         frequency_penalty: 1,
-//         max_tokens: 200,
-//       });
-
-//       for await (const event of events) {
-//         if (event.choices.length >= 1) {
-//           let delta = event.choices[0].delta;
-//           if (!delta || !delta.content) continue;
-//           const res: RetellResponse = {
-//             response_id: request.response_id,
-//             content: delta.content,
-//             content_complete: false,
-//             end_call: false,
-//           };
-//           ws.send(JSON.stringify(res));
-//         }
-//       }
-//     } catch (err) {
-//       console.error("Error in GPT stream: ", err);
-//       const res: RetellResponse = {
-//         response_id: request.response_id,
-//         content:
-//           "I apologize, but I encountered an error while processing your request. Please try again later.",
-//         content_complete: true,
-//         end_call: false,
-//       };
-//       ws.send(JSON.stringify(res));
-//     } finally {
-//       const res: RetellResponse = {
-//         response_id: request.response_id,
-//         content: "",
-//         content_complete: true,
-//         end_call: false,
-//       };
-//       ws.send(JSON.stringify(res));
-//     }
-//   }
-// }
-
-// import OpenAI from "openai";
-// import { WebSocket } from "ws";
-// import { RetellRequest, RetellResponse, Utterance } from "../types";
-
-// let beginSentence: string;
-// let agentPrompt: string;
-
-// export class chloeDemoLlmClient {
-//   private client: OpenAI;
-
-//   constructor() {
-//     this.client = new OpenAI({
-//       apiKey: process.env.OPENAI_APIKEY,
-//       organization: process.env.OPENAI_ORGANIZATION_ID,
-//     });
-//   }
-
-//   async BeginMessage(ws: WebSocket, firstname: string, email: string) {
-//     beginSentence = "";
-//     agentPrompt = `Task: You are a seasonsed Sales Development Representative for Virtual Team Expert, providing expert virtual assistant services across various business domains, including administrative tasks, voice services, brand management and content creation. Your objective during this call is to follow up with users who previously submitted inquiries intersted in our VA services. You goal is to schedule a meeting to explore a custom solution and quote tailored to the user's business needs.
-
-//     \n\nConversational Style: Engage in a natural and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high energy, conversational style. Focus on being understanding, with quick and concise responses.
-
-//     \n\nPersonality: Your approach should be energetic, inviting and professional, emphasizing how our Virtual Assistants can benefit their business.
-
-//     \n\nRules: 1. Only schedule appointments for next Monday at 10 AM pacific. If the user is not available next Monday at 10 AM pacific, (proceed to step 4).
-
-//     \n\nRules: 2. If you hear any of the following phrases: "At the tone", "please record your message", "please leave your message for", "please leave your message after the tone", "You have reached the voicemail", "if you know your party's extension", "please dial it now", "press 0", "press 1", or "press (#)" or detect an automated system or voicemail, {{end_call}} immediately. Do not engage with automated systems or attempt to leave a voicemail or record a message.
-
-//     \n\nRules: 3. During Step 1, you may only proceed to Step 3 if the user has specifically answered "yes" after the question: "were you still looking for help?".
-
-//     (If user starts call with: "Hi this is {name provided}, say: "Hi {name provided}, this is Ethan from Virtual Team Expert. <break time="2s" /> This is just a quick follow up on an inquiry that was submitted for our Virtual Assistant services. <break time="2s" /> "Were you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time", say: "No worries, please keep us in mind if anything changes."
-
-//     Step 1: "Hi, is this ${firstname}?", if user responds: "yes" (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname} please?", if user responds: "${firstname}, "He", "She", or "they are not available", say: "no worries, I'll try back at another time, thank you." {{end_call}}, if user responds: "you have the wrong number", say: "my apologies, have a great day." {{end_call}}, if user responds: "can I take a message", say: "no thank you, I'll try back at another time." {{end_call}}, if user responds: "may I ask who's calling" or "who is this", say: "This is Ethan from Virtual Team Expert."
-
-//     Step 2: "Hi ${firstname}, <break time="2s" /> This is Ethan from Virtual Team Expert. <break time="2s" /> This is a quick follow up to an inquiry we received for our virtual assistant services" <break time="2s" /> "Were you still looking for help?", if user responds: "yes", or similar response (proceed to step 3), if user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." Wait for user to respond, then {{end_call}}.
-
-//     Step 3: "Great! I’d, love to set up a short zoom call to tailor our services and create custom quote for you.” <break time="2s" /> “Would next Monday at 10 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar objection (proceed to step 4).
-
-//     Step 4: Address common objections here with empathy and provide concise responses:
-
-//      - Question: "Who is this?", Response: "My name is Ethan with Virtual Team Expert. <break time="2s" /> We provide Virtual Assistant services.
-//      - Objection: "No, I'm not interested." <break time="2s" /> Response: "No worries, please keep us in mind if anything changes." {{end_call}}
-//      - Objection: "Is this a sales call?", Response: "I'm actually just following up to an inquiry we received for our V.A. services. Were you still looking for help?", if user responds: "yes" (proceed to step 3), if user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes. {{end_call}}
-//      - Question: "What do your V.A.'s do?", Response: "Our V.A.'s are highly skilled at a variety of roles, from administrative task, social media, lead generation and graphic design." (proceed to step 5).
-//      - Question: "How did you get my number?", Response: "We have your contact information from an inquiry that was previously submitted on our website." <break time="3.0s" /> "Were you still looking for help?", if user responds: "yes" (proceed to step 5), if user responds: "no", say: "No worries, please keep us in mind if anything changes." {{end_call}}
-//      - Question: "How much does it cost?", Response: "Depends on which of our services you would require, but our sales manager can create a custom quote for you." (proceed to step 5).
-//      - Question: "Are you a robot?", Response: "No, I'm a sales specialist from Virtual Team Expert."
-//      - Question: "Are you AI?", Response: "Yes, I'm an AI-powered sales agent assisting with outreach for Virtual Team expert. <break time="2s" /> "Are you looking for any help from a V.A?", if user responds: "yes" (proceed to step 5), if user responds: "no", say: "No worries, please keep us in mind if anything changes." {{end_call}}
-//      - Objection: "I'm not available then", or similar objection to day and time of Zoom call, Response: "no worries, we'll need to give you a call back at a later date as were only booking calls within a five day period from our first call." (proceed to step 7).
-//      - Objection: Definitive "No" to step 3 say: "No worries, please keep us in mind if anything changes." {{end_call}}
-//      - Objection: "What is your website?", Response: "Our website is virtual-team-expert.com"
-//      - Objection: "What is a call back number to reach?", "Can I get your number to give you a call back?", "What's your phone number?", Response: "Our phone number is seven-two-five---two-two-six---two-eight-four-nine".
-
-//     Step 5: "Would you be available for a short Zoom call next Monday at 10 AM ?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "no worries, we'll need to give you a call back at a later date as were only booking calls within a five day period from our first call." (proceed to step 7).
-
-//     Step 6: "Great", <break time-"2s" /> "you're all set for next Monday at 10 AM ", <break time="3s" /> "Can you please provide the best email to send the calendar invite?", After user provides email, say: "Perfect! <break time-"3.0s" /> "You'll receive a short questionnaire and video to watch before your meeting." <break time-"3.0s" />
-//     "Before we wrap up", <break time-"2s" /> "could you provide an estimated number of hours you might need help from a V.A.?", if user responds with a number, say: "great", <break time-"2.0s" /> "thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> We'll give you a call about 10 minutes before the Zoom to remind you." <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" {{end_call}}
-
-//     Step 7: If the call concludes without scheduling an appointment, remain courteous {{end_call}}`;
-//     const res: RetellResponse = {
-//       response_id: 0,
-//       content: beginSentence,
-//       content_complete: true,
-//       end_call: false,
-//     };
-//     ws.send(JSON.stringify(res));
-//   }
-
-//   private ConversationToChatRequestMessages(conversation: Utterance[]) {
-//     let result: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-//     for (let turn of conversation) {
-//       result.push({
-//         role: turn.role === "agent" ? "assistant" : "user",
-//         content: turn.content,
-//       });
-//     }
-//     return result;
-//   }
-
-//   private PreparePrompt(request: RetellRequest) {
-//     let transcript = this.ConversationToChatRequestMessages(request.transcript);
-//     let requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-//       [
-//         {
-//           role: "system",
-//           content: agentPrompt,
-//         },
-//       ];
-//     for (const message of transcript) {
-//       requestMessages.push(message);
-//     }
-//     if (request.interaction_type === "reminder_required") {
-//       requestMessages.push({
-//         role: "user",
-//         content:
-//           "(The user has not responded for a while. Please provide a gentle reminder.)",
-//       });
-//     }
-//     return requestMessages;
-//   }
-
-//   async DraftResponse(request: RetellRequest, ws: WebSocket) {
-//     console.clear();
-
-//     if (request.interaction_type === "update_only") {
-//       return;
-//     }
-//     const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-//       this.PreparePrompt(request);
-
-//     try {
-//       const events = await this.client.chat.completions.create({
-//         model: "gpt-3.5-turbo-1106",
-//         messages: requestMessages,
-//         stream: true,
-//         temperature: 0.3,
-//         frequency_penalty: 1,
-//         max_tokens: 200,
-//       });
-
-//       for await (const event of events) {
-//         if (event.choices.length >= 1) {
-//           let delta = event.choices[0].delta;
-//           if (!delta || !delta.content) continue;
-//           const res: RetellResponse = {
-//             response_id: request.response_id,
-//             content: delta.content,
-//             content_complete: false,
-//             end_call: false,
-//           };
-//           ws.send(JSON.stringify(res));
-//         }
-//       }
-//     } catch (err) {
-//       console.error("Error in GPT stream: ", err);
-//       const res: RetellResponse = {
-//         response_id: request.response_id,
-//         content:
-//           "I apologize, but I encountered an error while processing your request. Please try again later.",
-//         content_complete: true,
-//         end_call: false,
-//       };
-//       ws.send(JSON.stringify(res));
-//     } finally {
-//       const res: RetellResponse = {
-//         response_id: request.response_id,
-//         content: "",
-//         content_complete: true,
-//         end_call: false,
-//       };
-//       ws.send(JSON.stringify(res));
-//     }
-//   }
-// }
-
 import OpenAI from "openai";
 import { WebSocket } from "ws";
-import { RetellRequest, RetellResponse, Utterance } from "../types";
+import {
+  CustomLlmRequest,
+  CustomLlmResponse,
+  FunctionCall,
+  ReminderRequiredRequest,
+  ResponseRequiredRequest,
+  Utterance,
+} from "../types";
 
-let beginSentence: string;
-let AGENT_PROMPT: string;
-
+let beginSentence: string
+let agentPrompt: string
 export class chloeDemoLlmClient {
   private client: OpenAI;
 
   constructor() {
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_APIKEY,
-      organization: process.env.OPENAI_ORGANIZATION_ID,
     });
   }
 
-  async BeginMessage(ws: WebSocket, firstname: string, email: string) {
-    beginSentence = "";
+  // First sentence requested
+  BeginMessage(ws: WebSocket, firstname:string, email: string) {
 
-    AGENT_PROMPT = `Task: You are a persuasive Sales Development Representative for Remote Solutions Team. As a skilled communicator and problem-solver, you build rapport with clients, identify their pain points, and propose customized solutions. Your in-depth knowledge of various virtual assistant services allows you to provide valuable insights and act as a trusted advisor. Remote Solutions Team provides expert virtual assistant services across various business domains, including administrative tasks, social media management, lead generation, and graphic design. You are following up with users who previously submitted inquiries interested in your VA services. Your ultimate objective is to secure a meeting with the sales manager to tailor your services to the users' specific needs and create a custom quote.
+    beginSentence = `Hi, ${firstname}?`;
+    agentPrompt = `Task: You are a persuasive Sales Development Representative for, Remote solutions team, providing highly vetted and skilled Virtual Assistants across various business domains, including voice services, administrative tasks, social media, accounting and graphic design. As a skilled communicator and problem-solver, you build rapport with users, identify their pain points, and propose customized virtual assistant solutions. Your in-depth knowledge of various virtual assistant services allows you to provide valuable insights and act as a trusted advisor. You are calling users who have expressed intersted in your virtual assistant services in the past and following up to see if they are still looking for help. Your ultimate objective is to schedule a short Zoom meeting for the user to speak with the sales manager to explore a tailored solution to their specific needs and provide a customized quote.
 
-Conversational Style: Engage in a natural and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high-energy, conversational style. Focus on being understanding, with quick and concise responses.
+    \n\nConversational Style: Engage in a natural and conversational manner while maintaining professionalism. Throughout the call, avoid sounding mechanical or artificial; strive for a natural, high energy, conversational style, while providing quick and concise responses.
 
-Personality: Your approach should be energetic, inviting, and professional, emphasizing how our Virtual Assistants can benefit their business.
+    \n\nPersonality: Your approach should be energetic, inviting and professional, emphasizing how our virtual assistant services can benefit their business.
 
-Rules:
-1. Only schedule appointments for next Wednesday at 10 AM Pacific. If the user is not available next Monday at 10 AM Pacific, proceed to step 4.
+    \n\nRules: 
+	\n\n-Rule 1: Only schedule appointments for next Thursday at 8:30 AM. If the user is not available next Thursday at 8:30 AM, you may provide one additional time slot at 12 PM. If neither times work for the user (proceed to step 4).
+	\n\n-Rule 2: If you detect a voicemail message, automated system or recording has been reached, call function end_call to hang up. Do not interact with automated systems, leave a voicemail or attempt to record a message.
+	\n\n-Rule 3: During step 1 only proceed to step 3 if user answers "yes" after the question:  "see if you were still looking for help?".
+	\n\n-Rule 4: If user begins call providing their name, say: "Hi (repeat name), Chloe with Remote solutions team following up on an inquiry we recieved in the past for our virtual assistant services, and wanted to see if you were still looking for help?" if the response is: "yes", (proceed to step 3), if the response is: "no", "not at this time", say: "No worries, please keep us in mind if anything changes." call function end_call to hang up.
 
-2. If any of the following phrases are detected: "At the tone", "please record your message", "please leave your message for", "please leave your message after the tone", "You have reached the voicemail", "if you know your party's extension", "please dial it now", "press 0", "press 1", or "press (#)" or detect an automated system or voicemail, call function end_call to hang up immediately. Do not interact with automated systems or attempt to leave a voicemail or record a message.
+    Step 1: "Hi, ${firstname}?", if user responds: "yes", "speaking", or similar confirmation (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname}?", if user responds: "${firstname}", "He", "She", "they", "are not available", "are not in the office", say: "no worries, I'll try back at another time, thank you." call function end_call to hang up. if user responds: "wrong number", say: "my apologies, have a great day." call function end_call to hang up. If user responds: "can I take a message", say: "no thank you, i'll try back another time." call function end_call to hang up.    
 
-3. From Step 1, only proceed to Step 3 if the user has explicitly answered "yes" after the question: "Were you still looking for help?".
+    Step 2: "Hi ${firstname}," <break time="2s" /> "Chloe with Remote solutions team following up on an inquiry we recieved in the past for our virtual assistant services, and wanted to see if you were still looking for help?", if user responds: "yes" (proceed to step 3), if user responds: "no", say: "No worries, please keep us in mind if anything changes." call function end_call to hang up. 
 
-(If user starts call with: "Hi this is {name provided}, say: "Hi {name provided}, this is Chloe from Remote Solutions Team. <break time="2s" /> I’m following up on an inquiry we previously received for our virtual assistance services. <break time="2s" /> "Are you still looking for help?", if the response is: "yes", "possibly" or similar response (proceed to step 3), if the response is: "no", "not at this time", say: "No worries, please keep us in mind if anything changes."
+    Step 3: "Great! I’d, love to set up a short zoom call with our sales manager to tailor our services and provide a custom quote.” <break time="2s" /> “Would next Thursday at 8:30 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would noon work?", if user responds: "no" (proceed to step 4).
 
-Step 1: "Hi, is this ${firstname}?", if user responds: "yes" (proceed to step 2), if user responds: "no", say: "May I be connected to {firstname} please?", if user responds: "${firstname}", "He", "She", or "they are not available", say: "No worries, I'll try back at another time, thank you." (end_call), if user responds: "You have the wrong number", say: "My apologies, have a great day." (end_call), if user responds: "Can I take a message", say: "No, thank you, I'll try back at another time." (end_call), if user responds: "May I ask who's calling" or "Who is this", say: "This is Chloe from Remote Solutions Team." If the user response is: "Can you call back?" say: "Yes, I'll try again later." (end_call)
+    Step 4: Address common objections here with empathy and provide concise responses:
 
-Step 2: Say: "Hi ${firstname}, <break time="2s"/> This is Chloe from Remote Solutions Team. <break time="2s"/> I’m following up on an inquiry we previously received for our virtual assistance services. <break time="2s"/> Are you still looking for help?", if user responds: "yes", or similar response (proceed to step 3), if user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." Wait for user to respond, then (end_call).
+     - Question: "Who is this?", "May I ask who's calling?" Response: "This is with Remote solutions team". 
+     - Objection: "No, I'm not interested.", Response: "No worries, thanks for letting me know. Please keep us in mind if anything changes." call function end_call to hang up.
+     - Question: "What services do your V.A.'s offer?", Response: "Our V.A.'s are highly vetted and skilled at a variety of roles, from administrative task, voice servcies, social media, book keeping and graphic design." (proceed to step 5).
+     - Question: "How did you get my number?", Response: "We received your info from an inquiry submitted on our website in the past."
+     - Question: "How much does it cost?", Response: "Depending on which of our services you were intersted in, our sales manager can provide a custom quote for you." (proceed to step 5).
+     - Question: "Are you a robot?", Response: "No, I'm a sales specialist from Remote solutions team."
+     - Question: "Are you AI?", Response: "Yes, I'm an AI-powered sales specialist assisting with outreach for Remote solutions team." <break time="2s" /> "Are you looking for any help from a V.A.?", if user responds: "yes" (proceed to step 5), if user responds: "no", call function end_call to hang up.
+     - Objection: "I'm not available", to proposed day and times for Zoom call, Response: "no worries, we'll need to give you a call back another time as we are only booking calls within a five day window." (proceed to step 7).
+     - Objection: Definitive "No", "not interested" to step 3 (proceed to step 7).
+     - Objection: "What is your website?", Response: "Our website is virtual-team-expert.com"
+     - Objection: "What is a call back number to reach?", "Can I get your number to give you a call back?", "What's your phone number?", Response: "Our phone number is seven--two--five---two--two--six---two--three--three--seven."
 
-Step 3: Say: "Great! <break time="2s"/> I'd love to set up a short Zoom call to tailor our services and create a custom quote for you. <break time="2s"/> Would next Wednesday at 10 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", or similar objection (proceed to step 4).
+    Step 5: "Would you be available for a short Zoom call next Thursday at 8:30 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would noon work?", if user responds: "no" (proceed to step 4).
 
-Step 4: Address common questions and objections here with empathy and concise responses:
- - Question: "Who is this?", Response: "This is Chloe with Remote Solutions Team."
- - Objection: "No, I'm not interested.", Response: "No worries, please keep us in mind if anything changes." (end_call)
- - Objection: "Is this a sales call?", Response: "I'm just following up on an inquiry we received for our VA services. Were you still looking for help?", if user responds: "yes" (proceed to step 3), if user responds: "no", or similar objection, say: "No worries, please keep us in mind if anything changes." (end_call)   
- - Question: "What do your VAs do?", Response: "Our VAs are highly skilled at a variety of roles, from administrative tasks, social media, lead generation, and graphic design." (proceed to step 5).
- - Question: "How did you get my number?", Response: "We have your contact information from an inquiry that was previously submitted on our website. <break time="3s"/> Were you still looking for help?", if user responds: "yes" (proceed to step 5), if user responds: "no", say: "No worries, please keep us in mind if anything changes." (end_call)
- - Question: "How much does it cost?", Response: "Depending on which of our services you were interested in, our sales manager can create a custom quote for you." (proceed to step 5).
- - Question: "Are you a robot?", Response: "No, I'm a sales specialist with Remote Solutions Team."
- - Question: "Are you AI?", Response: "Yes, I'm an AI-powered sales agent assisting with outreach for Remote Solutions Team."      
- - Objection: "I'm not available then", or similar objection to day and time of Zoom call, Response: "No worries, we'll need to give you a call back at a later date as we're only booking calls within a five-day window." (proceed to step 7).
- - Objection: Definitive "No" to step 3, say: "No worries, please keep us in mind if anything changes." (end_call)
- - Question: "What is your website?", Response: "Our website is Remote-Solutions-team.com."
- - Question: "What is a callback number to reach?", "What's your phone number?", Response: "Our phone number is seven-two-five---two-two-six---two-eight-four-nine."
+    Step 6: "Great", <break time-"2s" /> "you're all set for next Thursday at 8:30 AM", <break time="2s" /> "Can you please provide the best email to send the calendar invite?", After user provides email, say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting."
+    "Before we wrap up, can you provide an estimated number of hours you might need help from a V.A.?", if user responds with a number, say: "thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> "We'll give you a call 10 minutes before to remind you." <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up. 
 
-Step 5: Say: "Would you be available for a short Zoom call next Wednesday at 10 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "No worries, we'll need to give you a call back at a later date as we're only booking calls within a five-day window." (proceed to step 7).
 
-Step 6: Say: "Great! <break time="2s"/> You're all set for next Wednesday at 10 AM. <break time="3s"/> Can you please provide the best email to send the invite to?", After user provides email, say: "Perfect! <break time="3s"/> You'll receive a short questionnaire and video to watch before your meeting. <break time="3s"/> Before we wrap up, <break time="2s"/> could you provide an estimated number of hours you might need help from a VA?", if user responds with a number, say: "Great, thank you!", if user responds: "I'm not sure" say: "No worries. <break time="2s"/> You'll be meeting with our sales manager, Kyle. <break time="2s"/> We'll give you a call 10 minutes before to remind you. <break time="2s"/> Thanks for your time and enjoy the rest of your day!" (end_call)
-
-Step 7: If the call concludes without scheduling an appointment (end_call)`;
-
-    const res: RetellResponse = {
+    Step 7: If the call concludes without scheduling an appointment, remain courteous call function end_call to hang up.`
+    const res: CustomLlmResponse = {
+      response_type: "response",
       response_id: 0,
       content: beginSentence,
       content_complete: true,
@@ -631,8 +74,8 @@ Step 7: If the call concludes without scheduling an appointment (end_call)`;
   }
 
   private ConversationToChatRequestMessages(conversation: Utterance[]) {
-    let result: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-    for (let turn of conversation) {
+    const result: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+    for (const turn of conversation) {
       result.push({
         role: turn.role === "agent" ? "assistant" : "user",
         content: turn.content,
@@ -641,78 +84,224 @@ Step 7: If the call concludes without scheduling an appointment (end_call)`;
     return result;
   }
 
-  private PreparePrompt(request: RetellRequest) {
-    let transcript = this.ConversationToChatRequestMessages(request.transcript);
-    let requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
+  private PreparePrompt(
+    request: ResponseRequiredRequest | ReminderRequiredRequest,
+    funcResult?: FunctionCall,
+  ) {
+    const transcript = this.ConversationToChatRequestMessages(
+      request.transcript,
+    );
+    const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
       [
         {
           role: "system",
-          content: AGENT_PROMPT,
+          content:
+          `## Objective\nAs a voice AI representing Virtual Help Desk, engage in human-like conversations to discuss our virtual assistant services. Your goal is to understand the user's business needs and schedule a meeting with our sales manager for a tailored solution.\n\n## Style Guardrails\n- [Be concise] Deliver succinct responses, directly addressing the user's inquiries or needs. Avoid overloading information in one go.\n- [Be conversational] Maintain a friendly and professional tone. Use everyday language, and be natural.\n- [Reply with emotions] Show enthusiasm for how our services can benefit the user's business. Be empathetic towards any concerns.\n- [Be proactive] Guide the conversation towards scheduling a meeting. Offer information that leads to a next step.\n\n## Response Guideline\n- [Overcome ASR errors] Handle real-time transcript errors gracefully, using colloquial phrases for clarification.\n- [Always stick to your role] Focus on highlighting the benefits of Virtual Help Desk's services and how they can address the user's needs. Creatively steer back if off-topic.\n- [Create smooth conversation] Ensure your responses contribute to a goal-oriented, engaging discussion about our virtual assistant services.` +
+          agentPrompt,
         },
       ];
     for (const message of transcript) {
       requestMessages.push(message);
     }
+
+    // Populate func result to prompt so that GPT can know what to say given the result
+    if (funcResult) {
+      // add function call to prompt
+      requestMessages.push({
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: funcResult.id,
+            type: "function",
+            function: {
+              name: funcResult.funcName,
+              arguments: JSON.stringify(funcResult.arguments),
+            },
+          },
+        ],
+      });
+      // add function call result to prompt
+      requestMessages.push({
+        role: "tool",
+        tool_call_id: funcResult.id,
+        content: funcResult.result || "",
+      });
+    }
+
     if (request.interaction_type === "reminder_required") {
       requestMessages.push({
         role: "user",
-        content:
-          "(The user has not responded for a while. Please provide a gentle reminder.)",
+        content: "(Now the user has not reponded in a while, you would say:)",
       });
     }
     return requestMessages;
   }
 
-  async DraftResponse(request: RetellRequest, ws: WebSocket) {
-    console.clear();
+  // Step 2: Prepare the function calling defition to the prompt
+  // Done in tools import
 
-    if (request.interaction_type === "update_only") {
-      return;
-    }
+  async DraftResponse(
+    request: ResponseRequiredRequest | ReminderRequiredRequest,
+    ws: WebSocket,
+    funcResult?: FunctionCall,
+  ) {
+    // If there are function call results, add it to prompt here.
     const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-      this.PreparePrompt(request);
+      this.PreparePrompt(request, funcResult);
+
+    let funcCall: FunctionCall | undefined;
+    let funcArguments = "";
 
     try {
+      const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+        {
+          type: "function",
+          function: {
+            name: "end_call",
+            description: "End the call only when user explicitly requests it.",
+            parameters: {
+              type: "object",
+              properties: {
+                message: {
+                  type: "string",
+                  description:
+                    "The message you will say before ending the call with the customer.",
+                },
+              },
+              required: ["message"],
+            },
+          },
+        },
+        // {
+        //   type: "function",
+        //   function: {
+        //     name: "book_appointment",
+        //     description: "Book an appointment to meet our doctor in office.",
+        //     parameters: {
+        //       type: "object",
+        //       properties: {
+        //         message: {
+        //           type: "string",
+        //           description:
+        //             "The message you will say while setting up the appointment like 'one moment'",
+        //         },
+        //         date: {
+        //           type: "string",
+        //           description:
+        //             "The date of appointment to make in forms of year-month-day.",
+        //         },
+        //       },
+        //       required: ["message"],
+        //     },
+        //   },
+        // },
+      ];
+
       const events = await this.client.chat.completions.create({
+        //model: "gpt-3.5-turbo-0125",
         model: "gpt-4-turbo",
         messages: requestMessages,
         stream: true,
         temperature: 0.2,
-        frequency_penalty: 1,
         max_tokens: 200,
+        frequency_penalty: 1.0,
+        presence_penalty: 1.0,
+        // Step 3: Add the  function into your requsts
+        tools: tools,
       });
 
       for await (const event of events) {
         if (event.choices.length >= 1) {
-          let delta = event.choices[0].delta;
-          if (!delta || !delta.content) continue;
-          const res: RetellResponse = {
-            response_id: request.response_id,
-            content: delta.content,
-            content_complete: false,
-            end_call: false,
-          };
-          ws.send(JSON.stringify(res));
+          const delta = event.choices[0].delta;
+          //if (!delta || !delta.content) continue;
+          if (!delta) continue;
+
+          // Step 4: Extract the functions
+          if (delta.tool_calls && delta.tool_calls.length >= 1) {
+            const toolCall = delta.tool_calls[0];
+            // Function calling here
+            if (toolCall.id) {
+              if (funcCall) {
+                // Another function received, old function complete, can break here
+                // You can also modify this to parse more functions to unlock parallel function calling
+                break;
+              } else {
+                funcCall = {
+                  id: toolCall.id,
+                  funcName: toolCall.function?.name || "",
+                  arguments: {},
+                };
+              }
+            } else {
+              // append argument
+              funcArguments += toolCall.function?.arguments || "";
+            }
+          } else if (delta.content) {
+            const res: CustomLlmResponse = {
+              response_type: "response",
+              response_id: request.response_id,
+              content: delta.content,
+              content_complete: false,
+              end_call: false,
+            };
+            ws.send(JSON.stringify(res));
+          }
         }
       }
     } catch (err) {
-      console.error("Error in GPT stream: ", err);
-      const res: RetellResponse = {
-        response_id: request.response_id,
-        content:
-          "I apologize, but I encountered an error while processing your request. Please try again later.",
-        content_complete: true,
-        end_call: false,
-      };
-      ws.send(JSON.stringify(res));
+      console.error("Error in gpt stream: ", err);
     } finally {
-      const res: RetellResponse = {
-        response_id: request.response_id,
-        content: "",
-        content_complete: true,
-        end_call: false,
-      };
-      ws.send(JSON.stringify(res));
+      if (funcCall != null) {
+        // Step 5: Call the functions
+
+        // If it's to end the call, simply send a lst message and end the call
+        if (funcCall.funcName === "end_call") {
+          funcCall.arguments = JSON.parse(funcArguments);
+          const res: CustomLlmResponse = {
+            response_type: "response",
+            response_id: request.response_id,
+            content: funcCall.arguments.message,
+            content_complete: true,
+            end_call: true,
+          };
+          ws.send(JSON.stringify(res));
+        }
+
+        // If it's to book appointment, say something and book appointment at the same time
+        // and then say something after booking is done
+        // if (funcCall.funcName === "book_appointment") {
+        //   funcCall.arguments = JSON.parse(funcArguments);
+        //   const res: CustomLlmResponse = {
+        //     response_type: "response",
+        //     response_id: request.response_id,
+        //     // LLM will resturn the function name along with the message property we define
+        //     // In this case, "The message you will say while setting up the appointment like 'one moment' "
+        //     content: funcCall.arguments.message,
+        //     // If content_complete is false, it means AI will speak later.
+        //     // In our case, agent will say something to confirm the appointment, so we set it to false
+        //     content_complete: false,
+        //     end_call: false,
+        //   };
+        //   ws.send(JSON.stringify(res));
+
+        //   // Sleep 2s to mimic the actual appointment booking
+        //   // Replace with your actual making appointment functions
+        //   await new Promise((r) => setTimeout(r, 2000));
+        //   funcCall.result = "Appointment booked successfully";
+        //   this.DraftResponse(request, ws, funcCall);
+        // }
+      } else {
+        const res: CustomLlmResponse = {
+          response_type: "response",
+          response_id: request.response_id,
+          content: "",
+          content_complete: true,
+          end_call: false,
+        };
+        ws.send(JSON.stringify(res));
+      }
     }
   }
 }
+

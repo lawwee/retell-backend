@@ -490,7 +490,6 @@ export class Server {
       res.send(agent);
     });
   }
-
   handleContactSaving() {
     this.app.post("/users/create", async (req: Request, res: Response) => {
       const { firstname, lastname, email, phone, agentId } = req.body;
@@ -506,7 +505,6 @@ export class Server {
       } catch (error) {}
     });
   }
-
   handlecontactGet() {
     this.app.get("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
@@ -516,7 +514,6 @@ export class Server {
       } catch (error) {}
     });
   }
-
   handlecontactDelete() {
     this.app.patch("/users/delete", async (req: Request, res: Response) => {
       const { id } = req.body;
@@ -526,7 +523,6 @@ export class Server {
       } catch (error) {}
     });
   }
-
   handleContactUpdate() {
     this.app.patch("/users/update", async (req: Request, res: Response) => {
       try {
@@ -546,7 +542,6 @@ export class Server {
       }
     });
   }
-
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
