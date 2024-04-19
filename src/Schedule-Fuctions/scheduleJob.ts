@@ -79,7 +79,7 @@ export const scheduleCronJob = async(
             }
 
             // Wait for a specified time before processing the next contact
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            await new Promise((resolve) => setTimeout(resolve, 7000));
             await jobModel.findOneAndUpdate(
               { jobId },
               { $inc: { processedContacts: 1 } },
