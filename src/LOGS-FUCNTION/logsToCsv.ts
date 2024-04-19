@@ -19,7 +19,7 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
         }));
 
         // Write contacts data to CSV file
-        const filePath = path.join(__dirname, "..", "public", "logs.csv");
+        const filePath = path.join(__dirname, "..","..", "public", "logs.csv");
         console.log("File path:", filePath); // Log file path for debugging
 
         const csvWriter = createObjectCsvWriter({
