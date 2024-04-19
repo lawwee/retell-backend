@@ -1,3 +1,4 @@
+process.env.TZ = "America/Los_Angeles";
 import cors from "cors";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
@@ -20,7 +21,6 @@ import { TwilioClient } from "./twilio_api";
 import { CustomLlmRequest, CustomLlmResponse } from "./types";
 import {
   IContact,
-  Ilogs,
   RetellRequest,
   callstatusenum,
   jobstatus,
@@ -32,20 +32,17 @@ import moment from "moment-timezone";
 import { chloeDemoLlmClient } from "./VA-GROUP-LLM/chloe_llm_openai";
 import { ethanDemoLlmClient } from "./VA-GROUP-LLM/ethan_llm_openai";
 import { danielDemoLlmClient } from "./VA-GROUP-LLM/daniel_llm-openai";
-import axios from "axios";
-import { v4 as uuidv4 } from "uuid";
 import schedule from "node-schedule";
-// import { testFunctionCallingLlmClient } from "./llm_azure_openai_func_call";
-import { createObjectCsvWriter } from "csv-writer";
 import path from "path";
-process.env.TZ = "America/Los_Angeles";
-connectDb();
 import SmeeClient from "smee-client";
 import { katherineDemoLlmClient } from "./Other-LLM/be+well_llm_openai";
 import { DailyStats } from "./contacts/call_log";
-import { RegisterCallResponse } from "retell-sdk/resources/call";
 import { AgentResponse, LlmResponse } from "retell-sdk/resources";
-// import { test2FunctionCallingLlmClient } from "./TEST-LLM/llm_openai_func_call2";
+import { checkAvailability } from "./callendly";
+import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
+import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
+import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
+connectDb();
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -67,7 +64,6 @@ export class Server {
     this.app.use(express.static(path.join(__dirname, "public")));
 
     this.handleRetellLlmWebSocket();
-    this.handleRegisterCallAPI();
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
@@ -75,7 +71,6 @@ export class Server {
     this.handleContactUpdate();
     this.uploadcsvToDb();
     this.schedulemycall();
-    this.cleardb();
     this.getjobstatus();
     this.updateStatus();
     this.getTimefromcallendly();
@@ -84,16 +79,13 @@ export class Server {
     this.getAllJobSchedule();
     this.getTranscriptAfterCallEnded();
     this.getAllJob();
-    this.getoneuser();
     this.stopSpecificJob();
     this.deleteAll();
     this.logsToCsv();
-    this.updatereference();
     this.statsForAgent();
     this.peopleStatsLog();
     this.updateLog();
     this.peopleStatToCsv();
-    // this.stopSpecificJob();
     this.createPhoneCall2();
 
     this.retellClient = new Retell({
@@ -103,7 +95,6 @@ export class Server {
     this.twilioClient = new TwilioClient(this.retellClient);
     this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
-
   listen(port: number): void {
     this.app.listen(port);
     console.log("Listening on " + port);
@@ -114,33 +105,6 @@ export class Server {
     logger: console,
   });
   events = this.smee.start();
-
-  handleRegisterCallAPI() {
-    this.app.post(
-      "/register-call-on-your-server",
-      async (req: Request, res: Response) => {
-        // Extract agentId from request body; apiKey should be securely stored and not passed from the client
-        const { agentId, id } = req.body;
-
-        try {
-          const callResponse: RegisterCallResponse =
-            await this.retellClient.call.register({
-              agent_id: agentId,
-              audio_websocket_protocol: "web",
-              audio_encoding: "s16le",
-              sample_rate: 24000,
-            });
-          // Send back the successful response to the client
-          res.json(callResponse);
-        } catch (error) {
-          console.error("Error registering call:", error);
-          // Send an error response back to the client
-          res.status(500).json({ error: "Failed to register call" });
-        }
-      },
-    );
-  }
-
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -148,11 +112,6 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
-        // const timeoutId = setTimeout(() => {
-        //   if (ws) ws.close(1002, "Timeout after 120 seconds");
-        // }, 1000 * 120);
-
-        // Send config to Retell server
         const config: CustomLlmResponse = {
           response_type: "config",
           config: {
@@ -161,9 +120,6 @@ export class Server {
           },
         };
         ws.send(JSON.stringify(config));
-
-        // Start sending the begin message to signal the client is ready
-
         if (user.agentId === "214e92da684138edf44368d371da764c") {
           console.log("Call started with ethan/ olivia");
           const client = new ethanDemoLlmClient();
@@ -455,7 +411,6 @@ export class Server {
       },
     );
   }
-
   createPhoneCall2() {
     this.app.post("/phone2", async (req: Request, res: Response) => {
       const { fromNumber, toNumber, userId } = req.body;
@@ -620,7 +575,6 @@ export class Server {
       },
     );
   }
-
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
@@ -682,16 +636,6 @@ export class Server {
       },
     );
   }
-
-  cleardb() {
-    this.app.delete("/cleardb", async (req: Request, res: Response) => {
-      const { agentId } = req.body;
-      console.log(agentId);
-      const result = await contactModel.deleteMany({ agentId });
-      res.send(`db cleared sucesffully: ${result}`);
-    });
-  }
-
   getjobstatus() {
     this.app.post("/schedules/status", async (req: Request, res: Response) => {
       const { jobId } = req.body;
@@ -699,7 +643,6 @@ export class Server {
       res.json({ result });
     });
   }
-
   getAllJobSchedule() {
     this.app.get("/schedules/get", async (req: Request, res: Response) => {
       const result = await jobModel.find().sort({ createdAt: "desc" });
@@ -722,8 +665,6 @@ export class Server {
   schedulemycall() {
     this.app.post("/schedule", async (req: Request, res: Response) => {
       const { hour, minute, agentId, limit, fromNumber } = req.body;
-
-      // Create a new Date object for the scheduled time in PST timezone
       const scheduledTimePST = moment
         .tz("America/Los_Angeles")
         .set({
@@ -733,182 +674,19 @@ export class Server {
           millisecond: 0,
         })
         .toDate();
-
-      // Format the date as per the required format (YYYY-MM-DDTHH:mm:ss)
       const formattedDate = moment(scheduledTimePST).format(
         "YYYY-MM-DDTHH:mm:ss",
       );
-
-      // Schedule the job and get jobId and scheduledTime
-      const { jobId, scheduledTime } = await this.scheduleCronJob(
+      const { jobId, scheduledTime } = await scheduleCronJob(
         scheduledTimePST,
         agentId,
         limit,
         fromNumber,
         formattedDate,
       );
-
-      // Send response with jobId and scheduledTime
       res.send({ jobId, scheduledTime });
     });
   }
-
-  async scheduleCronJob(
-    scheduledTimePST: Date,
-    agentId: string,
-    limit: string,
-    fromNumber: string,
-    formattedDate: string,
-  ) {
-    const jobId = uuidv4();
-    try {
-      // Create a new job entry in the database
-      await jobModel.create({
-        callstatus: jobstatus.QUEUED,
-        jobId,
-        agentId,
-        scheduledTime: formattedDate,
-        shouldContinueProcessing: true,
-      });
-
-      // Start the job
-      const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
-        try {
-          // Update the job status to indicate that it's in progress
-          await jobModel.findOneAndUpdate(
-            { jobId },
-            { callstatus: jobstatus.ON_CALL },
-          );
-          const contactLimit = parseInt(limit);
-          let processedContacts = 0;
-          const contacts = await contactModel
-            .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-            .limit(contactLimit)
-            .sort({ createdAt: "desc" });
-
-          // Loop through contacts
-          for (const contact of contacts) {
-            try {
-              // Check if processing should be stopped
-              const job = await jobModel.findOne({ jobId });
-              if (!job || job.shouldContinueProcessing !== true) {
-                console.log("Job processing stopped.");
-                break;
-              }
-              const postdata = {
-                fromNumber,
-                toNumber: contact.phone,
-                userId: contact._id.toString(),
-                agentId,
-              };
-              await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-              await this.twilioClient.CreatePhoneCall(
-                postdata.fromNumber,
-                postdata.toNumber,
-                postdata.agentId,
-                postdata.userId,
-              );
-              console.log(
-                `Axios call successful for contact: ${contact.firstname}`,
-              );
-            } catch (error) {
-              console.error(
-                `Error processing contact ${contact.firstname}: ${
-                  (error as Error).message || "Unknown error"
-                }`,
-              );
-            }
-
-            // Wait for a specified time before processing the next contact
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-            await jobModel.findOneAndUpdate(
-              { jobId },
-              { $inc: { processedContacts: 1 } },
-            );
-            processedContacts++;
-          }
-          console.log("Contacts processed:", processedContacts);
-          // Call function to search and recall contacts if needed
-          await this.searchAndRecallContacts(
-            contactLimit,
-            agentId,
-            fromNumber,
-            jobId,
-          );
-        } catch (error) {
-          console.error(
-            `Error querying contacts: ${
-              (error as Error).message || "Unknown error"
-            }`,
-          );
-        }
-      });
-
-      console.log(
-        `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
-      );
-
-      return { jobId, scheduledTime: scheduledTimePST };
-    } catch (error) {
-      console.error("Error scheduling job:", error);
-      throw error; // Throw error for handling in the caller function
-    }
-  }
-
-  async searchAndRecallContacts(
-    contactLimit: number,
-    agentId: string,
-    fromNumber: string,
-    jobId: string,
-  ) {
-    try {
-      let processedContacts = 0;
-      let contacts = await contactModel
-        .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
-        .limit(contactLimit)
-        .sort({ createdAt: "desc" });
-      for (const contact of contacts) {
-        try {
-          const job = await jobModel.findOne({ jobId });
-          if (!job || job.shouldContinueProcessing !== true) {
-            console.log("Job processing stopped.");
-            break;
-          }
-          const postdata = {
-            fromNumber,
-            toNumber: contact.phone,
-            userId: contact._id.toString(),
-            agentId,
-          };
-          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
-          await this.twilioClient.CreatePhoneCall(
-            postdata.fromNumber,
-            postdata.toNumber,
-            postdata.agentId,
-            postdata.userId,
-          );
-          console.log(
-            `Axios call successful for recalled contact: ${contact.firstname}`,
-          );
-        } catch (error) {
-          const errorMessage = (error as Error).message || "Unknown error";
-          console.error(
-            `Error processing recalled contact ${contact.firstname}: ${errorMessage}`,
-          );
-        }
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-        await jobModel.findOneAndUpdate(
-          { jobId },
-          { $inc: { processedContactsForRedial: 1 } },
-        );
-        processedContacts++;
-      }
-      console.log("Recalled contacts processed:", processedContacts);
-    } catch (error) {
-      console.error("Error searching and recalling contacts:", error);
-    }
-  }
-
   stopSpecificJob() {
     this.app.post("/stop-job", async (req: Request, res: Response) => {
       try {
@@ -936,7 +714,6 @@ export class Server {
       }
     });
   }
-
   stopSpecificSchedule() {
     this.app.post("/cancel-schedule", async (req: Request, res: Response) => {
       const { jobId } = req.body;
@@ -965,16 +742,13 @@ export class Server {
   getAllJob() {
     this.app.get("/get-jobs", async (req: Request, res: Response) => {
       const scheduledJobs = schedule.scheduledJobs;
-      let responseString = ""; // Initialize an empty string to accumulate job details
-
+      let responseString = ""; 
       for (const jobId in scheduledJobs) {
         if (scheduledJobs.hasOwnProperty(jobId)) {
           const job = scheduledJobs[jobId];
           responseString += `Job ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n`;
         }
       }
-
-      // Send the accumulated job details as the response
       res.send({ responseString });
     });
   }
@@ -988,79 +762,23 @@ export class Server {
   }
 
   getTimefromcallendly() {
-    this.app.post("/calender", async (req: Request, res: Response) => {
+    this.app.get("/calender", async (req: Request, res: Response) => {
       try {
-        const response = await axios.get(
-          `https://api.calendly.com/user_availability_schedules`,
-          {
-            params: {
-              user: process.env.CALLENDY_URI,
-            },
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.CALLENDY_API}`,
-            },
-          },
-        );
-
-        const availableTimesMap: { [day: string]: string[] } = {};
-
-        response.data.collection.forEach((schedule: any) => {
-          schedule.rules.forEach((rule: any) => {
-            if (rule.intervals && rule.intervals.length > 0) {
-              rule.intervals.forEach((interval: any) => {
-                const { from } = interval; // Destructure from
-                const [hour, minute] = from.split(":").map(Number); // Extract hour and minute
-
-                // Convert 24-hour format to 12-hour format
-                const period = hour >= 12 ? "pm" : "am";
-                const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
-
-                const formattedMinute = minute.toString().padStart(2, "0"); // Add leading zero if minute < 10
-
-                const formattedTime = `${formattedHour}:${formattedMinute}${period}`;
-
-                if (!availableTimesMap[rule.wday]) {
-                  availableTimesMap[rule.wday] = [formattedTime];
-                } else {
-                  availableTimesMap[rule.wday].push(formattedTime);
-                }
-              });
-            }
-          });
-        });
-
-        let content = "";
-
-        Object.keys(availableTimesMap).forEach((day: string) => {
-          const times = availableTimesMap[day];
-          const timeString = times.join(" or ");
-          content += `${day} at ${timeString}, `;
-        });
-
-        // Remove trailing comma and space
-        content = content.slice(0, -2);
-        console.log(content);
-        res.send(content);
+        const result = await checkAvailability()
+        res.json({result})
       } catch (error) {
-        console.error(
-          "Error fetching availability schedules from Calendly:",
-          error,
-        );
-        res.send("Error fetching availability schedules from Calendly");
+        console.error("Error stopping job:", error);
+        return res
+          .status(500)
+          .send(`Issue getting callendly time with error: ${error}`);
       }
+      
     });
   }
 
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
-      // const signatureVerified = this.verifyRetellWebhookSignature(request);
-      // if (!signatureVerified) {
-      //   // If signature verification fails, log an error and return a 401 Unauthorized response
-      //   console.error("Retell webhook signature verification failed.");
-      //   return response.status(401).json({ error: "Unauthorized" });
-      // }
       try {
         if (payload.event === "call_ended") {
           const { event, call_id, transcript, recording_url } = payload.data;
@@ -1088,17 +806,6 @@ export class Server {
     });
   }
 
-  getoneuser() {
-    this.app.post("/getone", async (request: Request, response: Response) => {
-      const { callId } = request.body;
-      const result = await contactModel
-        .findOne({ callId })
-        .populate("referenceToCallId");
-      console.log(result);
-      response.send(result);
-    });
-  }
-
   deleteAll() {
     this.app.patch("/deleteAll", async (req: Request, res: Response) => {
       const { agentId } = req.body;
@@ -1112,79 +819,28 @@ export class Server {
 
   logsToCsv() {
     this.app.post("/get-logs", async (req: Request, res: Response) => {
-      const { agentId, limit } = req.body;
-      const newlimit = parseInt(limit);
       try {
-        const foundContacts = await contactModel
-          .find({ agentId, isDeleted: { $ne: true } })
-          .sort({ createdAt: "desc" })
-          .populate("referenceToCallId")
-          .limit(newlimit);
-
-        // Extract relevant fields from found contacts
-        const contactsData = foundContacts.map((contact) => ({
-          name: contact.firstname,
-          email: contact.email,
-          phone: contact.phone,
-          status: contact.status,
-          transcript: contact.referenceToCallId?.transcript || "",
-        }));
-
-        // Write contacts data to CSV file
-        const filePath = path.join(__dirname, "..", "public", "logs.csv");
-        console.log("File path:", filePath); // Log file path for debugging
-
-        const csvWriter = createObjectCsvWriter({
-          path: filePath,
-          header: [
-            { id: "name", title: "Name" },
-            { id: "email", title: "Email" },
-            { id: "phone", title: "Phone Number" },
-            { id: "status", title: "Status" },
-            { id: "transcript", title: "Transcript" },
-          ],
-        });
-
-        await csvWriter.writeRecords(contactsData);
-        console.log("CSV file logs.csv has been written successfully");
-
-        // Check if the file exists synchronously
-        if (fs.existsSync(filePath)) {
-          // Set the response headers to trigger file download
-          res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
-          res.setHeader("Content-Type", "text/csv");
-
-          // Create a read stream from the CSV file and pipe it to the response
-          const fileStream = fs.createReadStream(filePath);
-          fileStream.pipe(res);
+        const { agentId, limit } = req.body;
+        const newlimit = parseInt(limit);
+        const result = await logsToCsv(agentId, newlimit);
+        if (typeof result === 'string') {
+          const filePath: string = result;
+          if (fs.existsSync(filePath)) {
+            res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+            res.setHeader("Content-Type", "text/csv");
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
+          } else {
+            console.error("CSV file does not exist");
+            res.status(404).send("CSV file not found");
+          }
         } else {
-          console.error("CSV file does not exist");
-          res.status(404).send("CSV file not found");
+          console.error(`Error retrieving contacts: ${result}`);
+          res.status(500).send(`Error retrieving contacts: ${result}`);
         }
       } catch (error) {
         console.error(`Error retrieving contacts: ${error}`);
         res.status(500).send(`Error retrieving contacts: ${error}`);
-      }
-    });
-  }
-
-  updatereference() {
-    this.app.get("/updates", async () => {
-      try {
-        // Update documents where referenceToCallId is missing
-        await contactModel.updateMany(
-          { referenceToCallId: { $exists: false } },
-          {
-            $set: {
-              referenceToCallId: null,
-            },
-          },
-        );
-
-        console.log("Documents updated successfully");
-      } catch (error) {
-        console.error("Error updating documents:", error);
-        throw error; // Throw the error to handle it in the caller function
       }
     });
   }
@@ -1260,9 +916,7 @@ export class Server {
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
           "86f0db493888f1da69b7d46bfaecd360",
-        ]; // Array of agent IDs
-
-        const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
+        ]; 
         const dailyStats = await contactModel.find({
           datesCalled: { $in: [date] },
           agentId: { $in: agentIds },
@@ -1286,9 +940,6 @@ export class Server {
             status: "called-answered",
           })
           .sort({ updatedAt: -1 });
-        // Limit the number of documents fetched
-
-        // Update each document
         const updateResults = [];
         for (const doc of documentsToUpdate) {
           const result = await contactModel.updateOne(
@@ -1303,92 +954,28 @@ export class Server {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
       }
-      //  try {
-      //    // Update the first 1000 documents to remove the specified field
-      //    const updateResult = await contactModel.updateMany(
-      //      {
-      //        updatedAt: { $ne: null },
-      //        agentId: "214e92da684138edf44368d371da764c",
-      //      },
-      //      { $unset: { linktocallLogModel: "" } }, // Replace 'fieldNameToDelete' with the name of the field you want to delete
-      //      { limit: 1000 },
-      //    );
-
-      //    res.json(updateResult);
-      //  } catch (error) {
-      //    console.error(error);
-      //    res.status(500).json({ error: "Internal server error" });
-      //  }
     });
   }
 
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
-        const { logId1, logId2, logId3, date } = req.body;
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ]; // Array of agent IDs
-
-        const logIds = [logId1, logId2, logId3].filter((id) => id); // Filter out undefined or null values
-
-        // const dailyStats = await contactModel
-        //   .find({
-        //     agentId: { $in: agentIds },
-        //     linktocallLogModel: { $in: logIds },
-        //   })
-        //   .sort({ createdAt: "desc" })
-        //   .populate("referenceToCallId");
-        const dailyStats = await contactModel
-          .find({
-            datesCalled: { $in: [date] },
-            agentId: { $in: agentIds },
-            isDeleted: { $ne: true },
-          })
-          .sort({ createdAt: "desc" })
-          .populate("referenceToCallId");
-        //   .populate("referenceToCallId");
-        // Extract relevant fields from found contacts
-        const contactsData = dailyStats.map((contact) => ({
-          name: contact.firstname,
-          email: contact.email,
-          phone: contact.phone,
-          status: contact.status,
-          transcript: contact.referenceToCallId?.transcript || "",
-          call_recording_url: contact.referenceToCallId.recordingUrl,
-        }));
-
-        // Write contacts data to CSV file
-        const filePath = path.join(__dirname, "..", "public", "stats.csv");
-        console.log("File path:", filePath); // Log file path for debugging
-
-        const csvWriter = createObjectCsvWriter({
-          path: filePath,
-          header: [
-            { id: "name", title: "Name" },
-            { id: "email", title: "Email" },
-            { id: "phone", title: "Phone Number" },
-            { id: "status", title: "Status" },
-            { id: "transcript", title: "Transcript" },
-            { id: "call_recording_url", title: "Call_Recording_Url" },
-          ],
-        });
-
-        await csvWriter.writeRecords(contactsData);
-        console.log("CSV file logs.csv has been written successfully");
-
-        // Check if the file exists synchronously
-        if (fs.existsSync(filePath)) {
-          // Set the response headers to trigger file download
-          res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
-          res.setHeader("Content-Type", "text/csv");
-
-          // Create a read stream from the CSV file and pipe it to the response
-          const fileStream = fs.createReadStream(filePath);
-          fileStream.pipe(res);
-        }
+        const {date} = req.body
+        const result = await statsToCsv(date)
+        if (typeof result === 'string') {
+          const filePath: string = result;
+          if (fs.existsSync(filePath)) {
+            res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+            res.setHeader("Content-Type", "text/csv");
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
+          } else {
+            console.error("CSV file does not exist");
+            res.status(404).send("CSV file not found");
+          }
+        } else {
+          console.error(`Error retrieving contacts: ${result}`);
+          res.status(500).send(`Error retrieving contacts: ${result}`);}
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
