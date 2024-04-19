@@ -14,10 +14,12 @@ export const searchAndRecallContacts = async(
   ) => {
     try {
       let processedContacts = 0;
+      let contactStatusArray = ["called-NA-VM", "calling"];
       let contacts = await contactModel
-        .find({ agentId, status: "called-NA-VM", isDeleted: { $ne: true } })
-        .limit(contactLimit)
-        .sort({ createdAt: "desc" });
+    .find({ agentId, status: { $in: contactStatusArray }, isDeleted: { $ne: true } })
+    .limit(contactLimit)
+    .sort({ createdAt: "desc" });
+
       for (const contact of contacts) {
         try {
           const job = await jobModel.findOne({ jobId });
