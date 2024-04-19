@@ -14,7 +14,7 @@ export const searchAndRecallContacts = async(
   ) => {
     try {
       let processedContacts = 0;
-      let contactStatusArray = ["called-NA-VM", "calling"];
+      let contactStatusArray = ["called-NA-VM", "ringing"];
       let contacts = await contactModel
     .find({ agentId, status: { $in: contactStatusArray }, isDeleted: { $ne: true } })
     .limit(contactLimit)
