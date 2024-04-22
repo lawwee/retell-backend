@@ -70,12 +70,15 @@ export class Server {
       const options = {
         key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
         cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+        
     };
       this.httpsServer = httpsCreateServer(options, this.app);
+      console.log("Running on https")
     } else if (process.env.NODE_ENV === 'development'){
       
       // Create HTTP server in development
       this.httpServer = httpsCreateServer(this.app);
+      console.log("Running on http")
     }
   
     this.handleRetellLlmWebSocket();
