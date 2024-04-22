@@ -72,13 +72,13 @@ export class Server {
         
     };
     console.log("Running on https")
-    this.httpsServer = httpsCreateServer(options, this.app);
+    this.httpsServer = httpsCreateServer(options, this.app);}
    
-    } else if (process.env.NODE_ENV === 'development'){
-      // Create HTTP server in development
-      this.httpServer = httpsCreateServer(this.app);
-      console.log("Running on http")
-    }
+    // } else if (process.env.NODE_ENV === 'development'){
+    //   // Create HTTP server in development
+    //   this.httpServer = httpsCreateServer(this.app);
+    //   console.log("Running on http")
+    // }
   
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
