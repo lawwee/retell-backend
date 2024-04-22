@@ -81,27 +81,27 @@ export class Server {
     //   console.log("Running on http")})
     // }
 
-    if (process.env.NODE_ENV === "production") {
-      console.log("Running on https");
-      this.httpsServer = httpsCreateServer(
-        {
-          key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
-          cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
-        },
-        this.app
-      );
-      this.httpsServer.listen(8080, () => {
-        console.log("HTTPS server is running on port 8080");
-      });
-    } else if (process.env.NODE_ENV === "development") {
-      console.log("Running on http");
-      this.httpServer = httpCreateServer(this.app);
-      this.httpServer.listen(8080, () => {
-        console.log("HTTP server is running on port 8080");
-      });
-    } else {
-      throw new Error("Invalid environment mode specified.");
-    }
+    // if (process.env.NODE_ENV === "production") {
+    //   console.log("Running on https");
+    //   this.httpsServer = httpsCreateServer(
+    //     {
+    //       key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
+    //       cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+    //     },
+    //     this.app
+    //   );
+    //   this.httpsServer.listen(8080, () => {
+    //     console.log("HTTPS server is running on port 8080");
+    //   });
+    // } else if (process.env.NODE_ENV === "development") {
+    //   console.log("Running on http");
+    //   this.httpServer = httpCreateServer(this.app);
+    //   this.httpServer.listen(8080, () => {
+    //     console.log("HTTP server is running on port 8080");
+    //   });
+    // } else {
+    //   throw new Error("Invalid environment mode specified.");
+    // }
   
 
     this.handleRetellLlmWebSocket();
@@ -136,10 +136,10 @@ export class Server {
     this.twilioClient = new TwilioClient(this.retellClient);
     this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
-  // listen(port: number): void {
-  //   this.app.listen(port);
-  //   console.log("Listening on " + port);
-  // }
+  listen(port: number): void {
+    this.app.listen(port);
+    console.log("Listening on " + port);
+  }
   // listen(port: number) {
   //   if (this.httpsServer) {
   //     this.httpsServer.listen(port, () => {
