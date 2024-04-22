@@ -2,7 +2,8 @@ process.env.TZ = "America/Los_Angeles";
 import cors from "cors";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
-import { Server as HTTPSServer, createServer } from "https";
+import { Server as HTTPSServer, createServer as httpsCreateServer } from "https";
+import { Server as HTTPServer, createServer as httpCreateServer } from "http";
 import { RawData, WebSocket } from "ws";
 import { Retell } from "retell-sdk";
 import {
@@ -44,8 +45,9 @@ import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 connectDb();
 export class Server {
-  private httpServer: HTTPSServer;
   public app: expressWs.Application;
+  private httpServer: HTTPServer;
+  private httpsServer: HTTPSServer;
   private retellClient: Retell;
   private twilioClient: TwilioClient;
   storage = multer.diskStorage({
@@ -54,19 +56,28 @@ export class Server {
       cb(null, file.originalname); // Use original file name
     },
   });
-   options = {
-    key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
-};
+   
   upload = multer({ storage: this.storage });
   constructor() {
     this.app = expressWs(express()).app;
-    this.httpServer = createServer(this.options, this.app);
     this.app.use(express.json());
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
 
+    if (process.env.NODE_ENV === 'production') {
+      // Create HTTPS server in production
+      const options = {
+        key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
+        cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+    };
+      this.httpsServer = httpsCreateServer(options, this.app);
+    } else if (process.env.NODE_ENV === 'development'){
+      
+      // Create HTTP server in development
+      this.httpServer = httpsCreateServer(this.app);
+    }
+  
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
     this.handlecontactDelete();
