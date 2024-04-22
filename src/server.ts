@@ -117,7 +117,7 @@ export class Server {
   // }
   listen(port: number) {
     if (this.httpsServer) {
-      this.httpsServer.listen(443, () => {
+      this.httpsServer.listen(port, () => {
         console.log(`HTTPS server is running on port ${port}`);
       });
     } else if (this.httpServer) {
