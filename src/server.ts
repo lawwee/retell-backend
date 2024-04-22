@@ -111,23 +111,23 @@ export class Server {
     this.twilioClient = new TwilioClient(this.retellClient);
     this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
-  // listen(port: number): void {
-  //   this.app.listen(port);
-  //   console.log("Listening on " + port);
-  // }
-  listen(port: number) {
-    if (this.httpsServer) {
-      this.httpsServer.listen(port, () => {
-        console.log(`HTTPS server is running on port ${port}`);
-      });
-    } else if (this.httpServer) {
-      this.httpServer.listen(port, () => {
-        console.log(`HTTP server is running on port ${port}`);
-      });
-    } else {
-      throw new Error("Neither HTTP nor HTTPS server was created.");
-    }
+  listen(port: number): void {
+    this.app.listen(port);
+    console.log("Listening on " + port);
   }
+  // listen(port: number) {
+  //   if (this.httpsServer) {
+  //     this.httpsServer.listen(port, () => {
+  //       console.log(`HTTPS server is running on port ${port}`);
+  //     });
+  //   } else if (this.httpServer) {
+  //     this.httpServer.listen(port, () => {
+  //       console.log(`HTTP server is running on port ${port}`);
+  //     });
+  //   } else {
+  //     throw new Error("Neither HTTP nor HTTPS server was created.");
+  //   }
+  // }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
     target: "https://retell-backend-yy86.onrender.com/webhook",
