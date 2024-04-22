@@ -66,20 +66,19 @@ export class Server {
     this.app.use(express.static(path.join(__dirname, "public")));
 
     if (process.env.NODE_ENV === 'production') {
-      const options = {
+    console.log("Running on https")
+    this.httpsServer = httpsCreateServer(
+       {
         key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
         cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
         
-    };
-    console.log("Running on https")
-    this.httpsServer = httpsCreateServer(options, this.app);}
-   
-    // } else if (process.env.NODE_ENV === 'development'){
-    //   // Create HTTP server in development
-    //   this.httpServer = httpsCreateServer(this.app);
-    //   console.log("Running on http")
-    // }
-  
+    }, this.app)
+    } else if (process.env.NODE_ENV === 'development'){
+      // Create HTTP server in development
+      this.httpServer = httpsCreateServer(this.app);
+      console.log("Running on http")
+    }
+
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
     this.handlecontactDelete();
@@ -112,9 +111,22 @@ export class Server {
     this.twilioClient = new TwilioClient(this.retellClient);
     this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
-  listen(port: number): void {
-    this.app.listen(port);
-    console.log("Listening on " + port);
+  // listen(port: number): void {
+  //   this.app.listen(port);
+  //   console.log("Listening on " + port);
+  // }
+  listen(port: number) {
+    if (this.httpsServer) {
+      this.httpsServer.listen(port, () => {
+        console.log(`HTTPS server is running on port ${port}`);
+      });
+    } else if (this.httpServer) {
+      this.httpServer.listen(port, () => {
+        console.log(`HTTP server is running on port ${port}`);
+      });
+    } else {
+      throw new Error("Neither HTTP nor HTTPS server was created.");
+    }
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
