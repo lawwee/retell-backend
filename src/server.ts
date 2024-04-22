@@ -2,7 +2,7 @@ process.env.TZ = "America/Los_Angeles";
 import cors from "cors";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
-import { Server as HTTPSServer, createServer as httpsCreateServer } from "https";
+import https, { Server as HTTPSServer, createServer as httpsCreateServer } from "https";
 import { Server as HTTPServer, createServer as httpCreateServer } from "http";
 import { RawData, WebSocket } from "ws";
 import { Retell } from "retell-sdk";
@@ -65,19 +65,44 @@ export class Server {
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
 
-    if (process.env.NODE_ENV === 'production') {
-    console.log("Running on https")
-    this.httpsServer = httpsCreateServer(
-       {
-        key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
-        cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+    // if (process.env.NODE_ENV === 'production') {
+    // console.log("Running on https")
+    // this.httpsServer = httpsCreateServer(
+    //    {
+    //     key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
+    //     cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
         
-    }, this.app)
-    } else if (process.env.NODE_ENV === 'development'){
-      // Create HTTP server in development
-      this.httpServer = httpsCreateServer(this.app);
-      console.log("Running on http")
+    // }, this.app).listen(8080, ()=>{
+    //   console.log("connected on 8080 for https")
+    // })
+    // } else if (process.env.NODE_ENV === 'development'){
+    //   // Create HTTP server in development
+    //   this.httpServer = httpsCreateServer(this.app).listen(8080, ()=>{
+    //   console.log("Running on http")})
+    // }
+
+    if (process.env.NODE_ENV === "production") {
+      console.log("Running on https");
+      this.httpsServer = httpsCreateServer(
+        {
+          key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
+          cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+        },
+        this.app
+      );
+      this.httpsServer.listen(8080, () => {
+        console.log("HTTPS server is running on port 8080");
+      });
+    } else if (process.env.NODE_ENV === "development") {
+      console.log("Running on http");
+      this.httpServer = httpCreateServer(this.app);
+      this.httpServer.listen(8080, () => {
+        console.log("HTTP server is running on port 8080");
+      });
+    } else {
+      throw new Error("Invalid environment mode specified.");
     }
+  
 
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
@@ -111,10 +136,10 @@ export class Server {
     this.twilioClient = new TwilioClient(this.retellClient);
     this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
-  listen(port: number): void {
-    this.app.listen(port);
-    console.log("Listening on " + port);
-  }
+  // listen(port: number): void {
+  //   this.app.listen(port);
+  //   console.log("Listening on " + port);
+  // }
   // listen(port: number) {
   //   if (this.httpsServer) {
   //     this.httpsServer.listen(port, () => {
