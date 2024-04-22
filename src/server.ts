@@ -66,16 +66,15 @@ export class Server {
     this.app.use(express.static(path.join(__dirname, "public")));
 
     if (process.env.NODE_ENV === 'production') {
-      // Create HTTPS server in production
       const options = {
         key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
         cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
         
     };
-      this.httpsServer = httpsCreateServer(options, this.app);
-      console.log("Running on https")
+    console.log("Running on https")
+    this.httpsServer = httpsCreateServer(options, this.app);
+   
     } else if (process.env.NODE_ENV === 'development'){
-      
       // Create HTTP server in development
       this.httpServer = httpsCreateServer(this.app);
       console.log("Running on http")
