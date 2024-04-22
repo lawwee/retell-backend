@@ -27,7 +27,7 @@ export const statsToCsv = async (date: string) => {
           call_recording_url: contact.referenceToCallId.recordingUrl,
         }));
         // Write contacts data to CSV file
-        const filePath = path.join(__dirname, "..", "public", "stats.csv");
+        const filePath = path.join(__dirname, "..", "..", "public", "stats.csv");
         console.log("File path:", filePath); // Log file path for debugging
 
         const csvWriter = createObjectCsvWriter({

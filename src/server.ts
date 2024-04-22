@@ -2,7 +2,8 @@ process.env.TZ = "America/Los_Angeles";
 import cors from "cors";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
-import { Server as HTTPServer, createServer } from "http";
+import https, { Server as HTTPSServer, createServer as httpsCreateServer } from "https";
+import { Server as HTTPServer, createServer as httpCreateServer } from "http";
 import { RawData, WebSocket } from "ws";
 import { Retell } from "retell-sdk";
 import {
@@ -44,8 +45,9 @@ import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 connectDb();
 export class Server {
-  private httpServer: HTTPServer;
   public app: expressWs.Application;
+  private httpServer: HTTPServer;
+  private httpsServer: HTTPSServer;
   private retellClient: Retell;
   private twilioClient: TwilioClient;
   storage = multer.diskStorage({
@@ -54,14 +56,53 @@ export class Server {
       cb(null, file.originalname); // Use original file name
     },
   });
+   
   upload = multer({ storage: this.storage });
   constructor() {
     this.app = expressWs(express()).app;
-    this.httpServer = createServer(this.app);
     this.app.use(express.json());
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
+
+    // if (process.env.NODE_ENV === 'production') {
+    // console.log("Running on https")
+    // this.httpsServer = httpsCreateServer(
+    //    {
+    //     key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
+    //     cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+        
+    // }, this.app).listen(8080, ()=>{
+    //   console.log("connected on 8080 for https")
+    // })
+    // } else if (process.env.NODE_ENV === 'development'){
+    //   // Create HTTP server in development
+    //   this.httpServer = httpsCreateServer(this.app).listen(8080, ()=>{
+    //   console.log("Running on http")})
+    // }
+
+    // if (process.env.NODE_ENV === "production") {
+    //   console.log("Running on https");
+    //   this.httpsServer = httpsCreateServer(
+    //     {
+    //       key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
+    //       cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
+    //     },
+    //     this.app
+    //   );
+    //   this.httpsServer.listen(8080, () => {
+    //     console.log("HTTPS server is running on port 8080");
+    //   });
+    // } else if (process.env.NODE_ENV === "development") {
+    //   console.log("Running on http");
+    //   this.httpServer = httpCreateServer(this.app);
+    //   this.httpServer.listen(8080, () => {
+    //     console.log("HTTP server is running on port 8080");
+    //   });
+    // } else {
+    //   throw new Error("Invalid environment mode specified.");
+    // }
+  
 
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
@@ -99,6 +140,19 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
+  // listen(port: number) {
+  //   if (this.httpsServer) {
+  //     this.httpsServer.listen(port, () => {
+  //       console.log(`HTTPS server is running on port ${port}`);
+  //     });
+  //   } else if (this.httpServer) {
+  //     this.httpServer.listen(port, () => {
+  //       console.log(`HTTP server is running on port ${port}`);
+  //     });
+  //   } else {
+  //     throw new Error("Neither HTTP nor HTTPS server was created.");
+  //   }
+  // }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
     target: "https://retell-backend-yy86.onrender.com/webhook",
