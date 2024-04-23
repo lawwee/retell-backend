@@ -43,7 +43,7 @@ import { checkAvailability } from "./callendly";
 import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
-console.log("connected to app")
+console.log("connected to app 2")
 connectDb();
 export class Server {
   public app: expressWs.Application;
@@ -157,7 +157,7 @@ export class Server {
 
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "https://intuitiveagents.io/webhook",
+    target: "http://35.227.169.15:8080/webhook",
     logger: console,
   });
   events = this.smee.start();
