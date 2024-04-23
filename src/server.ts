@@ -803,7 +803,7 @@ export class Server {
   }
 
   getCallLogs() {
-    this.app.get("/call-logs", async (req: Request, res: Response) => {
+    this.app.post("/call-logs", async (req: Request, res: Response) => {
       const { agentId } = req.body;
       const result = await jobModel.find({ agentId });
       res.json({ result });
@@ -960,7 +960,7 @@ export class Server {
   peopleStatsLog() {
     this.app.post("/get-metadata", async (req: Request, res: Response) => {
       try {
-        const { logId1, logId2, logId3, date } = req.body;
+        const { date } = req.body;
         const agentIds = [
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
@@ -970,7 +970,7 @@ export class Server {
           datesCalled: { $in: [date] },
           agentId: { $in: agentIds },
           isDeleted: { $ne: true },
-        });
+        }).populate("referenceToCallId");
 
         res.json({ dailyStats });
       } catch (error) {
