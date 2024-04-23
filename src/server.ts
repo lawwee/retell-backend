@@ -155,7 +155,7 @@ export class Server {
   // }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "https://retell-backend-yy86.onrender.com/webhook",
+    target: "https://intuitiveagents.io/webhook",
     logger: console,
   });
   events = this.smee.start();
