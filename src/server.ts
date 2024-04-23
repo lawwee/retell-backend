@@ -128,7 +128,7 @@ export class Server {
     this.updateLog();
     this.peopleStatToCsv();
     this.createPhoneCall2();
-
+    this.testwebsocket()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -153,6 +153,7 @@ export class Server {
   //     throw new Error("Neither HTTP nor HTTPS server was created.");
   //   }
   // }
+
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
     target: "https://retell-backend-yy86.onrender.com/webhook",
@@ -522,6 +523,7 @@ export class Server {
         "0411eeeb12d17a340941e91a98a766d0",
         { llm_websocket_url: "http://retellai.com/retell-llm-new/6e28fc57e6a8d44226df765cc07b69a5" },
       );
+
       // await this.retellClient.call.register({
       //   agent_id: "0411eeeb12d17a340941e91a98a766d0",
       //   audio_encoding: "s16le",
@@ -1029,6 +1031,22 @@ export class Server {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
       }
+    });
+  }
+  testwebsocket() {
+    this.app.ws('/websockets', async (ws, req) => {
+      // WebSocket connection handler
+      console.log('WebSocket connection established');
+      
+      // Handle incoming WebSocket messages
+      ws.on('message', (msg) => {
+        console.log('Received message:', msg);
+      });
+
+      // Handle WebSocket closure
+      ws.on('close', () => {
+        console.log('WebSocket connection closed');
+      });
     });
   }
 }
