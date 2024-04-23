@@ -43,7 +43,6 @@ import { checkAvailability } from "./callendly";
 import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
-console.log("connected to app 2")
 connectDb();
 export class Server {
   public app: expressWs.Application;
