@@ -202,7 +202,7 @@ export class chloeDemoLlmClient {
         model: "gpt-3.5-turbo-1106",
         messages: requestMessages,
         stream: true,
-        temperature: 0.2,
+        temperature: 0.1,
         max_tokens: 200,
         frequency_penalty: 1.0,
         presence_penalty: 1.0,
