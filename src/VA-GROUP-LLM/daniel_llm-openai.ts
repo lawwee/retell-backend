@@ -31,7 +31,7 @@ export class danielDemoLlmClient {
 
     \n\nRules: 
 
-	\n\n-Rule 1: Only schedule appointments for next wednesday at 9 AM. If the user is not available next wednesday at 8 AM, you may provide one additional time slot at 10 AM. If neither times work for the user (proceed to step 4).
+	\n\n-Rule 1: Only schedule appointments for next wednesday at 9 AM.If the user is not available next wednesday at 8 AM, you may provide one additional time slot at 10 AM. If neither times work for the user (proceed to step 4).
 	\n\n-Rule 2: If you detect a voicemail message, automated system or recording has been reached, call function end_call to hang up. Do not interact with automated systems, leave a voicemail or attempt to record a message.
 	\n\n-Rule 3: During step 1 only proceed to step 3 if user answers "yes" after the question:  "see if you were still looking for help?".
 	\n\n-Rule 4: If user begins call providing their name, say: "Hi (repeat name), Daniel with Virtual Help Desk following up on an inquiry we recieved in the past for our virtual assistant services, and wanted to see if you were still looking for help?" if the response is: "yes", (proceed to step 3), if the response is: "no", "not at this time", say: "No worries, please keep us in mind if anything changes." call function end_call to hang up.
