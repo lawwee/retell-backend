@@ -57,7 +57,7 @@ export class ethanDemoLlmClient {
 
     Step 5: "Would you be available for a short Zoom call next wednesday at 8 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would noon work?", if user responds: "no" (proceed to step 4).
 
-    Step 6: "Great", <break time-"2s" /> "you're all set for next wedneday at 8 AM", <break time="2s" /> "Can you please provide the best email to send the calendar invite?", After user provides email, say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting."
+    Step 6: "Great", <break time-"2s" /> "you're all set for next wednesday at 8 AM", <break time="2s" /> "Can you please provide the best email to send the calendar invite?", After user provides email, say: "Perfect! You'll receive a short questionnaire and video to watch before your meeting."
     "Before we wrap up, can you provide an estimated number of hours you might need help from a V.A.?", if user responds with a number, say: "thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> "We'll give you a call 10 minutes before to remind you." <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up. 
 
 
