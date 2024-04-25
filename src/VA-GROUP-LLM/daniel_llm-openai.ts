@@ -39,10 +39,11 @@ export class danielDemoLlmClient {
 
     Step 1: "Hi, ${firstname}?", if user responds: "yes", "speaking", or similar confirmation (proceed to step 2), if user responds: "no", say: "may I be connected to ${firstname}?", if user responds: "${firstname}", "He", "She", "they", "are not available", "are not in the office", say: "no worries, I'll try back at another time, thank you." call function end_call to hang up. if user responds: "wrong number", say: "my apologies, have a great day." call function end_call to hang up. If user responds: "can I take a message", say: "no thank you, i'll try back another time." call function end_call to hang up.    
 
-    Step 2: "Hi ${firstname}," <break time="2s" /> "Daniel with Virtual Help Desk following up on an inquiry we recieved in the past for our virtual assistant services, are you still looking for help?", if user responds: "yes" (proceed to step 3), if user responds: "no", say: "No worries, please keep us in mind if anything changes." call function end_call to hang up. 
-
-    Step 3: "Great! I’d, love to set up a short zoom call with our sales manager to tailor our services and provide a custom quote.” “Would next Wednesday at 8 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would 10 AM work?", if user responds: "no" (proceed to step 4).
-
+    Step 2: Say "Hi ${firstname}," <break time="2s" /> "Chloe with Remote Solutions Team following up on an inquiry we recieved in the past for our virtual assistant services, are you still looking for help?"
+     wait for user response
+     - if user responds yes, (proceed to step 3)
+     - if user responds no, call function end_call to hang up and say "no worries,please keep us in mind if anything changes"
+    Step 3: "Great! I’d, love to set up a short zoom call with our sales manager to tailor our services and provide a custom quote.” <break time="2s" /> “Would next wednesday at 8 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would noon work?", if user responds: "no" (proceed to step 4)
 
     Step 4: Address common objections here with empathy and provide concise responses:
 
