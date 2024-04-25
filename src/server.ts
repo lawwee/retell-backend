@@ -187,14 +187,12 @@ export class Server {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
-            // Find the document with the given criteria
             const findResult = await DailyStats.findOne({
               myDate: todayString,
               agentId: user.agentId,
             })
             if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
-            if (!findResult) {
-              // If the document doesn't exist, create it with the required fields
+              if (!findResult) {
               result = await DailyStats.create({
                 agentId: user.agentId,
                 myDate: todayString,
@@ -202,8 +200,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } else {
-              // If the document exists, update the required fields
+              } else {
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
                 {
@@ -213,14 +210,13 @@ export class Server {
                 },
                 { new: true },
               );
-            }
+              }
           }
-            // Continue with the rest of your code
             await contactModel.findOneAndUpdate(
               { callId },
               {
                 status: callstatusenum.CALLED,
-                linktocallLogModel: result._id,
+                linktocallLogModel: result._id || "",
                 $push: { datesCalled: todayString },
               },
             );
@@ -305,7 +301,7 @@ export class Server {
               { callId },
               {
                 status: callstatusenum.CALLED,
-                linktocallLogModel: result._id,
+                linktocallLogModel: result._id || "",
                 $push: { datesCalled: todayString },
               },
             );
@@ -391,7 +387,7 @@ export class Server {
               { callId },
               {
                 status: callstatusenum.CALLED,
-                linktocallLogModel: result._id,
+                linktocallLogModel: result._id || "",
                 $push: { datesCalled: todayString },
               },
             );

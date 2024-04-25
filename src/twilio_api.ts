@@ -139,7 +139,6 @@ export class TwilioClient {
             });
 
             if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
-
             if (!findResult) {
               // If the document doesn't exist, create it with the required fields
               result = await DailyStats.create({
