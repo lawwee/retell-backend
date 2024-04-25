@@ -123,6 +123,7 @@ export class TwilioClient {
         const userId = req.params.userId;
         const { AnsweredBy, from, to, callSid } = req.body;
 
+        const user = await contactModel.findOne({_id:userId})
         try {
           // Respond with TwiML to hang up the call if its machine
           if (AnsweredBy && AnsweredBy === "machine_start") {
@@ -136,6 +137,8 @@ export class TwilioClient {
               myDate: todayString,
               agentId,
             });
+
+            if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
 
             if (!findResult) {
               // If the document doesn't exist, create it with the required fields
@@ -158,6 +161,7 @@ export class TwilioClient {
                 { new: true },
               );
             }
+          }
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
               linktocallLogModel: result._id,
