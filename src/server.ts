@@ -297,14 +297,7 @@ export class Server {
               );
             }
           }
-            await contactModel.findOneAndUpdate(
-              { callId },
-              {
-                status: callstatusenum.CALLED,
-                linktocallLogModel: result._id || "",
-                $push: { datesCalled: todayString },
-              },
-            );
+
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -383,14 +376,6 @@ export class Server {
               );
             }
           }
-            await contactModel.findOneAndUpdate(
-              { callId },
-              {
-                status: callstatusenum.CALLED,
-                linktocallLogModel: result._id || "",
-                $push: { datesCalled: todayString },
-              },
-            );
             // clearTimeout(timeoutId);
             console.error("Closing llm ws for: ", callId);
           });
@@ -830,9 +815,14 @@ export class Server {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
       try {
+        const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
         if (payload.event === "call_ended") {
-          const { event, call_id, transcript, recording_url } = payload.data;
+          const { call_id, transcript, recording_url , agent_id} = payload.data;
 
+          const result1 = await DailyStats.findOneAndUpdate(
+            { myDate: todayString, agentId: agent_id })
           // Perform custom actions with the transcript, timestamps, etc.
           console.log(transcript);
           const result = await EventModel.create({
@@ -843,8 +833,9 @@ export class Server {
           });
           await contactModel.findOneAndUpdate(
             { callId: call_id },
-            { referenceToCallId: result._id },
-          );
+            { referenceToCallId: result._id, status:callstatusenum.CALLED,  linktocallLogModel: result1._id || "",
+            $push: { datesCalled: todayString} },
+          )
         } else {
           // For other event types, if any, you can add corresponding logic here
           console.log("Received event type:", payload.event);
