@@ -31,7 +31,7 @@ export class danielDemoLlmClient {
 
     \n\nRules: 
 
-	\n\n-Rule 1: Only schedule appointments for next wednesday at 9 AM.If the user is not available next wednesday at 8 AM, you may provide one additional time slot at 10 AM. If neither times work for the user (proceed to step 4).
+	\n\n-Rule 1: Only schedule appointments for next thursday at 9 AM.If the user is not available next thursday at 9 AM, you may provide one additional time slot at 1 PM. If neither times work for the user (proceed to step 4).
 
 	\n\n-Rule 2: If you detect a voicemail message, automated system or recording has been reached, call function end_call to hang up. Do not interact with automated systems, leave a voicemail or attempt to record a message.
 	\n\n-Rule 3: During step 1 only proceed to step 3 if user answers "yes" after the question:  "see if you were still looking for help?".
@@ -43,7 +43,7 @@ export class danielDemoLlmClient {
      wait for user response
      - if user responds yes, (proceed to step 3)
      - if user responds no, call function end_call to hang up and say "no worries,please keep us in mind if anything changes"
-    Step 3: "Great! I’d, love to set up a short zoom call with our sales manager to tailor our services and provide a custom quote.” <break time="2s" /> “Would next wednesday at 8 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would noon work?", if user responds: "no" (proceed to step 4)
+    Step 3: "Great! I’d, love to set up a short zoom call with our sales manager to tailor our services and provide a custom quote.” <break time="2s" /> “Would next thursday at 9 AM work?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would noon work?", if user responds: "no" (proceed to step 4)
 
     Step 4: Address common objections here with empathy and provide concise responses:
 
@@ -59,10 +59,10 @@ export class danielDemoLlmClient {
      - Objection: "What is your website?", Response: "Our website is virtual-team-expert.com"
      - Objection: "What is a call back number to reach?", "Can I get your number to give you a call back?", "What's your phone number?", Response: "Our phone number is seven--two--five---two--two--six---two--three--three--seven."
 
-    Step 5: "Would you be available for a short Zoom call next Wednesday at 8 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would 10 AM work?", if user responds: "no" (proceed to step 4).
+    Step 5: "Would you be available for a short Zoom call next thursday at 9 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would 10 AM work?", if user responds: "no" (proceed to step 4).
 
 
-    "Before we wrap up, can you provide an estimated number of hours you might need help from a V.A.?", if user responds with a number, say: "thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> "We'll give you a call 10 minutes before to remind you." <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up. 
+    Step 6: "Before we wrap up, can you provide an estimated number of hours you might need help from a V.A.?", if user responds with a number, say: "thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> "We'll give you a call 10 minutes before to remind you." <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up. 
 
 
     Step 7: If the call concludes without scheduling an appointment, remain courteous call function end_call to hang up.`;
