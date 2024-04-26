@@ -200,7 +200,8 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-              } else {
+              } 
+              if(findResult){
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
                 {
@@ -211,6 +212,14 @@ export class Server {
                 { new: true },
               );
               }
+              await contactModel.findOneAndUpdate(
+                { callId },
+                {
+                  status: callstatusenum.CALLED,
+                  linktocallLogModel: result._id || "",
+                  $push: { datesCalled: todayString },
+                },
+              );
           }
             await contactModel.findOneAndUpdate(
               { callId },
@@ -283,7 +292,8 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } else {
+            } 
+            if(findResult) {
               // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
@@ -295,8 +305,24 @@ export class Server {
                 },
                 { new: true },
               );
+              await contactModel.findOneAndUpdate(
+                { callId },
+                {
+                  status: callstatusenum.CALLED,
+                  linktocallLogModel: result._id || "",
+                  $push: { datesCalled: todayString },
+                },
+              );
             }
           }
+          await contactModel.findOneAndUpdate(
+            { callId },
+            {
+              status: callstatusenum.CALLED,
+              linktocallLogModel: result._id || "",
+              $push: { datesCalled: todayString },
+            },
+          );
 
             console.error("Closing llm ws for: ", callId);
           });
@@ -363,7 +389,8 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } else {
+            } 
+            if(findResult) {
               // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
@@ -374,8 +401,25 @@ export class Server {
                 },
                 { new: true },
               );
+              await contactModel.findOneAndUpdate(
+                { callId },
+                {
+                  status: callstatusenum.CALLED,
+                  linktocallLogModel: result._id || "",
+                  $push: { datesCalled: todayString },
+                },
+              );
             }
           }
+
+          await contactModel.findOneAndUpdate(
+            { callId },
+            {
+              status: callstatusenum.CALLED,
+              linktocallLogModel: result._id || "",
+              $push: { datesCalled: todayString },
+            },
+          );
             // clearTimeout(timeoutId);
             console.error("Closing llm ws for: ", callId);
           });
@@ -830,12 +874,12 @@ export class Server {
             transcript,
             callId: call_id,
             recordingUrl: recording_url,
-          });
-          await contactModel.findOneAndUpdate(
-            { callId: call_id },
-            { referenceToCallId: result._id, status:callstatusenum.CALLED,  linktocallLogModel: result1._id || "",
-            $push: { datesCalled: todayString} },
-          )
+          })
+          // await contactModel.findOneAndUpdate(
+          //   { callId: call_id },
+          //   { referenceToCallId: result._id, status:callstatusenum.CALLED,  linktocallLogModel: result1._id || "",
+          //   $push: { datesCalled: todayString} },
+          // )
         } else {
           // For other event types, if any, you can add corresponding logic here
           console.log("Received event type:", payload.event);
