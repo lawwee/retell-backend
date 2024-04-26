@@ -44,6 +44,7 @@ import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 connectDb();
+console.log("connected to gcp PART 2")
 export class Server {
   public app: expressWs.Application;
   private httpServer: HTTPServer;
@@ -191,7 +192,6 @@ export class Server {
               myDate: todayString,
               agentId: user.agentId,
             })
-            if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
               if (!findResult) {
               result = await DailyStats.create({
                 agentId: user.agentId,
@@ -200,8 +200,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-              } 
-              if(findResult){
+              } else {
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
                 {
@@ -212,20 +211,11 @@ export class Server {
                 { new: true },
               );
               }
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result._id || "",
-                  $push: { datesCalled: todayString },
-                },
-              );
-          }
             await contactModel.findOneAndUpdate(
               { callId },
               {
                 status: callstatusenum.CALLED,
-                linktocallLogModel: result._id || "",
+                linktocallLogModel: result._id ,
                 $push: { datesCalled: todayString },
               },
             );
@@ -282,9 +272,7 @@ export class Server {
               myDate: todayString,
               agentId: user.agentId,
             });
-            if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
             if (!findResult) {
-              // If the document doesn't exist, create it with the required fields
               result = await DailyStats.create({
                 agentId: user.agentId,
                 myDate: todayString,
@@ -292,9 +280,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } 
-            if(findResult) {
-              // If the document exists, update the required fields
+            } else {
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
 
@@ -305,25 +291,15 @@ export class Server {
                 },
                 { new: true },
               );
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result._id || "",
-                  $push: { datesCalled: todayString },
-                },
-              );
             }
-          }
           await contactModel.findOneAndUpdate(
             { callId },
             {
               status: callstatusenum.CALLED,
-              linktocallLogModel: result._id || "",
+              linktocallLogModel: result._id,
               $push: { datesCalled: todayString },
             },
           );
-
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -378,8 +354,6 @@ export class Server {
               myDate: todayString,
               agentId: user.agentId,
             });
-            if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
-
             if (!findResult) {
               // If the document doesn't exist, create it with the required fields
               result = await DailyStats.create({
@@ -389,8 +363,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } 
-            if(findResult) {
+            } else {
               // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
@@ -401,22 +374,12 @@ export class Server {
                 },
                 { new: true },
               );
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result._id || "",
-                  $push: { datesCalled: todayString },
-                },
-              );
             }
-          }
-
           await contactModel.findOneAndUpdate(
             { callId },
             {
               status: callstatusenum.CALLED,
-              linktocallLogModel: result._id || "",
+              linktocallLogModel: result._id,
               $push: { datesCalled: todayString },
             },
           );
@@ -875,6 +838,10 @@ export class Server {
             callId: call_id,
             recordingUrl: recording_url,
           })
+          await contactModel.findOneAndUpdate(
+            { callId: call_id },
+            { referenceToCallId: result._id },
+          );
           // await contactModel.findOneAndUpdate(
           //   { callId: call_id },
           //   { referenceToCallId: result._id, status:callstatusenum.CALLED,  linktocallLogModel: result1._id || "",
