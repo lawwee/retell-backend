@@ -145,9 +145,7 @@ export class TwilioClient {
                 totalCalls: 1,
                 callsAnswered: 0,
                 callsNotAnswered: 1,
-              });
-            } 
-            if(findResult) {
+              }) }else {
               // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId },
