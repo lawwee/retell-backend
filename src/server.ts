@@ -44,6 +44,7 @@ import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 connectDb();
+console.log("connected to gcp")
 export class Server {
   public app: expressWs.Application;
   private httpServer: HTTPServer;
