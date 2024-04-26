@@ -56,7 +56,7 @@ export class ethanDemoLlmClient {
      - Objection: "What is your website?", Response: "Our website is virtual-team-expert.com"
      - Objection: "What is a call back number to reach?", "Can I get your number to give you a call back?", "What's your phone number?", Response: "Our phone number is seven--two--five---two--two--six---two--three--three--seven."
 
-    Step 5: "Would you be available for a short Zoom call next thursday at 9 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would 10 AM work?", if user responds: "no" (proceed to step 4).
+    Step 5: "Would you be available for a short Zoom call next thursday at 9 AM?", if user responds: "yes" (proceed to step 6), if user responds: "No", say: "would 1 PM work?", if user responds: "no" (proceed to step 4).
 
     Step 6: "Before we wrap up, can you provide an estimated number of hours you might need help from a V.A.?", if user responds with a number, say: "thank you!", if user responds: "Im not sure" say: "No worries" <break time="2s" /> "You'll be meeting with our sales manager, Kyle." <break time="2s" /> "We'll give you a call 10 minutes before to remind you." <break time="2s" /> "Thanks for your time and enjoy the rest of your day!" call function end_call to hang up. 
 
