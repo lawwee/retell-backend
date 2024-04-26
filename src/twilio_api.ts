@@ -137,8 +137,6 @@ export class TwilioClient {
               myDate: todayString,
               agentId,
             });
-
-            if(user.phone !== "17604456425" && user.phone !== "+17604456425"){
             if (!findResult) {
               // If the document doesn't exist, create it with the required fields
               result = await DailyStats.create({
@@ -148,7 +146,8 @@ export class TwilioClient {
                 callsAnswered: 0,
                 callsNotAnswered: 1,
               });
-            } else {
+            } 
+            if(findResult) {
               // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId },
@@ -160,7 +159,7 @@ export class TwilioClient {
                 { new: true },
               );
             }
-          }
+          
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
               linktocallLogModel: result._id,
@@ -181,11 +180,11 @@ export class TwilioClient {
               metadata: { twilio_call_sid: callSid },
               end_call_after_silence_ms: 15000,
             });
-          await contactModel.findByIdAndUpdate(userId, {
-            callId: callResponse.call_id,
-            status: "ringing",
-          });
           if (callResponse) {
+            await contactModel.findByIdAndUpdate(userId, {
+              callId: callResponse.call_id,
+              status: "ringing",
+            });
             // Start phone call websocket
             const response = new VoiceResponse();
             const start = response.connect();
