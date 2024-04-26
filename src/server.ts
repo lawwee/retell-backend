@@ -216,7 +216,7 @@ export class Server {
               { callId },
               {
                 status: callstatusenum.CALLED,
-                linktocallLogModel: result._id || "",
+                linktocallLogModel: result._id ,
                 $push: { datesCalled: todayString },
               },
             );
@@ -298,7 +298,7 @@ export class Server {
             { callId },
             {
               status: callstatusenum.CALLED,
-              linktocallLogModel: result._id || "",
+              linktocallLogModel: result._id,
               $push: { datesCalled: todayString },
             },
           );
@@ -383,7 +383,7 @@ export class Server {
             { callId },
             {
               status: callstatusenum.CALLED,
-              linktocallLogModel: result._id || "",
+              linktocallLogModel: result._id,
               $push: { datesCalled: todayString },
             },
           );
@@ -842,6 +842,10 @@ export class Server {
             callId: call_id,
             recordingUrl: recording_url,
           })
+          await contactModel.findOneAndUpdate(
+            { callId: call_id },
+            { referenceToCallId: result._id },
+          );
           // await contactModel.findOneAndUpdate(
           //   { callId: call_id },
           //   { referenceToCallId: result._id, status:callstatusenum.CALLED,  linktocallLogModel: result1._id || "",
