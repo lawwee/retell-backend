@@ -200,8 +200,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-              } 
-              if(findResult){
+              } else {
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
                 {
@@ -281,8 +280,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } 
-            if(findResult) {
+            } else {
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
 
@@ -356,7 +354,6 @@ export class Server {
               myDate: todayString,
               agentId: user.agentId,
             });
-
             if (!findResult) {
               // If the document doesn't exist, create it with the required fields
               result = await DailyStats.create({
@@ -366,8 +363,7 @@ export class Server {
                 callsAnswered: 0,
                 callsNotAnswered: 0,
               });
-            } 
-            if(findResult) {
+            } else {
               // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId: user.agentId },
