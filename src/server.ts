@@ -479,10 +479,11 @@ export class Server {
     });
   }
   handlecontactGet() {
-    this.app.get("/users/:agentId", async (req: Request, res: Response) => {
+    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
+      const {page, limit} = req.body
       try {
-        const result = await getAllContact(agentId);
+        const result = await getAllContact(agentId,page, limit );
         res.json({ result });
       } catch (error) {}
     });
@@ -895,9 +896,9 @@ export class Server {
           "86f0db493888f1da69b7d46bfaecd360",
         ]; 
         const dailyStats = await contactModel.find({
-          datesCalled: { $in: [date] },
+          datesCalled: date,
           agentId: { $in: agentIds },
-          isDeleted: { $ne: true },
+          isDeleted: false,
         }).populate("referenceToCallId");
 
         res.json({ dailyStats });
