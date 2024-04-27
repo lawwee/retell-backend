@@ -105,6 +105,7 @@ export class Server {
     // }
   
 
+    this.testReetellWebsocket()
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
     this.handlecontactDelete();
@@ -161,6 +162,42 @@ export class Server {
     logger: console,
   });
   events = this.smee.start();
+
+  testReetellWebsocket() {
+    this.app.ws('/testwebsocket', async (ws, req) => {
+        const user = { agentId: "1" };
+        console.log('WebSocket connection established');
+        // Handle incoming WebSocket messages
+        ws.on('message', async (msg) => {
+            console.log('Received message:', msg);
+            const message = " i am No 1";
+            let counter = 0;
+            const intervalId = setInterval(() => {
+                if (counter < 5) {
+                    ws.send(message);
+                    console.log('Message sent:', message);
+                    counter++;
+                } else {
+                    clearInterval(intervalId); 
+                    ws.close()
+                }
+            }, 1000);
+        });
+        ws.on('close', async () => {
+            const today = new Date();
+            const todayString = today.toISOString().split("T")[0];
+            await DailyStats.updateOne(
+                { myDate: todayString, agentId: user.agentId },
+                { $inc: { totalCalls: 1 } },
+                { upsert: true }
+            );
+            console.log('WebSocket connection closed');
+       
+        });
+
+    });
+}
+
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -184,49 +221,6 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split("T")[0];
-            const findResult = await DailyStats.findOne({
-              myDate: todayString,
-              agentId: user.agentId,
-            })
-              if (!findResult) {
-              const result = await DailyStats.create({
-                agentId: user.agentId,
-                myDate: todayString,
-                totalCalls: 1,
-                callsAnswered: 0,
-                callsNotAnswered: 0,
-              });
-
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result._id,
-                  $push: { datesCalled: todayString },
-                },
-              );
-              } else {
-              const result1 = await DailyStats.findOneAndUpdate(
-                { myDate: todayString, agentId: user.agentId },
-                {
-                  $inc: {
-                    totalCalls: 1,
-                  },
-                },
-                { new: true },
-              );
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result1._id,
-                  $push: { datesCalled: todayString },
-                },
-              );
-              }
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -271,59 +265,6 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split("T")[0];
-            // Find the document with the given criteria
-            const findResult = await DailyStats.findOne({
-              myDate: todayString,
-              agentId: user.agentId,
-            });
-            if (!findResult) {
-             const result = await DailyStats.create({
-                agentId: user.agentId,
-                myDate: todayString,
-                totalCalls: 1,
-                callsAnswered: 0,
-                callsNotAnswered: 0,
-              });
-
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result._id,
-                  $push: { datesCalled: todayString },
-                },
-              );
-            } else {
-              const result1 = await DailyStats.findOneAndUpdate(
-                { myDate: todayString, agentId: user.agentId },
-
-                {
-                  $inc: {
-                    totalCalls: 1,
-                  },
-                },
-                { new: true },
-              );
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel:result1._id,
-                  $push: { datesCalled: todayString },
-                },
-              );
-            }
-          // await contactModel.findOneAndUpdate(
-          //   { callId },
-          //   {
-          //     status: callstatusenum.CALLED,
-          //     linktocallLogModel: result._id || result1._id,
-          //     $push: { datesCalled: todayString },
-          //   },
-          // );
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -369,52 +310,6 @@ export class Server {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split("T")[0];
-            // Find the document with the given criteria
-            const findResult = await DailyStats.findOne({
-              myDate: todayString,
-              agentId: user.agentId,
-            });
-            if (!findResult) {
-              // If the document doesn't exist, create it with the required fields
-              const result = await DailyStats.create({
-                agentId: user.agentId,
-                myDate: todayString,
-                totalCalls: 1,
-                callsAnswered: 0,
-                callsNotAnswered: 0,
-              });
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result._id ,
-                  $push: { datesCalled: todayString },
-                },
-              );
-            } else {
-              // If the document exists, update the required fields
-              const result1 = await DailyStats.findOneAndUpdate(
-                { myDate: todayString, agentId: user.agentId },
-                {
-                  $inc: {
-                    totalCalls: 1,
-                  },
-                },
-                { new: true },
-              );
-              await contactModel.findOneAndUpdate(
-                { callId },
-                {
-                  status: callstatusenum.CALLED,
-                  linktocallLogModel: result1._id,
-                  $push: { datesCalled: todayString },
-                },
-              );
-            }
-            // clearTimeout(timeoutId);
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -852,32 +747,31 @@ export class Server {
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayString = today.toISOString().split("T")[0];
       try {
-        const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split("T")[0];
         if (payload.event === "call_ended") {
           const { call_id, transcript, recording_url , agent_id} = payload.data;
-
-          const result1 = await DailyStats.findOneAndUpdate(
-            { myDate: todayString, agentId: agent_id })
-          // Perform custom actions with the transcript, timestamps, etc.
-          console.log(transcript);
           const result = await EventModel.create({
-            event: payload.event,
             transcript,
             callId: call_id,
             recordingUrl: recording_url,
           })
-          await contactModel.findOneAndUpdate(
-            { callId: call_id },
-            { referenceToCallId: result._id },
-          );
-          // await contactModel.findOneAndUpdate(
-          //   { callId: call_id },
-          //   { referenceToCallId: result._id, status:callstatusenum.CALLED,  linktocallLogModel: result1._id || "",
-          //   $push: { datesCalled: todayString} },
-          // )
+         const result1 = await DailyStats.updateOne(
+            { myDate: todayString, agentId: agent_id },
+            { $inc: { totalCalls: 1 } },
+            { upsert: true }
+        );
+        await contactModel.findOneAndUpdate(
+          { callId:call_id },
+          {
+            status: callstatusenum.CALLED,
+            linktocallLogModel: result1.upsertedId ? result1.upsertedId._id : null,
+            $push: { datesCalled: todayString },
+            referenceToCallId: result._id
+          },
+        );
         } else {
           // For other event types, if any, you can add corresponding logic here
           console.log("Received event type:", payload.event);
