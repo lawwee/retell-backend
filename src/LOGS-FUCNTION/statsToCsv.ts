@@ -10,14 +10,12 @@ export const statsToCsv = async (date: string) => {
         ]; // Array of agent IDs
         const dailyStats = await contactModel
           .find({
-            datesCalled: { $in: [date] },
+            datesCalled: date,
             agentId: { $in: agentIds },
-            isDeleted: { $ne: true },
+            isDeleted: false ,
           })
           .sort({ createdAt: "desc" })
           .populate("referenceToCallId");
-        //   .populate("referenceToCallId");
-        // Extract relevant fields from found contacts
         const contactsData = dailyStats.map((contact) => ({
           name: contact.firstname,
           email: contact.email,

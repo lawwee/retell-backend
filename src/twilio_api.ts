@@ -122,8 +122,6 @@ export class TwilioClient {
         const agentId = req.params.agentId;
         const userId = req.params.userId;
         const { AnsweredBy, from, to, callSid } = req.body;
-
-        const user = await contactModel.findOne({_id:userId})
         try {
           // Respond with TwiML to hang up the call if its machine
           if (AnsweredBy && AnsweredBy === "machine_start") {
@@ -138,7 +136,6 @@ export class TwilioClient {
               agentId,
             });
             if (!findResult) {
-              // If the document doesn't exist, create it with the required fields
               result = await DailyStats.create({
                 agentId,
                 myDate: todayString,
@@ -146,7 +143,6 @@ export class TwilioClient {
                 callsAnswered: 0,
                 callsNotAnswered: 1,
               }) }else {
-              // If the document exists, update the required fields
               result = await DailyStats.findOneAndUpdate(
                 { myDate: todayString, agentId },
                 {
