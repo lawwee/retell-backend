@@ -127,7 +127,6 @@ export class Server {
     this.logsToCsv();
     this.statsForAgent();
     this.peopleStatsLog();
-    this.updateLog();
     this.peopleStatToCsv();
     this.createPhoneCall2();
     this.testwebsocket()
@@ -907,34 +906,6 @@ export class Server {
       }
     });
   }
-  updateLog() {
-    this.app.post("/updateLog", async (req: Request, res: Response) => {
-      try {
-        // Fetch the documents that need to be updated
-        const documentsToUpdate = await contactModel
-          .find({
-            updatedAt: { $ne: null },
-            agentId: "0411eeeb12d17a340941e91a98a766d0",
-            status: "called-answered",
-          })
-          .sort({ updatedAt: -1 });
-        const updateResults = [];
-        for (const doc of documentsToUpdate) {
-          const result = await contactModel.updateOne(
-            { _id: doc._id },
-            { $set: { linktocallLogModel: "6615d9d3ed452636ea7491ee" } },
-          );
-          updateResults.push(result);
-        }
-
-        res.json(updateResults.length);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
-  }
-
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
