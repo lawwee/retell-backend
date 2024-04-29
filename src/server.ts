@@ -707,8 +707,9 @@ export class Server {
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
       try {
-        if (payload.event === "call_analyzed") {
+        if (payload.event === "call_ended") {
           const { call_id, transcript, recording_url , agent_id} = payload.data;
+          console.log(transcript)
           const result = await EventModel.create({
             transcript,
             callId: call_id,
