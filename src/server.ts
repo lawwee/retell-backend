@@ -158,6 +158,7 @@ export class Server {
         const callId = req.params.call_id;
         console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
+        console.log("this is the agent id",user.agentId)
         const config: CustomLlmResponse = {
           response_type: "config",
           config: {
