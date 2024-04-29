@@ -154,11 +154,14 @@ export class TwilioClient {
               metadata: { twilio_call_sid: callSid },
               end_call_after_silence_ms: 15000,
             });
-          if (callResponse) {
-            await contactModel.findByIdAndUpdate(userId, {
+
+            const callid = await contactModel.findByIdAndUpdate(userId, {
               callId: callResponse.call_id,
               status: "ringing",
             });
+            console.log("saved called id is",callid.callId)
+            console.log("callid is", callResponse.call_id)
+          if (callResponse) {
             // Start phone call websocket
             const response = new VoiceResponse();
             const start = response.connect();
