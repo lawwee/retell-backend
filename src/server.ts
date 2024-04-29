@@ -702,7 +702,6 @@ export class Server {
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
-      console.log("this is the payload", payload)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];

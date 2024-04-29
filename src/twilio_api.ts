@@ -156,7 +156,7 @@ export class TwilioClient {
               end_call_after_silence_ms: 15000,
             });
 
-            const callid = await contactModel.findByIdAndUpdate(userId, {
+            await contactModel.findByIdAndUpdate(userId, {
               callId: callResponse.call_id,
               status: "ringing",
             });
