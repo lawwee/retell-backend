@@ -111,7 +111,7 @@ export class Server {
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "http://localhost:8080/webhook",
+    target: "https://intuitiveagents.io/webhook",
     logger: console,
   });
   events = this.smee.start();
