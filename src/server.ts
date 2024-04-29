@@ -44,6 +44,7 @@ import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
+import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 connectDb();
 
 export class Server {
@@ -211,7 +212,7 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          const client = new chloeDemoLlmClient();
+          const client = new testDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
