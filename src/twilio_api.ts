@@ -56,7 +56,7 @@ export class TwilioClient {
         );
       }
 
-      
+
       await this.twilio.incomingPhoneNumbers(numberSid).update({
         voiceUrl: `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`,
       });
@@ -160,8 +160,6 @@ export class TwilioClient {
               callId: callResponse.call_id,
               status: "ringing",
             });
-            console.log("saved called id is",callid.callId)
-            console.log("callid is", callResponse.call_id)
           if (callResponse) {
             // Start phone call websocket
             const response = new VoiceResponse();

@@ -271,7 +271,7 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            console.log(data.toString());
+            // console.log(data.toString());
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
@@ -294,7 +294,7 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              console.clear();
+              // console.clear();
               console.log("req", request);
               client.DraftResponse(request, ws);
             }
@@ -702,6 +702,7 @@ export class Server {
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
+      console.log("this is the payload", payload)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
