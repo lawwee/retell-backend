@@ -724,7 +724,7 @@ export class Server {
           { callId:call_id },
           {
             status: callstatusenum.CALLED,
-            // linktocallLogModel: result1.upsertedId ? result1.upsertedId._id : null,
+            linktocallLogModel: result1.upsertedId ? result1.upsertedId._id : null,
             $push: { datesCalled: todayString },
             referenceToCallId: result._id
           },
