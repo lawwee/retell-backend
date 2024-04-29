@@ -43,14 +43,16 @@ import { checkAvailability } from "./callendly";
 import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
+import OpenAI from "openai";
 connectDb();
-console.log("connected to gcp PART 2")
+
 export class Server {
   public app: expressWs.Application;
   private httpServer: HTTPServer;
   private httpsServer: HTTPSServer;
   private retellClient: Retell;
   private twilioClient: TwilioClient;
+  private client : OpenAI
   storage = multer.diskStorage({
     destination: "public/", // Destination directory for uploaded files
     filename: function (req, file, cb) {
@@ -65,45 +67,9 @@ export class Server {
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
-
-    // if (process.env.NODE_ENV === 'production') {
-    // console.log("Running on https")
-    // this.httpsServer = httpsCreateServer(
-    //    {
-    //     key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
-    //     cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
-        
-    // }, this.app).listen(8080, ()=>{
-    //   console.log("connected on 8080 for https")
-    // })
-    // } else if (process.env.NODE_ENV === 'development'){
-    //   // Create HTTP server in development
-    //   this.httpServer = httpsCreateServer(this.app).listen(8080, ()=>{
-    //   console.log("Running on http")})
-    // }
-
-    // if (process.env.NODE_ENV === "production") {
-    //   console.log("Running on https");
-    //   this.httpsServer = httpsCreateServer(
-    //     {
-    //       key: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/privkey.pem'),
-    //       cert: fs.readFileSync('/etc/letsencrypt/live/intuitiveagents.io/fullchain.pem')
-    //     },
-    //     this.app
-    //   );
-    //   this.httpsServer.listen(8080, () => {
-    //     console.log("HTTPS server is running on port 8080");
-    //   });
-    // } else if (process.env.NODE_ENV === "development") {
-    //   console.log("Running on http");
-    //   this.httpServer = httpCreateServer(this.app);
-    //   this.httpServer.listen(8080, () => {
-    //     console.log("HTTP server is running on port 8080");
-    //   });
-    // } else {
-    //   throw new Error("Invalid environment mode specified.");
-    // }
-  
+    this.client = new OpenAI({
+      apiKey: process.env.OPENAI_APIKEY,
+    });
 
     this.testReetellWebsocket()
     this.handleRetellLlmWebSocket();
@@ -130,6 +96,7 @@ export class Server {
     this.peopleStatToCsv();
     this.createPhoneCall2();
     this.testwebsocket()
+    this.testTranscriptReview()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -141,23 +108,9 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
-  // listen(port: number) {
-  //   if (this.httpsServer) {
-  //     this.httpsServer.listen(port, () => {
-  //       console.log(`HTTPS server is running on port ${port}`);
-  //     });
-  //   } else if (this.httpServer) {
-  //     this.httpServer.listen(port, () => {
-  //       console.log(`HTTP server is running on port ${port}`);
-  //     });
-  //   } else {
-  //     throw new Error("Neither HTTP nor HTTPS server was created.");
-  //   }
-  // }
-
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "https://retell-backend-yy86.onrender.com/webhook",
+    target: "http://localhost:8080/webhook",
     logger: console,
   });
   events = this.smee.start();
@@ -947,4 +900,26 @@ export class Server {
       });
     });
   }
+  testTranscriptReview(){
+  this.app.post("/review", async (req: Request, res:Response) => {
+    const transcript =`Agent: Hi, is this Nick? 
+    User: Yes. It is.
+    Agent: Hi Nick, I hope your day's going well. This is Daniel from Virtual Help Desk. I'm following up on an inquiry you submitted for our virtual assistant services. Were you still looking for help? 
+    User: Yeah.
+    Agent: Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you. Are you available next Thursday at 9 am Pacific? 
+    User: That'll work.
+    Agent: Great! You're all set for next Thursday at 9 am Pacific. Just to confirm, is your email still test-1-at-gmail.com? 
+    User: Yes. It is.
+    Agent: Perfect! You'll receive a short questionnaire and video to watch before your meeting. Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.? 
+    User: No clue.
+    Agent: No worries, our sales manager, Kyle, will be meeting with`
+    const completion = await this.client.chat.completions.create({
+      messages: [{"role": "system", "content": "You are a helpful assistant."},
+          {"role": "user", "content":`Analyze the transcript to determine if there are indications of interest in scheduling a meeting: ${transcript}`}],
+      model: "gpt-3.5-turbo",
+    });
+  
+    res.json({result: completion.choices[0]})
+  }
+)  }
 }
