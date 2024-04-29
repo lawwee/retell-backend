@@ -213,7 +213,7 @@ export class Server {
 
         if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
           console.log("Call started with chloe");
-          const client = new testDemoLlmClient();
+          const client = new chloeDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -258,7 +258,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new danielDemoLlmClient()
+          const client = new testDemoLlmClient()
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -706,7 +706,7 @@ export class Server {
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
       try {
-        if (payload.event === "call_ended") {
+        if (payload.event === "call_analyzed") {
           const { call_id, transcript, recording_url , agent_id} = payload.data;
           const result = await EventModel.create({
             transcript,
