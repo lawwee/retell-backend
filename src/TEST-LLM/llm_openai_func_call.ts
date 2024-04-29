@@ -8,6 +8,7 @@ import {
   ResponseRequiredRequest,
   Utterance,
 } from "../types";
+import { checkAvailability } from "../callendly";
 
 let beginSentence: string;
 let agentPrompt: string;
@@ -174,29 +175,30 @@ export class danielDemoLlmClient {
             },
           },
         },
-        // {
-        //   type: "function",
-        //   function: {
-        //     name: "book_appointment",
-        //     description: "Book an appointment to meet our doctor in office.",
-        //     parameters: {
-        //       type: "object",
-        //       properties: {
-        //         message: {
-        //           type: "string",
-        //           description:
-        //             "The message you will say while setting up the appointment like 'one moment'",
-        //         },
-        //         date: {
-        //           type: "string",
-        //           description:
-        //             "The date of appointment to make in forms of year-month-day.",
-        //         },
-        //       },
-        //       required: ["message"],
-        //     },
-        //   },
-        // },
+        {
+          type: "function",
+          function: {
+            name: "check_avail",
+            description: "get the available appointment date to schedule a meeting",
+            // parameters: {
+            //   type: "object",
+            //   properties: {
+            //     message: {
+            //       type: "string",
+            //       description:
+            //         "The message you will say while setting up the appointment like 'one moment'",
+            //     },
+            //     date: {
+            //       type: "string",
+            //       description:
+            //         "The date of appointment to make in forms of year-month-day.",
+            //     },
+            //   },
+            //   required: ["message"],
+            // },
+            
+          },
+         },
       ];
 
       const events = await this.client.chat.completions.create({
@@ -269,29 +271,19 @@ export class danielDemoLlmClient {
           ws.send(JSON.stringify(res));
         }
 
-        // If it's to book appointment, say something and book appointment at the same time
-        // and then say something after booking is done
-        // if (funcCall.funcName === "book_appointment") {
-        //   funcCall.arguments = JSON.parse(funcArguments);
-        //   const res: CustomLlmResponse = {
-        //     response_type: "response",
-        //     response_id: request.response_id,
-        //     // LLM will resturn the function name along with the message property we define
-        //     // In this case, "The message you will say while setting up the appointment like 'one moment' "
-        //     content: funcCall.arguments.message,
-        //     // If content_complete is false, it means AI will speak later.
-        //     // In our case, agent will say something to confirm the appointment, so we set it to false
-        //     content_complete: false,
-        //     end_call: false,
-        //   };
-        //   ws.send(JSON.stringify(res));
+        if (funcCall.funcName === "check_avail") {
+          funcCall.arguments = JSON.parse(funcArguments);
+          const availableTimes = await checkAvailability();
+          const res: CustomLlmResponse = {
+            response_type: "response",
+            response_id: request.response_id,
+            content:  `The available times for a Zoom call with our sales manager are: ${availableTimes.join(", ")}. Which time works best for you?`, 
+            content_complete: false,
+            end_call: false,
+          };
+          ws.send(JSON.stringify(res));
 
-        //   // Sleep 2s to mimic the actual appointment booking
-        //   // Replace with your actual making appointment functions
-        //   await new Promise((r) => setTimeout(r, 2000));
-        //   funcCall.result = "Appointment booked successfully";
-        //   this.DraftResponse(request, ws, funcCall);
-        // }
+        }
       } else {
         const res: CustomLlmResponse = {
           response_type: "response",

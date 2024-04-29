@@ -126,37 +126,17 @@ export class TwilioClient {
           // Respond with TwiML to hang up the call if its machine
           if (AnsweredBy && AnsweredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
-            let result;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
-            // Find the document with the given criteria
-            const findResult = await DailyStats.findOne({
-              myDate: todayString,
-              agentId,
-            });
-            if (!findResult) {
-              result = await DailyStats.create({
-                agentId,
-                myDate: todayString,
-                totalCalls: 1,
-                callsAnswered: 0,
-                callsNotAnswered: 1,
-              }) }else {
-              result = await DailyStats.findOneAndUpdate(
-                { myDate: todayString, agentId },
-                {
-                  $inc: {
-                    callsNotAnswered: 1,
-                  },
-                },
-                { new: true },
-              );
-            }
-          
+            const result = await DailyStats.updateOne(
+              { myDate: todayString, agentId: agentId },
+              { $inc: { callsNotAnswered : 1 } },
+              { upsert: true }
+          );
             await contactModel.findByIdAndUpdate(userId, {
               status: callstatusenum.VOICEMAIL,
-              linktocallLogModel: result._id,
+              linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
               answeredByVM: true,
             });
             return;
