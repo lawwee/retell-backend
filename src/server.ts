@@ -709,12 +709,13 @@ export class Server {
       try {
         if (payload.event === "call_ended") {
           const { call_id, transcript, recording_url , agent_id} = payload.data;
-          console.log(transcript)
           const result = await EventModel.create({
-            transcript,
             callId: call_id,
             recordingUrl: recording_url,
+            transcript: transcript
           })
+
+          console.log(result)
          const result1 = await DailyStats.updateOne(
             { myDate: todayString, agentId: agent_id },
             { $inc: { totalCalls: 1 } },
@@ -724,15 +725,14 @@ export class Server {
           { callId:call_id },
           {
             status: callstatusenum.CALLED,
-            linktocallLogModel: result1.upsertedId ? result1.upsertedId._id : null,
+            // linktocallLogModel: result1.upsertedId ? result1.upsertedId._id : null,
             $push: { datesCalled: todayString },
             referenceToCallId: result._id
           },
         );
         } else {
           // For other event types, if any, you can add corresponding logic here
-          console.log("Received event type:", payload.event);
-          response.json({ received: false, error: "Unsupported event type" });
+          console.log("Other types")
         }
       } catch (error) {
         console.log(error);
