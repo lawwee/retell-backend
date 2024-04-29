@@ -480,7 +480,7 @@ export class Server {
           return res.json({ status: "error", message: "Invalid request" });
         }
         try {
-          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId, userId);
           const result = await this.twilioClient.CreatePhoneCall(
             fromNumber,
             toNumber,

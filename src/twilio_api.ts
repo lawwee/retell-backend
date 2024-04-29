@@ -41,7 +41,7 @@ export class TwilioClient {
   };
 
   // Update this phone number to use provided agent id. Also updates voice URL address.
-  RegisterPhoneAgent = async (number: string, agentId: string) => {
+  RegisterPhoneAgent = async (number: string, agentId: string, userId: string) => {
     try {
       const phoneNumberObjects = await this.twilio.incomingPhoneNumbers.list();
       let numberSid;
@@ -57,7 +57,7 @@ export class TwilioClient {
       }
 
       await this.twilio.incomingPhoneNumbers(numberSid).update({
-        voiceUrl: `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}`,
+        voiceUrl: `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`,
       });
     } catch (error: any) {
       console.error("failer to retrieve caller information: ", error);
