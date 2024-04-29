@@ -60,7 +60,7 @@ export const scheduleCronJob = async(
                 userId: contact._id.toString(),
                 agentId,
               };
-              await twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+              await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
               await twilioClient.CreatePhoneCall(
                 postdata.fromNumber,
                 postdata.toNumber,
