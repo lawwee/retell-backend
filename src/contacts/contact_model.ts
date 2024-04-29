@@ -82,10 +82,6 @@ const jobschema = new Schema<Ijob>(
 );
 
 const transcriptSchema = new Schema({
-  event: {
-    type: String,
-    required: true,
-  },
   callId: {
     type: String,
   },
