@@ -437,7 +437,7 @@ export class Server {
       const agentId = req.params.agentId;
       const {page, limit} = req.body
       try {
-        const result = await getAllContact(agentId,page, limit );
+        const result = await getAllContact(agentId );
         res.json({ result });
       } catch (error) {}
     });
