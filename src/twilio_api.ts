@@ -56,6 +56,7 @@ export class TwilioClient {
         );
       }
 
+      
       await this.twilio.incomingPhoneNumbers(numberSid).update({
         voiceUrl: `${process.env.NGROK_IP_ADDRESS}/twilio-voice-webhook/${agentId}/${userId}`,
       });
