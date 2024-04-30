@@ -30,21 +30,20 @@ export const createContact = async (
 
 type ContactDocument = Omit<Document & IContact, "_id">;
 
-export const getAllContact = async (agentId: string, limit: number, page: number): Promise<{ 
+export const getAllContact = async (agentId: string): Promise<{ 
   contacts: ContactDocument[], 
-  totalPages: number, 
   totalContactForAgent: number, 
   totalCalledForAgent: number, 
   totalNotCalledForAgent: number 
 } | string> => {
   try {
-    const skip = (page - 1) * limit;
+    // const skip = (page - 1) * limit;
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: { $ne: true } })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
-      .skip(skip)
-      .limit(limit);
+      // .skip(skip)
+      // .limit(limit);
 
     // Count the total number of documents
     const totalCount = await contactModel.countDocuments({ agentId, isDeleted: { $ne: true } });
@@ -52,7 +51,7 @@ export const getAllContact = async (agentId: string, limit: number, page: number
     const totalCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.CALLED})
     const totalNotCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.NOT_CALLED})
     // Calculate the total number of pages
-    const totalPages = Math.ceil(totalCount / limit);
+    // const totalPages = Math.ceil(totalCount / limit);
 
      // // Iterate over dailyStats to extract and analyze transcripts
      const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
@@ -68,8 +67,7 @@ export const getAllContact = async (agentId: string, limit: number, page: number
     return { 
       totalContactForAgent,
       totalCalledForAgent,
-      totalNotCalledForAgent,
-      totalPages, 
+      totalNotCalledForAgent, 
       contacts: statsWithTranscripts 
     };
   } catch (error) {
