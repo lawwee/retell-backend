@@ -438,7 +438,7 @@ export class Server {
       const newpage = parseInt(page)
       const newLimit = parseInt(limit)
       try {
-        const result = await getAllContact(agentId );
+        const result = await getAllContact(agentId, newpage, newLimit );
         res.json({ result });
       } catch (error) {}
     });
