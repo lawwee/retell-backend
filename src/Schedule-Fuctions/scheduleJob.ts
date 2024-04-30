@@ -39,7 +39,6 @@ export const scheduleCronJob = async(
             { callstatus: jobstatus.ON_CALL },
           );
           const contactLimit = parseInt(limit);
-          let processedContacts = 0;
           const contacts = await contactModel
             .find({ agentId, status: "not called", isDeleted: { $ne: true } })
             .limit(contactLimit)
@@ -60,7 +59,7 @@ export const scheduleCronJob = async(
                 userId: contact._id.toString(),
                 agentId,
               };
-              await twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+              await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
               await twilioClient.CreatePhoneCall(
                 postdata.fromNumber,
                 postdata.toNumber,
@@ -69,6 +68,10 @@ export const scheduleCronJob = async(
               );
               console.log(
                 `Axios call successful for contact: ${contact.firstname}`,
+              );
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { $inc: { processedContacts: 1 } },
               );
             } catch (error) {
               console.error(
@@ -80,13 +83,8 @@ export const scheduleCronJob = async(
 
             // Wait for a specified time before processing the next contact
             await new Promise((resolve) => setTimeout(resolve, 7000));
-            await jobModel.findOneAndUpdate(
-              { jobId },
-              { $inc: { processedContacts: 1 } },
-            );
-            processedContacts++;
-          }
-          console.log("Contacts processed:", processedContacts);
+                    }
+          console.log("Contacts processed will start recall");
           // Call function to search and recall contacts if needed
           await searchAndRecallContacts(
             contactLimit,
@@ -106,10 +104,9 @@ export const scheduleCronJob = async(
       console.log(
         `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
       );
-
       return { jobId, scheduledTime: scheduledTimePST };
     } catch (error) {
       console.error("Error scheduling job:", error);
-      throw error; // Throw error for handling in the caller function
+      throw error; 
     }
   }

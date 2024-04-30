@@ -44,6 +44,8 @@ import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
+import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
+import { reviewTranscript } from "./helper-fuction/transcript-review";
 connectDb();
 
 export class Server {
@@ -110,7 +112,7 @@ export class Server {
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "http://localhost:8080/webhook",
+    target: "https://intuitiveagents.io/webhook",
     logger: console,
   });
   events = this.smee.start();
@@ -155,7 +157,6 @@ export class Server {
       "/llm-websocket/:call_id",
       async (ws: WebSocket, req: Request) => {
         const callId = req.params.call_id;
-        console.log("Handle llm ws for: ", callId);
         const user = await contactModel.findOne({ callId });
         const config: CustomLlmResponse = {
           response_type: "config",
@@ -269,7 +270,7 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            console.log(data.toString());
+            // console.log(data.toString());
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
@@ -292,7 +293,7 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              console.clear();
+              // console.clear();
               console.log("req", request);
               client.DraftResponse(request, ws);
             }
@@ -434,8 +435,10 @@ export class Server {
     this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
       const {page, limit} = req.body
+      const newpage = parseInt(page)
+      const newLimit = parseInt(limit)
       try {
-        const result = await getAllContact(agentId,page, limit );
+        const result = await getAllContact(agentId,newLimit,newpage );
         res.json({ result });
       } catch (error) {}
     });
@@ -478,7 +481,7 @@ export class Server {
           return res.json({ status: "error", message: "Invalid request" });
         }
         try {
-          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId);
+          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId, userId);
           const result = await this.twilioClient.CreatePhoneCall(
             fromNumber,
             toNumber,
@@ -707,11 +710,11 @@ export class Server {
         if (payload.event === "call_ended") {
           const { call_id, transcript, recording_url , agent_id} = payload.data;
           const result = await EventModel.create({
-            transcript,
             callId: call_id,
             recordingUrl: recording_url,
+            transcript: transcript
           })
-         const result1 = await DailyStats.updateOne(
+         await DailyStats.updateOne(
             { myDate: todayString, agentId: agent_id },
             { $inc: { totalCalls: 1 } },
             { upsert: true }
@@ -720,16 +723,17 @@ export class Server {
           { callId:call_id },
           {
             status: callstatusenum.CALLED,
-            linktocallLogModel: result1.upsertedId ? result1.upsertedId._id : null,
             $push: { datesCalled: todayString },
             referenceToCallId: result._id
           },
         );
-        } else {
-          // For other event types, if any, you can add corresponding logic here
-          console.log("Received event type:", payload.event);
-          response.json({ received: false, error: "Unsupported event type" });
-        }
+     }
+     if(payload.event === "call_started"){
+      console.log(`call started on agent: $${payload.data.agent_id}`)
+     }
+     if(payload.event === "call_analyzed"){
+      console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
+     }
       } catch (error) {
         console.log(error);
       }
@@ -838,24 +842,49 @@ export class Server {
       }
     });
   }
-  peopleStatsLog() {
+  peopleStatsLog(){
     this.app.post("/get-metadata", async (req: Request, res: Response) => {
       try {
-        const { date } = req.body;
+        const { date, limit, page } = req.body;
+        const newLimit = parseInt(limit)
+        const newpage = parseInt(page)
         const agentIds = [
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
           "86f0db493888f1da69b7d46bfaecd360",
         ]; 
+    
+        const skip = (newpage - 1) * newLimit;
         const dailyStats = await contactModel.find({
           datesCalled: date,
           agentId: { $in: agentIds },
           isDeleted: false,
-        }).populate("referenceToCallId");
+        }).populate("referenceToCallId").limit(newLimit).skip(skip)
+    
+        const totalCount = await contactModel.countDocuments({
+          datesCalled: date,
+          agentId: { $in: agentIds },
+          isDeleted: false,
+        });
+        // Calculate the total number of pages
+        const totalPages = Math.ceil(totalCount / newLimit); 
 
-        res.json({ dailyStats });
+        // // Iterate over dailyStats to extract and analyze transcripts
+        const statsWithTranscripts = await Promise.all(dailyStats.map(async (stat) => {
+          console.log(stat)
+          const transcript = stat.referenceToCallId.transcript; 
+          const analyzedTranscript = await reviewTranscript(transcript); 
+          return {
+            ...stat.toObject(),
+            originalTranscript: transcript,
+            analyzedTranscript: analyzedTranscript.message.content
+          };
+        }));
+    
+        res.json({ totalPages, dailyStats: statsWithTranscripts });
       } catch (error) {
         console.log(error);
+        res.status(500).json({ error: "Internal Server Error" });
       }
     });
   }
@@ -915,9 +944,10 @@ export class Server {
     Agent: No worries, our sales manager, Kyle, will be meeting with`
     const completion = await this.client.chat.completions.create({
       messages: [{"role": "system", "content": "You are a helpful assistant."},
-          {"role": "user", "content":`Analyze the transcript to determine if there are indications of interest in scheduling a meeting: ${transcript}`}],
+          {"role": "user", "content":`while keeping the result as short as possible, Analyze the transcript to determine or categorize the transcripts into interested, not interested, do not care, or appointment scheduled: ${transcript}`}],
       model: "gpt-3.5-turbo",
     });
+
   
     res.json({result: completion.choices[0]})
   }
