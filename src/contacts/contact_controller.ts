@@ -48,7 +48,7 @@ export const getAllContact = async (agentId: string, limit: number, page: number
 
      // // Iterate over dailyStats to extract and analyze transcripts
      const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
-      const transcript = stat.referenceToCallId.transcript; 
+      const transcript = stat.referenceToCallId?.transcript ?? '';
       const analyzedTranscript = await reviewTranscript(transcript); 
       return {
         ...stat.toObject(),

@@ -428,7 +428,7 @@ export class Server {
           agentId,
         );
         res.json({ result });
-      } catch (error) {}
+      } catch (error) {console.log(error)}
     });
   }
   handlecontactGet() {
@@ -871,7 +871,7 @@ export class Server {
 
         // // Iterate over dailyStats to extract and analyze transcripts
         const statsWithTranscripts = await Promise.all(dailyStats.map(async (stat) => {
-          const transcript = stat.referenceToCallId.transcript; 
+          const transcript = stat.referenceToCallId?.transcript ?? ''; 
           const analyzedTranscript = await reviewTranscript(transcript); 
           return {
             ...stat.toObject(),
