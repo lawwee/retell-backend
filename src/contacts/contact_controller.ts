@@ -1,5 +1,5 @@
 import { reviewTranscript } from "../helper-fuction/transcript-review";
-import { IContact } from "../types";
+import { IContact, callstatusenum } from "../types";
 import { contactModel } from "./contact_model";
 import { Document } from "mongoose";
 
@@ -30,7 +30,13 @@ export const createContact = async (
 
 type ContactDocument = Omit<Document & IContact, "_id">;
 
-export const getAllContact = async (agentId: string, limit: number, page: number): Promise<{ contacts: ContactDocument[], totalPages: number } | string> => {
+export const getAllContact = async (agentId: string, limit: number, page: number): Promise<{ 
+  contacts: ContactDocument[], 
+  totalPages: number, 
+  totalContactForAgent: number, 
+  totalCalledForAgent: number, 
+  totalNotCalledForAgent: number 
+} | string> => {
   try {
     const skip = (page - 1) * limit;
     const foundContacts = await contactModel
@@ -42,7 +48,9 @@ export const getAllContact = async (agentId: string, limit: number, page: number
 
     // Count the total number of documents
     const totalCount = await contactModel.countDocuments({ agentId, isDeleted: { $ne: true } });
-
+    const totalContactForAgent = await contactModel.countDocuments({agentId, isDeleted:false})
+    const totalCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.CALLED})
+    const totalNotCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.NOT_CALLED})
     // Calculate the total number of pages
     const totalPages = Math.ceil(totalCount / limit);
 
@@ -57,7 +65,13 @@ export const getAllContact = async (agentId: string, limit: number, page: number
       } as ContactDocument
     }));
     // Return the contacts and total pages
-    return { totalPages, contacts: statsWithTranscripts };
+    return { 
+      totalContactForAgent,
+      totalCalledForAgent,
+      totalNotCalledForAgent,
+      totalPages, 
+      contacts: statsWithTranscripts 
+    };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
     return "error getting contact";
