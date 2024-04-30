@@ -13,7 +13,6 @@ export const searchAndRecallContacts = async(
     jobId: string,
   ) => {
     try {
-      let processedContacts = 0;
       let contactStatusArray = ["called-NA-VM", "ringing"];
       let contacts = await contactModel
     .find({ agentId, status: { $in: contactStatusArray }, isDeleted: { $ne: true } })
@@ -40,8 +39,13 @@ export const searchAndRecallContacts = async(
             postdata.agentId,
             postdata.userId,
           );
+
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
+          );
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { $inc: { processedContactsForRedial: 1 } },
           );
         } catch (error) {
           const errorMessage = (error as Error).message || "Unknown error";
@@ -50,13 +54,9 @@ export const searchAndRecallContacts = async(
           );
         }
         await new Promise((resolve) => setTimeout(resolve, 7000));
-        await jobModel.findOneAndUpdate(
-          { jobId },
-          { $inc: { processedContactsForRedial: 1 } },
-        );
-        processedContacts++;
+      
       }
-      console.log("Recalled contacts processed:", processedContacts);
+      console.log("Recalled contacts finished processing");
     } catch (error) {
       console.error("Error searching and recalling contacts:", error);
     }
