@@ -80,13 +80,13 @@ export const createContact = async (
 
 
 type ContactDocument = Omit<Document & IContact, "_id">;
-export const getAllContact = async (agentId: string): Promise<ContactDocument[] | string> => {
+export const getAllContact = async (agentId: string): Promise<{contact:ContactDocument[]} | string> => {
   try {
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: { $ne: true } })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId");
-    return foundContacts;
+    return {contact:foundContacts};
   } catch (error) {
     console.error("Error fetching all contacts:", error);
     return "error getting contact";
