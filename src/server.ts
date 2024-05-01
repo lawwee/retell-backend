@@ -432,14 +432,14 @@ export class Server {
     });
   }
   handlecontactGet() {
-    this.app.get("/users/:agentId", async (req: Request, res: Response) => {
+    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
       // const {page, limit} = req.body
       // const newpage = parseInt(page)
       // const newLimit = parseInt(limit)
       try {
-        const contact = await getAllContact(agentId);
-        res.json({ result:contact });
+        const result = await getAllContact(agentId);
+        res.json({ result });
       } catch (error) {}
     });
   }
