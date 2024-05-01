@@ -432,7 +432,7 @@ export class Server {
     });
   }
   handlecontactGet() {
-    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
+    this.app.get("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
       // const {page, limit} = req.body
       // const newpage = parseInt(page)
