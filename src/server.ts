@@ -434,11 +434,11 @@ export class Server {
   handlecontactGet() {
     this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
-      const {page, limit} = req.body
-      const newpage = parseInt(page)
-      const newLimit = parseInt(limit)
+      // const {page, limit} = req.body
+      // const newpage = parseInt(page)
+      // const newLimit = parseInt(limit)
       try {
-        const result = await getAllContact(agentId, newpage, newLimit );
+        const result = await getAllContact(agentId);
         res.json({ result });
       } catch (error) {}
     });
