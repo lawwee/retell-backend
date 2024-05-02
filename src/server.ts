@@ -98,7 +98,7 @@ export class Server {
     this.peopleStatToCsv();
     this.createPhoneCall2();
     this.testwebsocket()
-    this.testTranscriptReview()
+    this.TranscriptReview()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -870,17 +870,17 @@ export class Server {
         const totalPages = Math.ceil(totalCount / newLimit); 
 
         // // Iterate over dailyStats to extract and analyze transcripts
-        const statsWithTranscripts = await Promise.all(dailyStats.map(async (stat) => {
-          const transcript = stat.referenceToCallId?.transcript ?? ''; 
-          const analyzedTranscript = await reviewTranscript(transcript); 
-          return {
-            ...stat.toObject(),
-            originalTranscript: transcript,
-            analyzedTranscript: analyzedTranscript.message.content
-          };
-        }));
+        // const statsWithTranscripts = await Promise.all(dailyStats.map(async (stat) => {
+        //   const transcript = stat.referenceToCallId?.transcript ?? ''; 
+        //   const analyzedTranscript = await reviewTranscript(transcript); 
+        //   return {
+        //     ...stat.toObject(),
+        //     originalTranscript: transcript,
+        //     analyzedTranscript: analyzedTranscript.message.content
+        //   };
+        // }));
     
-        res.json({ totalPages, dailyStats: statsWithTranscripts });
+        res.json({ totalPages, dailyStats: dailyStats });
       } catch (error) {
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
@@ -928,27 +928,11 @@ export class Server {
       });
     });
   }
-  testTranscriptReview(){
-  this.app.post("/review", async (req: Request, res:Response) => {
-    const transcript =`Agent: Hi, is this Nick? 
-    User: Yes. It is.
-    Agent: Hi Nick, I hope your day's going well. This is Daniel from Virtual Help Desk. I'm following up on an inquiry you submitted for our virtual assistant services. Were you still looking for help? 
-    User: Yeah.
-    Agent: Great! I'd love to set up a short Zoom call with our Sales Manager to discuss how we can customize our services specifically for you. Are you available next Thursday at 9 am Pacific? 
-    User: That'll work.
-    Agent: Great! You're all set for next Thursday at 9 am Pacific. Just to confirm, is your email still test-1-at-gmail.com? 
-    User: Yes. It is.
-    Agent: Perfect! You'll receive a short questionnaire and video to watch before your meeting. Before we wrap up, could you provide an estimate of how many hours per day you might need assistance from a V.A.? 
-    User: No clue.
-    Agent: No worries, our sales manager, Kyle, will be meeting with`
-    const completion = await this.client.chat.completions.create({
-      messages: [{"role": "system", "content": "You are a helpful assistant."},
-          {"role": "user", "content":`while keeping the result as short as possible, Analyze the transcript to determine or categorize the transcripts into interested, not interested, do not care, or appointment scheduled: ${transcript}`}],
-      model: "gpt-3.5-turbo",
-    });
-
-  
-    res.json({result: completion.choices[0]})
+  TranscriptReview(){
+  this.app.post("/review-transcript", async (req: Request, res:Response) => {
+    const { transcript }= req.body
+    const result = await reviewTranscript(transcript)
+    res.json({result})
   }
 )  }
 }

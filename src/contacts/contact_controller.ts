@@ -35,8 +35,7 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
   totalContactForAgent: number, 
   totalCalledForAgent: number, 
   totalPages: number,
-  totalNotCalledForAgent: number ,
-  // totalPages:number
+  totalNotCalledForAgent: number 
 } | string> => {
   try {
     const skip = (page - 1) * limit;
@@ -56,22 +55,22 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
     const totalPages = Math.ceil(totalCount / limit);
 
      // // Iterate over dailyStats to extract and analyze transcripts
-     const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
-      const transcript = stat.referenceToCallId?.transcript ?? '';
-      const analyzedTranscript = await reviewTranscript(transcript); 
-      return {
-        ...stat.toObject(),
-        originalTranscript: transcript,
-        analyzedTranscript: analyzedTranscript.message.content
-      } as ContactDocument
-    }));
+    //  const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
+    //   const transcript = stat.referenceToCallId?.transcript ?? '';
+    //   const analyzedTranscript = await reviewTranscript(transcript); 
+    //   return {
+    //     ...stat.toObject(),
+    //     originalTranscript: transcript,
+    //     analyzedTranscript: analyzedTranscript.message.content
+    //   } as ContactDocument
+    // }));
     // Return the contacts and total pages
     return { 
       totalContactForAgent,
       totalCalledForAgent,
       totalNotCalledForAgent, 
       totalPages,
-      contacts: statsWithTranscripts 
+      contacts: foundContacts 
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
