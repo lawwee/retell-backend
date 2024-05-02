@@ -6,7 +6,7 @@ import { callstatusenum } from "../types";
 export const logsToCsv = async (agentId: string, newlimit: number) => {
     try {
         const foundContacts = await contactModel
-          .find({ agentId, isDeleted: { $ne: true } , status: callstatusenum.CALLED})
+          .find({ agentId, isDeleted: { $ne: true } ,referenceToCallId:{$exists: true}})
           .sort({ createdAt: "desc" })
           .populate("referenceToCallId")
           .limit(newlimit);
