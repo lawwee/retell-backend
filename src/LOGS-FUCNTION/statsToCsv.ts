@@ -2,6 +2,7 @@ import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
+import { callstatusenum } from "../types";
 
 export const statsToCsv = async (date: string) => {
   try {
@@ -16,12 +17,13 @@ export const statsToCsv = async (date: string) => {
         datesCalled: date,
         agentId: { $in: agentIds },
         isDeleted: false,
+        status: callstatusenum.CALLED
       })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId");
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
-      const transcript = contact.referenceToCallId?.transcript || "";
+      const transcript = contact.referenceToCallId?.transcript;
       const analyzedTranscript = await reviewTranscript(transcript);
       return {
         name: contact.firstname,
