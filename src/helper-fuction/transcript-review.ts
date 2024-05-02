@@ -15,7 +15,6 @@ const client = new OpenAI({
         model: "gpt-3.5-turbo",
       });
   
-      console.log(completion.choices[0])
       return completion.choices[0];
     } catch (error) {
       console.error("Error analyzing transcript:", error);
