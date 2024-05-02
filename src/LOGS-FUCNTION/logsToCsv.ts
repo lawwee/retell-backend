@@ -22,7 +22,7 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
             phone: contact.phone,
             status: contact.status,
             transcript: transcript,
-            analyzedTranscript: analyzedTranscript,
+            analyzedTranscript: analyzedTranscript.message.content,
             call_recording_url: contact.referenceToCallId.recordingUrl,
           };
         }));

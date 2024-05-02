@@ -31,7 +31,7 @@ export const statsToCsv = async (date: string) => {
         phone: contact.phone,
         status: contact.status,
         transcript: transcript,
-        analyzedTranscript: analyzedTranscript,
+        analyzedTranscript: analyzedTranscript.message.content,
         call_recording_url: contact.referenceToCallId.recordingUrl,
       };
     }));
