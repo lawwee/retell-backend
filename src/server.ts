@@ -944,7 +944,7 @@ searchForUser(){
     }
   
     try {
-      // Perform the search using Mongoose
+      // Perform the search ge using Mongoose
       const filteredUsers = await contactModel.find({ firstname: { $regex: searchTerm, $options: 'i' }, agentId });
       res.json(filteredUsers);
     } catch (error) {
