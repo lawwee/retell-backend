@@ -99,6 +99,7 @@ export class Server {
     this.createPhoneCall2();
     this.testwebsocket()
     this.TranscriptReview()
+    this.searchForUser()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -935,4 +936,22 @@ export class Server {
     res.json({result})
   }
 )  }
+searchForUser(){
+  this.app.post('/search', async (req: Request, res:Response) => {
+    const {agentId, searchTerm} = req.body;
+    if (!searchTerm) {
+      return res.status(400).json({ error: 'Search term is required' });
+    }
+  
+    try {
+      // Perform the search using Mongoose
+      const filteredUsers = await contactModel.find({ firstname: { $regex: searchTerm, $options: 'i' }, agentId });
+      res.json(filteredUsers);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+  
+  
+}
 }

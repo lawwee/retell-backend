@@ -120,3 +120,4 @@ export const updateOneContact = async (id: string, updateFields: object) => {
     return "could not update contact";
   }
 };
+
