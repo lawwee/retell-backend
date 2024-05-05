@@ -1,5 +1,5 @@
 import { reviewTranscript } from "../helper-fuction/transcript-review";
-import { IContact } from "../types";
+import { IContact, callstatusenum } from "../types";
 import { contactModel } from "./contact_model";
 import { Document } from "mongoose";
 
@@ -30,7 +30,13 @@ export const createContact = async (
 
 type ContactDocument = Omit<Document & IContact, "_id">;
 
-export const getAllContact = async (agentId: string, limit: number, page: number): Promise<{ contacts: ContactDocument[], totalPages: number } | string> => {
+export const getAllContact = async (agentId: string, page:number, limit:number): Promise<{ 
+  contacts: ContactDocument[], 
+  totalContactForAgent: number, 
+  totalCalledForAgent: number, 
+  totalPages: number,
+  totalNotCalledForAgent: number 
+} | string> => {
   try {
     const skip = (page - 1) * limit;
     const foundContacts = await contactModel
@@ -42,22 +48,30 @@ export const getAllContact = async (agentId: string, limit: number, page: number
 
     // Count the total number of documents
     const totalCount = await contactModel.countDocuments({ agentId, isDeleted: { $ne: true } });
-
+    const totalContactForAgent = await contactModel.countDocuments({agentId, isDeleted:false})
+    const totalCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.CALLED})
+    const totalNotCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.NOT_CALLED})
     // Calculate the total number of pages
     const totalPages = Math.ceil(totalCount / limit);
 
      // // Iterate over dailyStats to extract and analyze transcripts
-     const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
-      const transcript = stat.referenceToCallId.transcript; 
-      const analyzedTranscript = await reviewTranscript(transcript); 
-      return {
-        ...stat.toObject(),
-        originalTranscript: transcript,
-        analyzedTranscript: analyzedTranscript.message.content
-      } as ContactDocument
-    }));
+    //  const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
+    //   const transcript = stat.referenceToCallId?.transcript ?? '';
+    //   const analyzedTranscript = await reviewTranscript(transcript); 
+    //   return {
+    //     ...stat.toObject(),
+    //     originalTranscript: transcript,
+    //     analyzedTranscript: analyzedTranscript.message.content
+    //   } as ContactDocument
+    // }));
     // Return the contacts and total pages
-    return { totalPages, contacts: statsWithTranscripts };
+    return { 
+      totalContactForAgent,
+      totalCalledForAgent,
+      totalNotCalledForAgent, 
+      totalPages,
+      contacts: foundContacts 
+    };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
     return "error getting contact";
@@ -65,6 +79,19 @@ export const getAllContact = async (agentId: string, limit: number, page: number
 };
 
 
+// type ContactDocument = Omit<Document & IContact, "_id">;
+// export const getAllContact = async (agentId: string): Promise<ContactDocument[] | string> => {
+//   try {
+//     const foundContacts = await contactModel
+//       .find({ agentId, isDeleted: { $ne: true } })
+//       .sort({ createdAt: "desc" })
+//       .populate("referenceToCallId");
+//     return foundContacts;
+//   } catch (error) {
+//     console.error("Error fetching all contacts:", error);
+//     return "error getting contact";
+//   }
+// };
 
 export const deleteOneContact = async (id: string) => {
   try {
@@ -93,3 +120,4 @@ export const updateOneContact = async (id: string, updateFields: object) => {
     return "could not update contact";
   }
 };
+
