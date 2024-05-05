@@ -944,8 +944,16 @@ searchForUser(){
     }
   
     try {
-      // Perform the search ge using Mongoose
-      const filteredUsers = await contactModel.find({ firstname: { $regex: searchTerm, $options: 'i' }, agentId });
+      // Perform the search using Mongoose
+      const filteredUsers = await contactModel.find({
+        agentId,
+        $or: [
+          { firstname: { $regex: searchTerm, $options: 'i' } },
+          { lastname: { $regex: searchTerm, $options: 'i' } },
+          { phone: { $regex: searchTerm, $options: 'i' } },
+          { email: { $regex: searchTerm, $options: 'i' } }
+        ]
+      });
       res.json(filteredUsers);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
