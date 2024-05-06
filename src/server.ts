@@ -952,8 +952,9 @@ searchForUser(){
           { lastname: { $regex: searchTerm, $options: 'i' } },
           { phone: { $regex: searchTerm, $options: 'i' } },
           { email: { $regex: searchTerm, $options: 'i' } }
-        ]
-      });
+        ],
+        isDeleted:false
+      }).populate("referenceToCallId")
       res.json(filteredUsers);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
