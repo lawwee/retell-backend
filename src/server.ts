@@ -843,51 +843,113 @@ export class Server {
       }
     });
   }
-  peopleStatsLog(){
+  // peopleStatsLog(){
+  //   this.app.post("/get-metadata", async (req: Request, res: Response) => {
+  //     try {
+  //       const { startDate, endDate, limit, page } = req.body;
+  //       const newLimit = parseInt(limit)
+  //       const newpage = parseInt(page)
+  //       const agentIds = [
+  //         "214e92da684138edf44368d371da764c",
+  //         "0411eeeb12d17a340941e91a98a766d0",
+  //         "86f0db493888f1da69b7d46bfaecd360",
+  //       ]; 
+    
+  //       const skip = (newpage - 1) * newLimit;
+  //       const dailyStats = await contactModel.find({
+  //         datesCalled: {
+  //           $elemMatch: { $gte: startDate, $lte: endDate }
+  //         },
+  //         agentId: { $in: agentIds },
+  //         isDeleted: false,
+  //       }).populate("referenceToCallId").limit(newLimit).skip(skip)
+    
+  //       const totalCount = await contactModel.countDocuments({
+  //         datesCalled: {
+  //           $elemMatch: { $gte: startDate, $lte: endDate }
+  //         },
+  //         agentId: { $in: agentIds },
+  //         isDeleted: false,
+  //       });
+
+  //       const totalPages = Math.ceil(totalCount / newLimit); 
+  //       res.json({ totalPages, dailyStats: dailyStats, totalCount });
+  //     } catch (error) {
+  //       console.log(error);
+  //       res.status(500).json({ error: "Internal Server Error" });
+  //     }
+  //   });
+  // }
+
+  peopleStatsLog() {
     this.app.post("/get-metadata", async (req: Request, res: Response) => {
       try {
-        const { date, limit, page } = req.body;
-        const newLimit = parseInt(limit)
-        const newpage = parseInt(page)
+        const { startDate, endDate, limit, page } = req.body;
+        const newLimit = parseInt(limit);
+        const newPage = parseInt(page);
         const agentIds = [
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
           "86f0db493888f1da69b7d46bfaecd360",
         ]; 
-    
-        const skip = (newpage - 1) * newLimit;
+  
+        const skip = (newPage - 1) * newLimit;
+  
+        // Constructing the query for the date range
         const dailyStats = await contactModel.find({
-          datesCalled: date,
-          agentId: { $in: agentIds },
-          isDeleted: false,
-        }).populate("referenceToCallId").limit(newLimit).skip(skip)
-    
+          $and: [
+            { agentId: { $in: agentIds } },
+            { isDeleted: false },
+            { $expr: { 
+                $gt: [
+                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
+                  { $dateFromString: { dateString: startDate } }
+                ]
+              } 
+            },
+            { $expr: { 
+                $lt: [
+                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
+                  { $dateFromString: { dateString: endDate } }
+                ]
+              } 
+            }
+          ]
+        }).populate("referenceToCallId").limit(newLimit).skip(skip);
+  
         const totalCount = await contactModel.countDocuments({
-          datesCalled: date,
-          agentId: { $in: agentIds },
-          isDeleted: false,
+          $and: [
+            { agentId: { $in: agentIds } },
+            { isDeleted: false },
+            { $expr: { 
+                $gt: [
+                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
+                  { $dateFromString: { dateString: startDate } }
+                ]
+              } 
+            },
+            { $expr: { 
+                $lt: [
+                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
+                  { $dateFromString: { dateString: endDate } }
+                ]
+              } 
+            }
+          ]
         });
-        // Calculate the total number of pages
+  
         const totalPages = Math.ceil(totalCount / newLimit); 
-
-        // // Iterate over dailyStats to extract and analyze transcripts
-        // const statsWithTranscripts = await Promise.all(dailyStats.map(async (stat) => {
-        //   const transcript = stat.referenceToCallId?.transcript ?? ''; 
-        //   const analyzedTranscript = await reviewTranscript(transcript); 
-        //   return {
-        //     ...stat.toObject(),
-        //     originalTranscript: transcript,
-        //     analyzedTranscript: analyzedTranscript.message.content
-        //   };
-        // }));
-    
-        res.json({ totalPages, dailyStats: dailyStats });
+        res.json({ totalPages, dailyStats });
       } catch (error) {
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
   }
+  
+  
+  
+  
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
