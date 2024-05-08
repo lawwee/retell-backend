@@ -19,7 +19,7 @@ import {
   EventModel,
 } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
-import { CustomLlmRequest, CustomLlmResponse } from "./types";
+import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
 import {
   IContact,
   RetellRequest,
@@ -100,6 +100,7 @@ export class Server {
     this.testwebsocket()
     this.TranscriptReview()
     this.searchForUser()
+    this.searchForvagroup()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -786,100 +787,77 @@ export class Server {
         const agent1 = "214e92da684138edf44368d371da764c";
         const agent2 = "0411eeeb12d17a340941e91a98a766d0";
         const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-        const { date } = req.body;
+        const { startDate, endDate } = req.body;
 
         // Validate date
-        if (!date) {
+        if (!startDate || !endDate) {
           throw new Error("Date is missing in the request body");
         }
 
         // Find documents for each agent
-        const foundAgent1 = await DailyStats.findOne({
-          myDate: date,
-          agentId: agent1,
+        const foundAgent1: Ilogs[] = await DailyStats.find({
+          $and: [
+            { myDate: { $gte: startDate, $lte: endDate } },
+            { agentId: agent1 }
+          ]
         });
-        const foundAgent2 = await DailyStats.findOne({
-          myDate: date,
-          agentId: agent2,
+        
+        const foundAgent2: Ilogs[] = await DailyStats.find({
+          $and: [
+            { myDate: { $gte: startDate, $lte: endDate } },
+            { agentId: agent2 }
+          ]
         });
-        const foundAgent3 = await DailyStats.findOne({
-          myDate: date,
-          agentId: agent3,
+        
+        const foundAgent3: Ilogs[] = await DailyStats.find({
+          $and: [
+            { myDate: { $gte: startDate, $lte: endDate } },
+            { agentId: agent3 }
+          ]
         });
+        
+        
 
-        // Initialize variables to store aggregated stats
-        let TotalCalls = 0;
-        let TotalAnsweredCalls = 0;
-        let TotalNotAnsweredCalls = 0;
+       // Initialize variables to store aggregated stats
+let TotalCalls = 0;
+let TotalAnsweredCalls = 0;
+let TotalNotAnsweredCalls = 0;
 
-        // Calculate totals only if documents are found
-        if (foundAgent1) {
-          TotalCalls += foundAgent1.totalCalls || 0;
-          TotalAnsweredCalls += foundAgent1.callsAnswered || 0;
-          TotalNotAnsweredCalls += foundAgent1.callsNotAnswered || 0;
-        }
-        if (foundAgent2) {
-          TotalCalls += foundAgent2.totalCalls || 0;
-          TotalAnsweredCalls += foundAgent2.callsAnswered || 0;
-          TotalNotAnsweredCalls += foundAgent2.callsNotAnswered || 0;
-        }
-        if (foundAgent3) {
-          TotalCalls += foundAgent3.totalCalls || 0;
-          TotalAnsweredCalls += foundAgent3.callsAnswered || 0;
-          TotalNotAnsweredCalls += foundAgent3.callsNotAnswered || 0;
-        }
+// Calculate totals for each agent
+foundAgent1.forEach((agent) => {
+  TotalCalls += agent.totalCalls || 0;
+  TotalAnsweredCalls += agent.callsAnswered || 0;
+  TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+});
 
-        const TotalAnsweredCall =
-          TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
-        // Respond with the aggregated stats and dailyStats
-        res.json({
-          TotalNotAnsweredCalls,
-          TotalAnsweredCall,
-          TotalCalls,
-        });
+foundAgent2.forEach((agent) => {
+  TotalCalls += agent.totalCalls || 0;
+  TotalAnsweredCalls += agent.callsAnswered || 0;
+  TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+});
+
+foundAgent3.forEach((agent) => {
+  TotalCalls += agent.totalCalls || 0;
+  TotalAnsweredCalls += agent.callsAnswered || 0;
+  TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+});
+
+// Calculate TotalAnsweredCall
+const TotalAnsweredCall = TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
+
+// Respond with the aggregated stats and dailyStats
+res.send({
+  TotalNotAnsweredCalls,
+  TotalAnsweredCall,
+  TotalCalls,
+});
+
       } catch (error) {
         console.error("Error fetching daily stats:", error);
         res.status(500).json({ message: "Internal server error" });
       }
     });
   }
-  // peopleStatsLog(){
-  //   this.app.post("/get-metadata", async (req: Request, res: Response) => {
-  //     try {
-  //       const { startDate, endDate, limit, page } = req.body;
-  //       const newLimit = parseInt(limit)
-  //       const newpage = parseInt(page)
-  //       const agentIds = [
-  //         "214e92da684138edf44368d371da764c",
-  //         "0411eeeb12d17a340941e91a98a766d0",
-  //         "86f0db493888f1da69b7d46bfaecd360",
-  //       ]; 
-    
-  //       const skip = (newpage - 1) * newLimit;
-  //       const dailyStats = await contactModel.find({
-  //         datesCalled: {
-  //           $elemMatch: { $gte: startDate, $lte: endDate }
-  //         },
-  //         agentId: { $in: agentIds },
-  //         isDeleted: false,
-  //       }).populate("referenceToCallId").limit(newLimit).skip(skip)
-    
-  //       const totalCount = await contactModel.countDocuments({
-  //         datesCalled: {
-  //           $elemMatch: { $gte: startDate, $lte: endDate }
-  //         },
-  //         agentId: { $in: agentIds },
-  //         isDeleted: false,
-  //       });
-
-  //       const totalPages = Math.ceil(totalCount / newLimit); 
-  //       res.json({ totalPages, dailyStats: dailyStats, totalCount });
-  //     } catch (error) {
-  //       console.log(error);
-  //       res.status(500).json({ error: "Internal Server Error" });
-  //     }
-  //   });
-  // }
 
   peopleStatsLog() {
     this.app.post("/get-metadata", async (req: Request, res: Response) => {
@@ -901,14 +879,14 @@ export class Server {
             { agentId: { $in: agentIds } },
             { isDeleted: false },
             { $expr: { 
-                $gt: [
+                $gte: [
                   { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
                   { $dateFromString: { dateString: startDate } }
                 ]
               } 
             },
             { $expr: { 
-                $lt: [
+                $lte: [
                   { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
                   { $dateFromString: { dateString: endDate } }
                 ]
@@ -922,14 +900,14 @@ export class Server {
             { agentId: { $in: agentIds } },
             { isDeleted: false },
             { $expr: { 
-                $gt: [
+                $gte: [
                   { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
                   { $dateFromString: { dateString: startDate } }
                 ]
               } 
             },
             { $expr: { 
-                $lt: [
+                $lte: [
                   { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
                   { $dateFromString: { dateString: endDate } }
                 ]
@@ -946,9 +924,6 @@ export class Server {
       }
     });
   }
-  
-  
-  
   
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
@@ -1009,6 +984,40 @@ searchForUser(){
       // Perform the search using Mongoose
       const filteredUsers = await contactModel.find({
         agentId,
+        $or: [
+          { firstname: { $regex: searchTerm, $options: 'i' } },
+          { lastname: { $regex: searchTerm, $options: 'i' } },
+          { phone: { $regex: searchTerm, $options: 'i' } },
+          { email: { $regex: searchTerm, $options: 'i' } }
+        ],
+        isDeleted:false
+      }).populate("referenceToCallId")
+      res.json(filteredUsers);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+  
+  
+}
+searchForvagroup(){
+  this.app.post('/search-va-group', async (req: Request, res:Response) => {
+    const { searchTerm} = req.body;
+    if (!searchTerm) {
+      return res.status(400).json({ error: 'Search term is required' });
+    }
+
+    const agentIds = [
+      "214e92da684138edf44368d371da764c",
+      "0411eeeb12d17a340941e91a98a766d0",
+      "86f0db493888f1da69b7d46bfaecd360",
+    ]; 
+
+  
+    try {
+      // Perform the search using Mongoose
+      const filteredUsers = await contactModel.find({
+        agentId:{$in:agentIds},
         $or: [
           { firstname: { $regex: searchTerm, $options: 'i' } },
           { lastname: { $regex: searchTerm, $options: 'i' } },
