@@ -878,23 +878,21 @@ res.send({
           $and: [
             { agentId: { $in: agentIds } },
             { isDeleted: false },
-            { $expr: { 
-                $gte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: startDate } }
-                ]
-              } 
-            },
-            { $expr: { 
-                $lte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: endDate } }
-                ]
-              } 
+            {
+              $or: [
+                {
+                  // Check if any date in the array is greater than or equal to the start date
+                  "datesCalled": { $gte: startDate }
+                },
+                {
+                  // Check if any date in the array is less than or equal to the end date
+                  "datesCalled": { $lte: endDate }
+                }
+              ]
             }
           ]
         }).populate("referenceToCallId").limit(newLimit).skip(skip);
-  
+        
         const totalCount = await contactModel.countDocuments({
           $and: [
             { agentId: { $in: agentIds } },
@@ -917,7 +915,7 @@ res.send({
         });
   
         const totalPages = Math.ceil(totalCount / newLimit); 
-        res.json({ totalPages, dailyStats });
+        res.json({totalCount, totalPages, dailyStats });
       } catch (error) {
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
