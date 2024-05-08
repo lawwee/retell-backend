@@ -100,6 +100,7 @@ export class Server {
     this.testwebsocket()
     this.TranscriptReview()
     this.searchForUser()
+    this.searchForvagroup()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -983,6 +984,40 @@ searchForUser(){
       // Perform the search using Mongoose
       const filteredUsers = await contactModel.find({
         agentId,
+        $or: [
+          { firstname: { $regex: searchTerm, $options: 'i' } },
+          { lastname: { $regex: searchTerm, $options: 'i' } },
+          { phone: { $regex: searchTerm, $options: 'i' } },
+          { email: { $regex: searchTerm, $options: 'i' } }
+        ],
+        isDeleted:false
+      }).populate("referenceToCallId")
+      res.json(filteredUsers);
+    } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+  
+  
+}
+searchForvagroup(){
+  this.app.post('/search-va-group', async (req: Request, res:Response) => {
+    const { searchTerm} = req.body;
+    if (!searchTerm) {
+      return res.status(400).json({ error: 'Search term is required' });
+    }
+
+    const agentIds = [
+      "214e92da684138edf44368d371da764c",
+      "0411eeeb12d17a340941e91a98a766d0",
+      "86f0db493888f1da69b7d46bfaecd360",
+    ]; 
+
+  
+    try {
+      // Perform the search using Mongoose
+      const filteredUsers = await contactModel.find({
+        agentId:{$in:agentIds},
         $or: [
           { firstname: { $regex: searchTerm, $options: 'i' } },
           { lastname: { $regex: searchTerm, $options: 'i' } },
