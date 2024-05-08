@@ -879,9 +879,9 @@ res.send({
             { agentId: { $in: agentIds } },
             { isDeleted: false },
             {
-              $or: [
+              $and: [
                 {
-                  // Check if any date in the array is greater than or equal to the start date
+                  
                   "datesCalled": { $gte: startDate }
                 },
                 {
@@ -897,19 +897,17 @@ res.send({
           $and: [
             { agentId: { $in: agentIds } },
             { isDeleted: false },
-            { $expr: { 
-                $gte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: startDate } }
-                ]
-              } 
-            },
-            { $expr: { 
-                $lte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: endDate } }
-                ]
-              } 
+            {
+              $and: [
+                {
+                  
+                  "datesCalled": { $gte: startDate }
+                },
+                {
+                  // Check if any date in the array is less than or equal to the end date
+                  "datesCalled": { $lte: endDate }
+                }
+              ]
             }
           ]
         });
