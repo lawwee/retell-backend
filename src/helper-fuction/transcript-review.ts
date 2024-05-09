@@ -10,7 +10,7 @@ const client = new OpenAI({
       const completion = await client.chat.completions.create({
         messages: [
           {"role": "system", "content": "You are a helpful assistant."},
-          {"role": "user", "content": `Please analyze the transcript and categorize it into one or two-word descriptors such as 'appointment scheduled,' 'not interested,' 'voicemail,' 'interested,' etc. Keep your responses brief: ${transcript}`}
+          {"role": "user", "content": `Please analyze the transcript and categorize it into one or two-word descriptors such as 'appointment scheduled,' 'not interested,' 'voicemail,' 'interested,' etc. Keep your responses brief. Transcript: ${transcript}`}
         ],
         model: " gpt-4",
       });
