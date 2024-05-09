@@ -53,7 +53,7 @@ export const searchAndRecallContacts = async(
             `Error processing recalled contact ${contact.firstname}: ${errorMessage}`,
           );
         }
-        await new Promise((resolve) => setTimeout(resolve, 15000));
+        await new Promise((resolve) => setTimeout(resolve, 10000));
       
       }
       console.log("Recalled contacts finished processing");
