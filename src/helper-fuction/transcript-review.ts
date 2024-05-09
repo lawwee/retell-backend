@@ -10,9 +10,9 @@ const client = new OpenAI({
       const completion = await client.chat.completions.create({
         messages: [
           {"role": "system", "content": "You are a helpful assistant."},
-          {"role": "user", "content": `Analyze the transcript in one or 2 words into either of these categories: appointment scheduled, not interested, can't decide, voicemail, interested etc. Strictly reply with a word or two. Transcript: ${transcript}`}
+          {"role": "user", "content": `Please analyze the transcript and categorize it into one or two-word descriptors such as 'appointment scheduled,' 'not interested,' 'voicemail,' 'interested,' etc. Keep your responses brief: ${transcript}`}
         ],
-        model: "gpt-3.5-turbo",
+        model: " gpt-4",
       });
   
       return completion.choices[0];
