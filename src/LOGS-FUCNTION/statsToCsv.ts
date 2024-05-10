@@ -30,12 +30,10 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
             ]
           }
         ],
-        agentId: { $in: agentIds },
-        isDeleted: false,
-        status: callstatusenum.CALLED
       })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId");
+      console.log(dailyStats)
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
       const transcript = contact.referenceToCallId?.transcript;
