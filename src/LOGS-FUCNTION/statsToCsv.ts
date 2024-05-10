@@ -33,7 +33,6 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
       })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId");
-      console.log(dailyStats)
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
       const transcript = contact.referenceToCallId?.transcript;

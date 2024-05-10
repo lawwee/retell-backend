@@ -15,17 +15,18 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
         // Extract relevant fields from found contacts
         const contactsData = await Promise.all(foundContacts.map(async (contact) => {
           const transcript = contact.referenceToCallId?.transcript 
-          const analyzedTranscript = await reviewTranscript(transcript);
+          // const analyzedTranscript = await reviewTranscript(transcript);
           return {
             name: contact.firstname,
             email: contact.email,
             phone: contact.phone,
             status: contact.status,
             transcript: transcript,
-            analyzedTranscript: analyzedTranscript.message.content,
+            // analyzedTranscript: analyzedTranscript.message.content,
             call_recording_url: contact.referenceToCallId.recordingUrl,
           };
         }));
+        
         // Write contacts data to CSV file
         const filePath = path.join(__dirname, "..","..", "public", "logs.csv");
         console.log("File path:", filePath); // Log file path for debugging
@@ -33,12 +34,12 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
         const csvWriter = createObjectCsvWriter({
           path: filePath,
           header: [
-            { id: "name", title: "Name" },
+            { id: "firstname", title: "FirstName" },
+            { id: "lastname", title: "LastName" },
             { id: "email", title: "Email" },
             { id: "phone", title: "Phone Number" },
             { id: "status", title: "Status" },
             { id: "transcript", title: "Transcript" },
-            { id: "analyzedTranscript", title: "Analyzed Transcript" },
             {id: "call_recording_url", title: " Call Recording url"}
           ],
         });
