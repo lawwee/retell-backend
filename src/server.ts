@@ -924,8 +924,8 @@ res.send({
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
-        const {date} = req.body
-        const result = await statsToCsv(date)
+        const {startDate, endDate} = req.body
+        const result = await statsToCsv(startDate,endDate)
         if (typeof result === 'string') {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {

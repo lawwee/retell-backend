@@ -4,7 +4,7 @@ import path from "path";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { callstatusenum } from "../types";
 
-export const statsToCsv = async (date: string) => {
+export const statsToCsv = async (startDate: string, endDate: string) => {
   try {
     const agentIds = [
       "214e92da684138edf44368d371da764c",
@@ -14,7 +14,22 @@ export const statsToCsv = async (date: string) => {
 
     const dailyStats = await contactModel
       .find({
-        datesCalled: date,
+        $and: [
+          { agentId: { $in: agentIds } },
+          { isDeleted: false },
+          {
+            $and: [
+              {
+                
+                "datesCalled": { $gte: startDate }
+              },
+              {
+                // Check if any date in the array is less than or equal to the end date
+                "datesCalled": { $lte: endDate }
+              }
+            ]
+          }
+        ],
         agentId: { $in: agentIds },
         isDeleted: false,
         status: callstatusenum.CALLED
