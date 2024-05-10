@@ -37,14 +37,15 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
       const transcript = contact.referenceToCallId?.transcript;
-      const analyzedTranscript = await reviewTranscript(transcript);
+      // const analyzedTranscript = await reviewTranscript(transcript);
       return {
-        name: contact.firstname,
+        firstname: contact.firstname,
+        lastname:contact.lastname,
         email: contact.email,
         phone: contact.phone,
         status: contact.status,
         transcript: transcript,
-        analyzedTranscript: analyzedTranscript.message.content,
+        // analyzedTranscript: analyzedTranscript.message.content,
         call_recording_url: contact.referenceToCallId.recordingUrl,
       };
     }));
@@ -54,12 +55,12 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
     const csvWriter = createObjectCsvWriter({
       path: filePath,
       header: [
-        { id: "name", title: "Name" },
+        { id: "firstname", title: "FirstName" },
+        { id: "lastname", title: "LastName" },
         { id: "email", title: "Email" },
         { id: "phone", title: "Phone Number" },
         { id: "status", title: "Status" },
         { id: "transcript", title: "Transcript" },
-        { id: "analyzedTranscript", title: "Analyzed Transcript" },
         { id: "call_recording_url", title: "Call_Recording_Url" },
       ],
     });
