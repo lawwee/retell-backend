@@ -17,7 +17,8 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
           const transcript = contact.referenceToCallId?.transcript 
           // const analyzedTranscript = await reviewTranscript(transcript);
           return {
-            name: contact.firstname,
+            firstname: contact.firstname,
+            lastname:contact.lastname,
             email: contact.email,
             phone: contact.phone,
             status: contact.status,
@@ -26,7 +27,7 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
             call_recording_url: contact.referenceToCallId.recordingUrl,
           };
         }));
-        
+
         // Write contacts data to CSV file
         const filePath = path.join(__dirname, "..","..", "public", "logs.csv");
         console.log("File path:", filePath); // Log file path for debugging
