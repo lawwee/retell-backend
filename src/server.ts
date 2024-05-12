@@ -73,7 +73,7 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
-    this.testReetellWebsocket()
+    // this.testReetellWebsocket()
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
     this.handlecontactDelete();
@@ -83,7 +83,7 @@ export class Server {
     this.uploadcsvToDb();
     this.schedulemycall();
     this.getjobstatus();
-    this.updateStatus();
+    this.resetAgentStatus();
     this.getTimefromcallendly();
     this.getCallLogs();
     this.stopSpecificSchedule();
@@ -97,10 +97,10 @@ export class Server {
     this.peopleStatsLog();
     this.peopleStatToCsv();
     this.createPhoneCall2();
-    this.testwebsocket()
-    this.TranscriptReview()
+    // this.testwebsocket()
+    // this.TranscriptReview()
     this.searchForUser()
-    this.searchForvagroup()
+    this.searchForvagroup() 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -119,40 +119,40 @@ export class Server {
   });
   events = this.smee.start();
 
-  testReetellWebsocket() {
-    this.app.ws('/testwebsocket', async (ws, req) => {
-        const user = { agentId: "1" };
-        console.log('WebSocket connection established');
-        // Handle incoming WebSocket messages
-        ws.on('message', async (msg) => {
-            console.log('Received message:', msg);
-            const message = " i am No 1";
-            let counter = 0;
-            const intervalId = setInterval(() => {
-                if (counter < 5) {
-                    ws.send(message);
-                    console.log('Message sent:', message);
-                    counter++;
-                } else {
-                    clearInterval(intervalId); 
-                    ws.close()
-                }
-            }, 1000);
-        });
-        ws.on('close', async () => {
-            const today = new Date();
-            const todayString = today.toISOString().split("T")[0];
-            await DailyStats.updateOne(
-                { myDate: todayString, agentId: user.agentId },
-                { $inc: { totalCalls: 1 } },
-                { upsert: true }
-            );
-            console.log('WebSocket connection closed');
+//   testReetellWebsocket() {
+//     this.app.ws('/testwebsocket', async (ws, req) => {
+//         const user = { agentId: "1" };
+//         console.log('WebSocket connection established');
+//         // Handle incoming WebSocket messages
+//         ws.on('message', async (msg) => {
+//             console.log('Received message:', msg);
+//             const message = " i am No 1";
+//             let counter = 0;
+//             const intervalId = setInterval(() => {
+//                 if (counter < 5) {
+//                     ws.send(message);
+//                     console.log('Message sent:', message);
+//                     counter++;
+//                 } else {
+//                     clearInterval(intervalId); 
+//                     ws.close()
+//                 }
+//             }, 1000);
+//         });
+//         ws.on('close', async () => {
+//             const today = new Date();
+//             const todayString = today.toISOString().split("T")[0];
+//             await DailyStats.updateOne(
+//                 { myDate: todayString, agentId: user.agentId },
+//                 { $inc: { totalCalls: 1 } },
+//                 { upsert: true }
+//             );
+//             console.log('WebSocket connection closed');
        
-        });
+//         });
 
-    });
-}
+//     });
+// }
 
   handleRetellLlmWebSocket() {
     this.app.ws(
@@ -339,7 +339,7 @@ export class Server {
     );
   }
   createPhoneCall2() {
-    this.app.post("/phone2", async (req: Request, res: Response) => {
+    this.app.post("/create-llm-phone-call", async (req: Request, res: Response) => {
       const { fromNumber, toNumber, userId } = req.body;
       const result = await contactModel.findById(userId);
 
@@ -575,7 +575,7 @@ export class Server {
       res.json({ result });
     });
   }
-  updateStatus() {
+  resetAgentStatus() {
     this.app.post(
       "/users/status/reset",
       async (req: Request, res: Response) => {
@@ -754,7 +754,7 @@ export class Server {
   }
 
   logsToCsv() {
-    this.app.post("/get-logs", async (req: Request, res: Response) => {
+    this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
         const { agentId, limit } = req.body;
         const newlimit = parseInt(limit);
@@ -946,29 +946,30 @@ res.send({
       }
     });
   }
-  testwebsocket() {
-    this.app.ws('/websockets', async (ws, req) => {
-      // WebSocket connection handler
-      console.log('WebSocket connection established');
+  // testwebsocket() {
+  //   this.app.ws('/websockets', async (ws, req) => {
+  //     // WebSocket connection handler
+  //     console.log('WebSocket connection established');
       
-      // Handle incoming WebSocket messages
-      ws.on('message', (msg) => {
-        console.log('Received message:', msg);
-      });
+  //     // Handle incoming WebSocket messages
+  //     ws.on('message', (msg) => {
+  //       console.log('Received message:', msg);
+  //     });
 
-      // Handle WebSocket closure
-      ws.on('close', () => {
-        console.log('WebSocket connection closed');
-      });
-    });
-  }
-  TranscriptReview(){
-  this.app.post("/review-transcript", async (req: Request, res:Response) => {
-    const { transcript }= req.body
-    const result = await reviewTranscript(transcript)
-    res.json({result})
-  }
-)  }
+  //     // Handle WebSocket closure
+  //     ws.on('close', () => {
+  //       console.log('WebSocket connection closed');
+  //     });
+  //   });
+  // }
+
+  //   TranscriptReview(){
+//   this.app.post("/review-transcript", async (req: Request, res:Response) => {
+//     const { transcript }= req.body
+//     const result = await reviewTranscript(transcript)
+//     res.json({result})
+//   }
+// )  }
 searchForUser(){
   this.app.post('/search', async (req: Request, res:Response) => {
     const {agentId, searchTerm} = req.body;
