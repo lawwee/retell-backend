@@ -878,46 +878,42 @@ res.send({
           $and: [
             { agentId: { $in: agentIds } },
             { isDeleted: false },
-            { $expr: { 
-                $gte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: startDate } }
-                ]
-              } 
-            },
-            { $expr: { 
-                $lte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: endDate } }
-                ]
-              } 
+            {
+              $and: [
+                {
+                  
+                  "datesCalled": { $gte: startDate }
+                },
+                {
+                  // Check if any date in the array is less than or equal to the end date
+                  "datesCalled": { $lte: endDate }
+                }
+              ]
             }
           ]
         }).populate("referenceToCallId").limit(newLimit).skip(skip);
-  
+        
         const totalCount = await contactModel.countDocuments({
           $and: [
             { agentId: { $in: agentIds } },
             { isDeleted: false },
-            { $expr: { 
-                $gte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: startDate } }
-                ]
-              } 
-            },
-            { $expr: { 
-                $lte: [
-                  { $dateFromString: { dateString: { $arrayElemAt: ["$datesCalled", 0] } } },
-                  { $dateFromString: { dateString: endDate } }
-                ]
-              } 
+            {
+              $and: [
+                {
+                  
+                  "datesCalled": { $gte: startDate }
+                },
+                {
+                  // Check if any date in the array is less than or equal to the end date
+                  "datesCalled": { $lte: endDate }
+                }
+              ]
             }
           ]
         });
   
         const totalPages = Math.ceil(totalCount / newLimit); 
-        res.json({ totalPages, dailyStats });
+        res.json({totalCount, totalPages, dailyStats });
       } catch (error) {
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
@@ -928,8 +924,8 @@ res.send({
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
-        const {date} = req.body
-        const result = await statsToCsv(date)
+        const {startDate, endDate} = req.body
+        const result = await statsToCsv(startDate,endDate)
         if (typeof result === 'string') {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {

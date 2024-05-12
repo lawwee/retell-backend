@@ -4,7 +4,7 @@ import path from "path";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { callstatusenum } from "../types";
 
-export const statsToCsv = async (date: string) => {
+export const statsToCsv = async (startDate: string, endDate: string) => {
   try {
     const agentIds = [
       "214e92da684138edf44368d371da764c",
@@ -14,24 +14,37 @@ export const statsToCsv = async (date: string) => {
 
     const dailyStats = await contactModel
       .find({
-        datesCalled: date,
-        agentId: { $in: agentIds },
-        isDeleted: false,
-        status: callstatusenum.CALLED
+        $and: [
+          { agentId: { $in: agentIds } },
+          { isDeleted: false },
+          {
+            $and: [
+              {
+                
+                "datesCalled": { $gte: startDate }
+              },
+              {
+                // Check if any date in the array is less than or equal to the end date
+                "datesCalled": { $lte: endDate }
+              }
+            ]
+          }
+        ],
       })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId");
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
       const transcript = contact.referenceToCallId?.transcript;
-      const analyzedTranscript = await reviewTranscript(transcript);
+      // const analyzedTranscript = await reviewTranscript(transcript);
       return {
-        name: contact.firstname,
+        firstname: contact.firstname,
+        lastname:contact.lastname,
         email: contact.email,
         phone: contact.phone,
         status: contact.status,
         transcript: transcript,
-        analyzedTranscript: analyzedTranscript.message.content,
+        // analyzedTranscript: analyzedTranscript.message.content,
         call_recording_url: contact.referenceToCallId.recordingUrl,
       };
     }));
@@ -41,12 +54,12 @@ export const statsToCsv = async (date: string) => {
     const csvWriter = createObjectCsvWriter({
       path: filePath,
       header: [
-        { id: "name", title: "Name" },
+        { id: "firstname", title: "FirstName" },
+        { id: "lastname", title: "LastName" },
         { id: "email", title: "Email" },
         { id: "phone", title: "Phone Number" },
         { id: "status", title: "Status" },
         { id: "transcript", title: "Transcript" },
-        { id: "analyzedTranscript", title: "Analyzed Transcript" },
         { id: "call_recording_url", title: "Call_Recording_Url" },
       ],
     });
