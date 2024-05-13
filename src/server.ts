@@ -46,6 +46,7 @@ import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
 import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 import { reviewTranscript } from "./helper-fuction/transcript-review";
+import { unknownagent } from "./TVAG-LLM/unknowagent";
 connectDb();
 
 export class Server {
@@ -259,7 +260,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new testDemoLlmClient()
+          const client = new danielDemoLlmClient()
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -332,6 +333,50 @@ export class Server {
             } catch (err) {
               console.error("Error in parsing LLM websocket message: ", err);
               ws.close(1002, "Cannot parse incoming message.");
+            }
+          });
+        }
+
+        if (user.agentId === "1000") {
+          console.log("Call started with new agent");
+          const client = new unknownagent();
+          client.BeginMessage(ws, user.firstname, user.email);
+          ws.on("error", (err) => {
+            console.error("Error received in LLM websocket client: ", err);
+          });
+          ws.on("close", async (err) => {
+            console.error("Closing llm ws for: ", callId);
+          });
+          ws.on("message", async (data: RawData, isBinary: boolean) => {
+            await contactModel.findOneAndUpdate(
+              { callId },
+              { status: "on call" },
+            );
+            if (isBinary) {
+              console.error("Got binary message instead of text in websocket.");
+              ws.close(1002, "Cannot find corresponding Retell LLM.");
+            }
+            const request: CustomLlmRequest = JSON.parse(data.toString());
+            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+            // Not all of them need to be handled, only response_required and reminder_required.
+            if (request.interaction_type === "ping_pong") {
+              let pingpongResponse: CustomLlmResponse = {
+                response_type: "ping_pong",
+                timestamp: request.timestamp,
+              };
+              ws.send(JSON.stringify(pingpongResponse));
+            } else if (request.interaction_type === "call_details") {
+              console.log("call details: ", request.call);
+              // print call detailes
+            } else if (request.interaction_type === "update_only") {
+              // process live transcript update if needed
+            } else if (
+              request.interaction_type === "reminder_required" ||
+              request.interaction_type === "response_required"
+            ) {
+              console.clear();
+              console.log("req", request);
+              client.DraftResponse(request, ws);
             }
           });
         }
