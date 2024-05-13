@@ -198,7 +198,6 @@ export class Server {
               };
               ws.send(JSON.stringify(pingpongResponse));
             } else if (request.interaction_type === "call_details") {
-              console.log("call details: ", request.call);
               // print call detailes
             } else if (request.interaction_type === "update_only") {
               // process live transcript update if needed
@@ -206,8 +205,6 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              console.clear();
-              console.log("req", request);
               client.DraftResponse(request, ws);
             }
           });
@@ -228,7 +225,6 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            console.log(data.toString());
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
@@ -243,7 +239,6 @@ export class Server {
               };
               ws.send(JSON.stringify(pingpongResponse));
             } else if (request.interaction_type === "call_details") {
-              console.log("call details: ", request.call);
               // print call detailes
             } else if (request.interaction_type === "update_only") {
               // process live transcript update if needed
@@ -251,8 +246,6 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              console.clear();
-              console.log("req", request);
               client.DraftResponse(request, ws);
             }
           });
@@ -273,7 +266,7 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            // console.log(data.toString());
+            
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
@@ -288,7 +281,6 @@ export class Server {
               };
               ws.send(JSON.stringify(pingpongResponse));
             } else if (request.interaction_type === "call_details") {
-              console.log("call details: ", request.call);
               // print call detailes
             } else if (request.interaction_type === "update_only") {
               // process live transcript update if needed
@@ -296,8 +288,7 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              // console.clear();
-              console.log("req", request);
+              
               client.DraftResponse(request, ws);
             }
           });
@@ -322,7 +313,6 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            console.log(data.toString());
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
@@ -366,7 +356,6 @@ export class Server {
               };
               ws.send(JSON.stringify(pingpongResponse));
             } else if (request.interaction_type === "call_details") {
-              console.log("call details: ", request.call);
               // print call detailes
             } else if (request.interaction_type === "update_only") {
               // process live transcript update if needed
@@ -374,8 +363,6 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              console.clear();
-              console.log("req", request);
               client.DraftResponse(request, ws);
             }
           });
