@@ -1,6 +1,7 @@
 import { contactModel, jobModel } from "../contacts/contact_model";
 import Retell from "retell-sdk";
 import { TwilioClient } from "../twilio_api";
+import { jobstatus } from "../types";
 
 const retellClient = new Retell({
     apiKey: process.env.RETELL_API_KEY,
@@ -56,6 +57,10 @@ export const searchAndRecallContacts = async(
         await new Promise((resolve) => setTimeout(resolve, 10000));
       
       }
+       await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: jobstatus.CALLED },
+          ); 
       console.log("Recalled contacts finished processing");
     } catch (error) {
       console.error("Error searching and recalling contacts:", error);
