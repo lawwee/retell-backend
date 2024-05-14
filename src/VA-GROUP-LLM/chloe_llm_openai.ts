@@ -201,7 +201,8 @@ export class chloeDemoLlmClient {
 
       const events = await this.client.chat.completions.create({
         //model: "gpt-3.5-turbo-0125",
-        model: "gpt-3.5-turbo-1106",
+        // model: "gpt-3.5-turbo-1106",
+        model:"gpt-4o",
         messages: requestMessages,
         stream: true,
         temperature: 0.1,
