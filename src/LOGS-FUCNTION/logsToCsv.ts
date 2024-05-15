@@ -11,7 +11,6 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
           .populate("referenceToCallId")
           .limit(newlimit);
 
-
         // Extract relevant fields from found contacts
         const contactsData = await Promise.all(foundContacts.map(async (contact) => {
           const transcript = contact.referenceToCallId?.transcript 
@@ -44,7 +43,6 @@ export const logsToCsv = async (agentId: string, newlimit: number) => {
             {id: "call_recording_url", title: " Call Recording url"}
           ],
         });
-
         await csvWriter.writeRecords(contactsData);
         console.log("CSV file logs.csv has been written successfully");
         return filePath
