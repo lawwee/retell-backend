@@ -437,7 +437,6 @@ export class Server {
         end_call_after_silence_ms: 15000,
       
       });
-      console.log("this is the register", callRegister)
       const registerCallResponse2 = await this.retellClient.call.create({
         from_number: fromNumber,
         to_number: toNumber,
@@ -451,7 +450,6 @@ export class Server {
       
       
        });
-       console.log("this is the create", registerCallResponse2)
        await contactModel.findByIdAndUpdate(userId,{callId: registerCallResponse2.call_id})
        
       res.send({callCreation: registerCallResponse2, callRegister })
@@ -750,7 +748,7 @@ export class Server {
       try {
         if(payload.event === "call_started"){
           console.log(`call started on agent: $${payload.data.agent_id}`)
-
+          console.log("call started")
           const { call_id, agent_id} = payload.data;
           await contactModel.findOneAndUpdate(
             { callId: call_id, agentId:agent_id },
