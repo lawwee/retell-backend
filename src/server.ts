@@ -819,12 +819,13 @@ export class Server {
       switch (payload.event){ 
         case "call_started" :
           console.log(`call started on agent: $${payload.data.agent_id}`)
+          console.log("Hi")
           console.log("call started")
           await contactModel.findOneAndUpdate(
             { callId: payload.data.call_id, agentId:payload.data.agent_id },
             { status: callstatusenum.IN_PROGRESS },
           );
-
+          break
         case "call_ended":
           const result = await EventModel.create({
             callId: payload.data.call_id,
@@ -843,7 +844,8 @@ export class Server {
               $push: { datesCalled: todayString },
               referenceToCallId: result._id
             })
-          case "call_analyzed" :
+            break
+        case "call_analyzed" :
             console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
             if(payload.data.disconnection_reason === "machine_detected"){
               const result = await DailyStats.updateOne(
@@ -857,6 +859,8 @@ export class Server {
                 answeredByVM: true,
               });
             }
+
+            break
           }
         });
       }
