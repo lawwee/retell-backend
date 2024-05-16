@@ -372,9 +372,8 @@ export class Server {
   }
   createPhoneCall2() {
     this.app.post("/create-llm-phone-call", async (req: Request, res: Response) => {
-      const { fromNumber, toNumber, userId } = req.body;
-      // const result = await contactModel.findById(userId);
-
+      const { fromNumber, toNumber, userId,agentId } = req.body;
+      const result = await contactModel.findById(userId)
       // const llm: LlmResponse = await this.retellClient.llm.create({
       //   general_prompt:
       //     "## Identity\nYou are a persuasive Sales Development Representative for Virtual Help Desk, an expert in offering tailored virtual assistant services to businesses. Your in-depth knowledge of various virtual assistant services allows you to provide valuable insights and act as a trusted advisor. You maintain the highest standards of professionalism, integrity, and dedication to client success.\n\n## Style Guardrails\nBe Concise: Respond succinctly, addressing one topic at most.\nEmbrace Variety: Use diverse language and rephrasing to enhance clarity without repeating content.\nBe Conversational: Use everyday language, making the chat feel like talking to a friend.\nBe Proactive: Lead the conversation, often wrapping up with a question or next-step suggestion.\nAvoid multiple questions in a single response.\nGet clarity: If the user only partially answers a question, or if the answer is unclear, keep asking to get clarity.\nUse a colloquial way of referring to the date (like 'next Friday', 'tomorrow').\nOne question at a time: Ask only one question at a time, do not pack more topics into one response.\n\n## Response Guideline\nAdapt and Guess: Try to understand transcripts that may contain transcription errors. Avoid mentioning \"transcription error\" in the response.\nStay in Character: Keep conversations within your role's scope, guiding them back creatively without repeating.\nEnsure Fluid Dialogue: Respond in a role-appropriate, direct manner to maintain a smooth conversation flow.\nDo not make up answers: If you do not know the answer to a question, simply say so. Do not fabricate or deviate from listed responses.\nIf at any moment the conversation deviates, kindly lead it back to the relevant topic. Do not repeat from start, keep asking from where you stopped.",
@@ -424,30 +423,34 @@ export class Server {
       //   begin_message: "Hi, is this {{user_firstname}}",
       // });
       
-      const agent: AgentResponse = await this.retellClient.agent.update(
-        "86f0db493888f1da69b7d46bfaecd360",
-        { llm_websocket_url: "wss://api.retellai.com/retell-llm-new/ad9324685fc388fcdf9f9ab057a3b521" },
-      );
+      // const agent: AgentResponse = await this.retellClient.agent.update(
+      //   "86f0db493888f1da69b7d46bfaecd360",
+      //   { llm_websocket_url: "wss://api.retellai.com/retell-llm-new/ad9324685fc388fcdf9f9ab057a3b521" },
+      // );
 
-      // await this.retellClient.call.register({
-      //   agent_id: "0411eeeb12d17a340941e91a98a766d0",
-      //   audio_encoding: "s16le",
-      //   audio_websocket_protocol: "twilio",
-      //   sample_rate: 24000,
-      //   end_call_after_silence_ms: 15000
-      // });
-      // const registerCallResponse2 = await this.retellClient.call.create({
-      //   from_number: fromNumber,
-      //   to_number: toNumber,
-      //   override_agent_id: "0411eeeb12d17a340941e91a98a766d0",
-      //   retell_llm_dynamic_variables: {
-      //     user_firstname: result.firstname,
-      //     user_email: result.email,
+      const callRegister = await this.retellClient.call.register({
+        agent_id: agentId,
+        audio_encoding: "s16le",
+        audio_websocket_protocol: "twilio",
+        sample_rate: 24000,
+        end_call_after_silence_ms: 15000,
+      
+      });
+      const registerCallResponse2 = await this.retellClient.call.create({
+        from_number: fromNumber,
+        to_number: toNumber,
+        override_agent_id: agentId,
+        drop_call_if_machine_detected: true,
+        retell_llm_dynamic_variables: {
+          user_firstname: result.firstname,
+          user_email: result.email,
           
-      //   },
-      // });
-      // res.send({agent, registerCallResponse2});
-      res.send(agent.agent_id)
+        },
+      
+       });
+       await contactModel.findByIdAndUpdate(userId,{callId: registerCallResponse2.call_id})
+       
+      res.send({callCreation: registerCallResponse2, callRegister })
     });
   }
   handleContactSaving() {
@@ -741,6 +744,16 @@ export class Server {
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
       try {
+        if(payload.event === "call_started"){
+          console.log(`call started on agent: $${payload.data.agent_id}`)
+
+          const { call_id, agent_id} = payload.data;
+          await contactModel.findOneAndUpdate(
+            { callId: call_id, agentId:agent_id },
+            { status: callstatusenum.IN_PROGRESS },
+          );
+          
+         }
         if (payload.event === "call_ended") {
           const { call_id, transcript, recording_url , agent_id} = payload.data;
           const result = await EventModel.create({
@@ -762,11 +775,23 @@ export class Server {
           },
         );
      }
-     if(payload.event === "call_started"){
-      console.log(`call started on agent: $${payload.data.agent_id}`)
-     }
      if(payload.event === "call_analyzed"){
       console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
+      if(payload.data.disconnection_reason === "machine_detected"){
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayString = today.toISOString().split("T")[0];
+        const result = await DailyStats.updateOne(
+          { myDate: todayString, agentId: payload.data.agent_id },
+          { $inc: { callsNotAnswered : 1 } },
+          { upsert: true }
+      );
+        await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
+          status: callstatusenum.VOICEMAIL,
+          linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
+          answeredByVM: true,
+        });
+      }
      }
       } catch (error) {
         console.log(error);

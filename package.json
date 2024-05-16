@@ -32,7 +32,7 @@
     "openai": "^4.26.0",
     "papaparse": "^5.4.1",
     "pm2": "^5.3.1",
-    "retell-sdk": "^3.5.0",
+    "retell-sdk": "^3.11.1",
     "smee-client": "^2.0.1",
     "twilio": "^4.21.0",
     "uuid": "^9.0.1"
