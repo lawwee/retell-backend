@@ -48,6 +48,12 @@ import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 import { reviewTranscript } from "./helper-fuction/transcript-review";
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 connectDb();
+const smee = new SmeeClient({
+  source: "https://smee.io/gRkyib7zF2UwwFV",
+  target: "http://localhost:8080/webhook",
+  logger: console,
+});
+smee.start();
 
 export class Server {
   public app: expressWs.Application;
@@ -89,7 +95,6 @@ export class Server {
     this.getCallLogs();
     this.stopSpecificSchedule();
     this.getAllJobSchedule();
-    this.getTranscriptAfterCallEnded();
     this.getAllJob();
     this.stopSpecificJob();
     this.deleteAll();
@@ -101,7 +106,9 @@ export class Server {
     // this.testwebsocket()
     // this.TranscriptReview()
     this.searchForUser()
+    this.getTranscriptAfterCallEnded()
     this.searchForvagroup() 
+
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -113,12 +120,6 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
-  smee = new SmeeClient({
-    source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "http://localhost:8080/webhook",
-    logger: console,
-  });
-  events = this.smee.start();
 
 //   testReetellWebsocket() {
 //     this.app.ws('/testwebsocket', async (ws, req) => {
@@ -798,7 +799,7 @@ export class Server {
   //     }
   //   });
   // }
-  async getTranscriptAfterCallEnded() {
+   getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       if (
         !Retell.verify(
@@ -819,8 +820,6 @@ export class Server {
       switch (payload.event){ 
         case "call_started" :
           console.log(`call started on agent: $${payload.data.agent_id}`)
-          console.log("Hi")
-          console.log("call started")
           await contactModel.findOneAndUpdate(
             { callId: payload.data.call_id, agentId:payload.data.agent_id },
             { status: callstatusenum.IN_PROGRESS },
@@ -862,8 +861,8 @@ export class Server {
 
             break
           }
-        });
-      }
+    });
+  }
 
 
   deleteAll() {
