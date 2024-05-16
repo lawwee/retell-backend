@@ -428,6 +428,7 @@ export class Server {
       //   { llm_websocket_url: "wss://api.retellai.com/retell-llm-new/ad9324685fc388fcdf9f9ab057a3b521" },
       // );
 
+      console.log(fromNumber, toNumber,userId,agentId)
       const callRegister = await this.retellClient.call.register({
         agent_id: agentId,
         audio_encoding: "s16le",
@@ -436,6 +437,7 @@ export class Server {
         end_call_after_silence_ms: 15000,
       
       });
+      console.log("this is the register", callRegister)
       const registerCallResponse2 = await this.retellClient.call.create({
         from_number: fromNumber,
         to_number: toNumber,
@@ -447,7 +449,9 @@ export class Server {
           
         },
       
+      
        });
+       console.log("this is the create", registerCallResponse2)
        await contactModel.findByIdAndUpdate(userId,{callId: registerCallResponse2.call_id})
        
       res.send({callCreation: registerCallResponse2, callRegister })
