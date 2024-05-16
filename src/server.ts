@@ -115,7 +115,7 @@ export class Server {
   }
   smee = new SmeeClient({
     source: "https://smee.io/gRkyib7zF2UwwFV",
-    target: "https://intuitiveagents.io/webhook",
+    target: "http://localhost:8080/webhook",
     logger: console,
   });
   events = this.smee.start();
@@ -447,11 +447,9 @@ export class Server {
           user_email: result.email,
           
         },
-      
-      
        });
        await contactModel.findByIdAndUpdate(userId,{callId: registerCallResponse2.call_id})
-       
+
       res.send({callCreation: registerCallResponse2, callRegister })
     });
   }
