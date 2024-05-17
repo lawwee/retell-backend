@@ -2,7 +2,10 @@ process.env.TZ = "America/Los_Angeles";
 import cors from "cors";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
-import https, { Server as HTTPSServer, createServer as httpsCreateServer } from "https";
+import https, {
+  Server as HTTPSServer,
+  createServer as httpsCreateServer,
+} from "https";
 import { Server as HTTPServer, createServer as httpCreateServer } from "http";
 import { RawData, WebSocket } from "ws";
 import { Retell } from "retell-sdk";
@@ -19,14 +22,9 @@ import {
   EventModel,
 } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
-import {createClient} from "redis"
+import { createClient } from "redis";
 import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
-import {
-  IContact,
-  RetellRequest,
-  callstatusenum,
-  jobstatus,
-} from "./types";
+import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
 import multer from "multer";
@@ -57,7 +55,7 @@ const smee = new SmeeClient({
   logger: console,
 });
 smee.start();
-redisConnection()
+redisConnection();
 
 export class Server {
   public app: expressWs.Application;
@@ -65,14 +63,14 @@ export class Server {
   private httpsServer: HTTPSServer;
   private retellClient: Retell;
   private twilioClient: TwilioClient;
-  private client : OpenAI
+  private client: OpenAI;
   storage = multer.diskStorage({
-    destination: "public/", 
+    destination: "public/",
     filename: function (req, file, cb) {
-      cb(null, file.originalname); 
+      cb(null, file.originalname);
     },
   });
-   
+
   upload = multer({ storage: this.storage });
   constructor() {
     this.app = expressWs(express()).app;
@@ -109,9 +107,9 @@ export class Server {
     this.createPhoneCall2();
     // this.testwebsocket()
     // this.TranscriptReview()
-    this.searchForUser()
-    this.getTranscriptAfterCallEnded()
-    this.searchForvagroup() 
+    this.searchForUser();
+    this.getTranscriptAfterCallEnded();
+    this.searchForvagroup();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -125,40 +123,40 @@ export class Server {
     console.log("Listening on " + port);
   }
 
-//   testReetellWebsocket() {
-//     this.app.ws('/testwebsocket', async (ws, req) => {
-//         const user = { agentId: "1" };
-//         console.log('WebSocket connection established');
-//         // Handle incoming WebSocket messages
-//         ws.on('message', async (msg) => {
-//             console.log('Received message:', msg);
-//             const message = " i am No 1";
-//             let counter = 0;
-//             const intervalId = setInterval(() => {
-//                 if (counter < 5) {
-//                     ws.send(message);
-//                     console.log('Message sent:', message);
-//                     counter++;
-//                 } else {
-//                     clearInterval(intervalId); 
-//                     ws.close()
-//                 }
-//             }, 1000);
-//         });
-//         ws.on('close', async () => {
-//             const today = new Date();
-//             const todayString = today.toISOString().split("T")[0];
-//             await DailyStats.updateOne(
-//                 { myDate: todayString, agentId: user.agentId },
-//                 { $inc: { totalCalls: 1 } },
-//                 { upsert: true }
-//             );
-//             console.log('WebSocket connection closed');
-       
-//         });
+  //   testReetellWebsocket() {
+  //     this.app.ws('/testwebsocket', async (ws, req) => {
+  //         const user = { agentId: "1" };
+  //         console.log('WebSocket connection established');
+  //         // Handle incoming WebSocket messages
+  //         ws.on('message', async (msg) => {
+  //             console.log('Received message:', msg);
+  //             const message = " i am No 1";
+  //             let counter = 0;
+  //             const intervalId = setInterval(() => {
+  //                 if (counter < 5) {
+  //                     ws.send(message);
+  //                     console.log('Message sent:', message);
+  //                     counter++;
+  //                 } else {
+  //                     clearInterval(intervalId);
+  //                     ws.close()
+  //                 }
+  //             }, 1000);
+  //         });
+  //         ws.on('close', async () => {
+  //             const today = new Date();
+  //             const todayString = today.toISOString().split("T")[0];
+  //             await DailyStats.updateOne(
+  //                 { myDate: todayString, agentId: user.agentId },
+  //                 { $inc: { totalCalls: 1 } },
+  //                 { upsert: true }
+  //             );
+  //             console.log('WebSocket connection closed');
 
-//     });
-// }
+  //         });
+
+  //     });
+  // }
 
   handleRetellLlmWebSocket() {
     this.app.ws(
@@ -258,7 +256,7 @@ export class Server {
 
         if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
           console.log("Call started with daniel/emily");
-          const client = new danielDemoLlmClient()
+          const client = new danielDemoLlmClient();
           client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
@@ -271,7 +269,7 @@ export class Server {
               { callId },
               { status: "on call" },
             );
-            
+
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
@@ -293,24 +291,19 @@ export class Server {
               request.interaction_type === "reminder_required" ||
               request.interaction_type === "response_required"
             ) {
-              
               client.DraftResponse(request, ws);
             }
           });
         }
 
         if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
-          console.log("Call started with katherine");
-          const oclient = new katherineDemoLlmClient();
-          oclient.BeginMessage(ws, user.firstname, user.email);
+          console.log("Call started with kathrine");
+          const client = new danielDemoLlmClient();
+          client.BeginMessage(ws, user.firstname, user.email);
           ws.on("error", (err) => {
             console.error("Error received in LLM websocket client: ", err);
           });
           ws.on("close", async (err) => {
-            await contactModel.findOneAndUpdate(
-              { callId },
-              { status: callstatusenum.CALLED },
-            );
             console.error("Closing llm ws for: ", callId);
           });
           ws.on("message", async (data: RawData, isBinary: boolean) => {
@@ -318,16 +311,29 @@ export class Server {
               { callId },
               { status: "on call" },
             );
+
             if (isBinary) {
               console.error("Got binary message instead of text in websocket.");
               ws.close(1002, "Cannot find corresponding Retell LLM.");
             }
-            try {
-              const request: RetellRequest = JSON.parse(data.toString());
-              oclient.DraftResponse(request, ws);
-            } catch (err) {
-              console.error("Error in parsing LLM websocket message: ", err);
-              ws.close(1002, "Cannot parse incoming message.");
+            const request: CustomLlmRequest = JSON.parse(data.toString());
+            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+            // Not all of them need to be handled, only response_required and reminder_required.
+            if (request.interaction_type === "ping_pong") {
+              let pingpongResponse: CustomLlmResponse = {
+                response_type: "ping_pong",
+                timestamp: request.timestamp,
+              };
+              ws.send(JSON.stringify(pingpongResponse));
+            } else if (request.interaction_type === "call_details") {
+              // print call detailes
+            } else if (request.interaction_type === "update_only") {
+              // process live transcript update if needed
+            } else if (
+              request.interaction_type === "reminder_required" ||
+              request.interaction_type === "response_required"
+            ) {
+              client.DraftResponse(request, ws);
             }
           });
         }
@@ -376,87 +382,90 @@ export class Server {
     );
   }
   createPhoneCall2() {
-    this.app.post("/create-llm-phone-call", async (req: Request, res: Response) => {
-      const { fromNumber, toNumber, userId,agentId } = req.body;
-      const result = await contactModel.findById(userId)
-      // const llm: LlmResponse = await this.retellClient.llm.create({
-      //   general_prompt:
-      //     "## Identity\nYou are a persuasive Sales Development Representative for Virtual Help Desk, an expert in offering tailored virtual assistant services to businesses. Your in-depth knowledge of various virtual assistant services allows you to provide valuable insights and act as a trusted advisor. You maintain the highest standards of professionalism, integrity, and dedication to client success.\n\n## Style Guardrails\nBe Concise: Respond succinctly, addressing one topic at most.\nEmbrace Variety: Use diverse language and rephrasing to enhance clarity without repeating content.\nBe Conversational: Use everyday language, making the chat feel like talking to a friend.\nBe Proactive: Lead the conversation, often wrapping up with a question or next-step suggestion.\nAvoid multiple questions in a single response.\nGet clarity: If the user only partially answers a question, or if the answer is unclear, keep asking to get clarity.\nUse a colloquial way of referring to the date (like 'next Friday', 'tomorrow').\nOne question at a time: Ask only one question at a time, do not pack more topics into one response.\n\n## Response Guideline\nAdapt and Guess: Try to understand transcripts that may contain transcription errors. Avoid mentioning \"transcription error\" in the response.\nStay in Character: Keep conversations within your role's scope, guiding them back creatively without repeating.\nEnsure Fluid Dialogue: Respond in a role-appropriate, direct manner to maintain a smooth conversation flow.\nDo not make up answers: If you do not know the answer to a question, simply say so. Do not fabricate or deviate from listed responses.\nIf at any moment the conversation deviates, kindly lead it back to the relevant topic. Do not repeat from start, keep asking from where you stopped.",
-      //   general_tools: [
-      //     {
-      //       type: "end_call",
-      //       name: "end_call",
-      //       description:
-      //         "Hang up the call, only used when instructed to do so or when the user explicitly says goodbye.",
-      //     },
-      //   ],
-      //   states: [
-      //     {
-      //       name: "intro",
-      //       state_prompt:
-      //         '## Steps:\nFollow the steps here to ask questions to user\n1. introduce yourself by this is Ethan from Virtual Team Expert and ask for user\'s name if user has not provided their name.\n  - if the user says this is wrong number, call function end_call to hang up and say sorry for the confusion.\n2. Say [I\'m following up on an inquiry that was submitted for our virtual assistant services. Were you still looking for help?]\n  - if the response is no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n3. ask if user is open to have a zoom call to tailor our services and create a custom quote for you.\n  - if yes, transition to appointment_date_checking\n  - if clearly no (not interested at all), call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n  - if user is hesitant, reaffirm the benefit of zoom call and proceed to step 4\n4. ask Would you be open for a short Zoom call with us? \n  - if yes, transition to appointment_date_checking\n  - if still no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n',
-      //       edges: [
-      //         {
-      //           description:
-      //             "Transition to check available appointment dates if user agrees to a zoom call",
-      //           destination_state_name: "appointment_date_checking",
-      //         },
-      //       ],
-      //       tools: [],
-      //     },
-      //     {
-      //       name: "appointment_date_checking",
-      //       state_prompt:
-      //         '## Schedule Rule\nCurrent time is {{current_time}}. Schedule only within the current calendar year and future dates. User\'s email {{user_email}}.\n\nTask:\n1. Ask user for a range of availability for the zoom call.\n2. Call function check_availability to check for availability in the provided time range.\n   - If available, inform user of the options and ask to select from them.\n   - If nearby times are available, inform user about those options.\n   - If no times are available, ask user to select another range, then repeat step 2.\n3. Confirm the selected date, time, and timezone with the user: "Just to confirm, you want to book the appointment at ...". Ensure the chosen time is from the available slots.\n4. Once confirmed, say "Thank you", use end_call to hang up.',
-      //       edges: [],
-      //       tools: [
-      //         {
-      //           execution_message_description:
-      //             "Huhh give a moment while i check what time is available for you.",
-      //           speak_after_execution: true,
-      //           name: "check_availability",
-      //           description:
-      //             "get the available appointment date to schedule a meeting .",
-      //           type: "custom",
-      //           speak_during_execution: true,
-      //           url: "https://retell-backend-yy86.onrender.com/calender",
-      //         },
-      //       ],
-      //     },
-      //   ],
-      //   starting_state: "intro",
-      //   begin_message: "Hi, is this {{user_firstname}}",
-      // });
-      
-      // const agent: AgentResponse = await this.retellClient.agent.update(
-      //   "86f0db493888f1da69b7d46bfaecd360",
-      //   { llm_websocket_url: "wss://api.retellai.com/retell-llm-new/ad9324685fc388fcdf9f9ab057a3b521" },
-      // );
+    this.app.post(
+      "/create-llm-phone-call",
+      async (req: Request, res: Response) => {
+        const { fromNumber, toNumber, userId, agentId } = req.body;
+        const result = await contactModel.findById(userId);
+        // const llm: LlmResponse = await this.retellClient.llm.create({
+        //   general_prompt:
+        //     "## Identity\nYou are a persuasive Sales Development Representative for Virtual Help Desk, an expert in offering tailored virtual assistant services to businesses. Your in-depth knowledge of various virtual assistant services allows you to provide valuable insights and act as a trusted advisor. You maintain the highest standards of professionalism, integrity, and dedication to client success.\n\n## Style Guardrails\nBe Concise: Respond succinctly, addressing one topic at most.\nEmbrace Variety: Use diverse language and rephrasing to enhance clarity without repeating content.\nBe Conversational: Use everyday language, making the chat feel like talking to a friend.\nBe Proactive: Lead the conversation, often wrapping up with a question or next-step suggestion.\nAvoid multiple questions in a single response.\nGet clarity: If the user only partially answers a question, or if the answer is unclear, keep asking to get clarity.\nUse a colloquial way of referring to the date (like 'next Friday', 'tomorrow').\nOne question at a time: Ask only one question at a time, do not pack more topics into one response.\n\n## Response Guideline\nAdapt and Guess: Try to understand transcripts that may contain transcription errors. Avoid mentioning \"transcription error\" in the response.\nStay in Character: Keep conversations within your role's scope, guiding them back creatively without repeating.\nEnsure Fluid Dialogue: Respond in a role-appropriate, direct manner to maintain a smooth conversation flow.\nDo not make up answers: If you do not know the answer to a question, simply say so. Do not fabricate or deviate from listed responses.\nIf at any moment the conversation deviates, kindly lead it back to the relevant topic. Do not repeat from start, keep asking from where you stopped.",
+        //   general_tools: [
+        //     {
+        //       type: "end_call",
+        //       name: "end_call",
+        //       description:
+        //         "Hang up the call, only used when instructed to do so or when the user explicitly says goodbye.",
+        //     },
+        //   ],
+        //   states: [
+        //     {
+        //       name: "intro",
+        //       state_prompt:
+        //         '## Steps:\nFollow the steps here to ask questions to user\n1. introduce yourself by this is Ethan from Virtual Team Expert and ask for user\'s name if user has not provided their name.\n  - if the user says this is wrong number, call function end_call to hang up and say sorry for the confusion.\n2. Say [I\'m following up on an inquiry that was submitted for our virtual assistant services. Were you still looking for help?]\n  - if the response is no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n3. ask if user is open to have a zoom call to tailor our services and create a custom quote for you.\n  - if yes, transition to appointment_date_checking\n  - if clearly no (not interested at all), call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n  - if user is hesitant, reaffirm the benefit of zoom call and proceed to step 4\n4. ask Would you be open for a short Zoom call with us? \n  - if yes, transition to appointment_date_checking\n  - if still no, call function end_call to hang up and say "No worries, please keep us in mind if anything changes."\n',
+        //       edges: [
+        //         {
+        //           description:
+        //             "Transition to check available appointment dates if user agrees to a zoom call",
+        //           destination_state_name: "appointment_date_checking",
+        //         },
+        //       ],
+        //       tools: [],
+        //     },
+        //     {
+        //       name: "appointment_date_checking",
+        //       state_prompt:
+        //         '## Schedule Rule\nCurrent time is {{current_time}}. Schedule only within the current calendar year and future dates. User\'s email {{user_email}}.\n\nTask:\n1. Ask user for a range of availability for the zoom call.\n2. Call function check_availability to check for availability in the provided time range.\n   - If available, inform user of the options and ask to select from them.\n   - If nearby times are available, inform user about those options.\n   - If no times are available, ask user to select another range, then repeat step 2.\n3. Confirm the selected date, time, and timezone with the user: "Just to confirm, you want to book the appointment at ...". Ensure the chosen time is from the available slots.\n4. Once confirmed, say "Thank you", use end_call to hang up.',
+        //       edges: [],
+        //       tools: [
+        //         {
+        //           execution_message_description:
+        //             "Huhh give a moment while i check what time is available for you.",
+        //           speak_after_execution: true,
+        //           name: "check_availability",
+        //           description:
+        //             "get the available appointment date to schedule a meeting .",
+        //           type: "custom",
+        //           speak_during_execution: true,
+        //           url: "https://retell-backend-yy86.onrender.com/calender",
+        //         },
+        //       ],
+        //     },
+        //   ],
+        //   starting_state: "intro",
+        //   begin_message: "Hi, is this {{user_firstname}}",
+        // });
 
-      console.log(fromNumber, toNumber,userId,agentId)
-      const callRegister = await this.retellClient.call.register({
-        agent_id: agentId,
-        audio_encoding: "s16le",
-        audio_websocket_protocol: "twilio",
-        sample_rate: 24000,
-        end_call_after_silence_ms: 15000,
-      
-      });
-      const registerCallResponse2 = await this.retellClient.call.create({
-        from_number: fromNumber,
-        to_number: toNumber,
-        override_agent_id: agentId,
-        drop_call_if_machine_detected: true,
-        retell_llm_dynamic_variables: {
-          user_firstname: result.firstname,
-          user_email: result.email,
-          
-        },
-       });
-       await contactModel.findByIdAndUpdate(userId,{callId: registerCallResponse2.call_id})
+        // const agent: AgentResponse = await this.retellClient.agent.update(
+        //   "86f0db493888f1da69b7d46bfaecd360",
+        //   { llm_websocket_url: "wss://api.retellai.com/retell-llm-new/ad9324685fc388fcdf9f9ab057a3b521" },
+        // );
 
-      res.send({callCreation: registerCallResponse2, callRegister })
-    });
+        console.log(fromNumber, toNumber, userId, agentId);
+        const callRegister = await this.retellClient.call.register({
+          agent_id: agentId,
+          audio_encoding: "s16le",
+          audio_websocket_protocol: "twilio",
+          sample_rate: 24000,
+          end_call_after_silence_ms: 15000,
+        });
+        const registerCallResponse2 = await this.retellClient.call.create({
+          from_number: fromNumber,
+          to_number: toNumber,
+          override_agent_id: agentId,
+          drop_call_if_machine_detected: true,
+          retell_llm_dynamic_variables: {
+            user_firstname: result.firstname,
+            user_email: result.email,
+          },
+        });
+        await contactModel.findByIdAndUpdate(userId, {
+          callId: registerCallResponse2.call_id,
+        });
+
+        res.send({ callCreation: registerCallResponse2, callRegister });
+      },
+    );
   }
   handleContactSaving() {
     this.app.post("/users/create", async (req: Request, res: Response) => {
@@ -470,15 +479,17 @@ export class Server {
           agentId,
         );
         res.json({ result });
-      } catch (error) {console.log(error)}
+      } catch (error) {
+        console.log(error);
+      }
     });
   }
   handlecontactGet() {
     this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
-      const {page, limit} = req.body
-      const newpage = parseInt(page)
-      const newLimit = parseInt(limit)
+      const { page, limit } = req.body;
+      const newpage = parseInt(page);
+      const newLimit = parseInt(limit);
       try {
         const result = await getAllContact(agentId, newpage, newLimit);
         res.json({ result });
@@ -523,7 +534,11 @@ export class Server {
           return res.json({ status: "error", message: "Invalid request" });
         }
         try {
-          await this.twilioClient.RegisterPhoneAgent(fromNumber, agentId, userId);
+          await this.twilioClient.RegisterPhoneAgent(
+            fromNumber,
+            agentId,
+            userId,
+          );
           const result = await this.twilioClient.CreatePhoneCall(
             fromNumber,
             toNumber,
@@ -708,7 +723,7 @@ export class Server {
   getAllJob() {
     this.app.get("/get-jobs", async (req: Request, res: Response) => {
       const scheduledJobs = schedule.scheduledJobs;
-      let responseString = ""; 
+      let responseString = "";
       for (const jobId in scheduledJobs) {
         if (scheduledJobs.hasOwnProperty(jobId)) {
           const job = scheduledJobs[jobId];
@@ -730,15 +745,14 @@ export class Server {
   getTimefromcallendly() {
     this.app.post("/calender", async (req: Request, res: Response) => {
       try {
-        const result = await checkAvailability()
-        res.json({result})
+        const result = await checkAvailability();
+        res.json({ result });
       } catch (error) {
         console.error("Error stopping job:", error);
         return res
           .status(500)
           .send(`Issue getting callendly time with error: ${error}`);
       }
-      
     });
   }
 
@@ -748,73 +762,77 @@ export class Server {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
-
       const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
-
-      const isEventAlreadyProcessed = await redisClient.get(webhookRedisKey);
-
-      if (isEventAlreadyProcessed) return;
-
-
+      console.log("webhookRedisKey", webhookRedisKey);
+      const lockTTL = 300; 
+      const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
+        NX: true,
+        PX: lockTTL,
+      });
+      if (!lockAcquired) {
+        console.log("Event already processed for key:", webhookRedisKey);
+        return;
+      }
       try {
-        await redisClient.set(webhookRedisKey, "true", {
-          EX: 60
-        });
-        if(payload.event === "call_started"){
-          
-          console.log(`call started on agent: $${payload.data.agent_id}`)
-          console.log("call started")
-
-          const { call_id, agent_id} = payload.data;
+        if (payload.event === "call_started") {
+          console.log(`call started for: $${payload.data.call_id}`);
+          const { call_id, agent_id } = payload.data;
           await contactModel.findOneAndUpdate(
-            { callId: call_id, agentId:agent_id },
+            { callId: call_id, agentId: agent_id },
             { status: callstatusenum.IN_PROGRESS },
           );
-          
-         }
+        }
         if (payload.event === "call_ended") {
-          const { call_id, transcript, recording_url , agent_id} = payload.data;
+          const { call_id, transcript, recording_url, agent_id } = payload.data;
           const result = await EventModel.create({
             callId: call_id,
             recordingUrl: recording_url,
-            transcript: transcript
-          })
-         await DailyStats.updateOne(
+            transcript: transcript,
+          });
+          await DailyStats.updateOne(
             { myDate: todayString, agentId: agent_id },
             { $inc: { totalCalls: 1 } },
-            { upsert: true }
-        );
-        await contactModel.findOneAndUpdate(
-          { callId:call_id },
-          {
-            status: callstatusenum.CALLED,
-            $push: { datesCalled: todayString },
-            referenceToCallId: result._id
-          },
-        );
-     }
-     if(payload.event === "call_analyzed"){
-      console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
-      if(payload.data.disconnection_reason === "machine_detected"){
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayString = today.toISOString().split("T")[0];
-        const result = await DailyStats.updateOne(
-          { myDate: todayString, agentId: payload.data.agent_id },
-          { $inc: { callsNotAnswered : 1 } },
-          { upsert: true }
-      );
-        await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
-          status: callstatusenum.VOICEMAIL,
-          linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
-          answeredByVM: true,
-        });
-      }
-     }
+            { upsert: true },
+          );
+          await contactModel.findOneAndUpdate(
+            { callId: call_id },
+            {
+              status: callstatusenum.CALLED,
+              $push: { datesCalled: todayString },
+              referenceToCallId: result._id,
+            },
+          );
+        }
+        if (payload.event === "call_analyzed") {
+          console.log(
+            `reason for disconnection: ${payload.data.disconnection_reason}`,
+          );
+          if (payload.data.disconnection_reason === "machine_detected") {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayString = today.toISOString().split("T")[0];
+            const result = await DailyStats.updateOne(
+              { myDate: todayString, agentId: payload.data.agent_id },
+              { $inc: { callsNotAnswered: 1 } },
+              { upsert: true },
+            );
+            await contactModel.findOneAndUpdate(
+              { callId: payload.data.call_id },
+              {
+                status: callstatusenum.VOICEMAIL,
+                linktocallLogModel: result.upsertedId
+                  ? result.upsertedId._id
+                  : null,
+                answeredByVM: true,
+              },
+            );
+          }
+          await redisClient.del(webhookRedisKey);
+          console.log("Deleted key:", webhookRedisKey);
+          return;
+        }
       } catch (error) {
         console.log(error);
-      } finally {
-        await redisClient.del(webhookRedisKey);
       }
     });
   }
@@ -837,8 +855,7 @@ export class Server {
   //     today.setHours(0, 0, 0, 0);
   //     const todayString = today.toISOString().split("T")[0];
 
-      
-  //     switch (payload.event){ 
+  //     switch (payload.event){
   //       case "call_started" :
 
   //         console.log(`call started on agent: $${payload.data.agent_id}`)
@@ -903,10 +920,13 @@ export class Server {
         const { agentId, limit } = req.body;
         const newlimit = parseInt(limit);
         const result = await logsToCsv(agentId, newlimit);
-        if (typeof result === 'string') {
+        if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
-            res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+            res.setHeader(
+              "Content-Disposition",
+              "attachment; filename=logs.csv",
+            );
             res.setHeader("Content-Type", "text/csv");
             const fileStream = fs.createReadStream(filePath);
             fileStream.pipe(res);
@@ -942,60 +962,58 @@ export class Server {
         const foundAgent1: Ilogs[] = await DailyStats.find({
           $and: [
             { myDate: { $gte: startDate, $lte: endDate } },
-            { agentId: agent1 }
-          ]
+            { agentId: agent1 },
+          ],
         });
-        
+
         const foundAgent2: Ilogs[] = await DailyStats.find({
           $and: [
             { myDate: { $gte: startDate, $lte: endDate } },
-            { agentId: agent2 }
-          ]
+            { agentId: agent2 },
+          ],
         });
-        
+
         const foundAgent3: Ilogs[] = await DailyStats.find({
           $and: [
             { myDate: { $gte: startDate, $lte: endDate } },
-            { agentId: agent3 }
-          ]
+            { agentId: agent3 },
+          ],
         });
-        
-        
 
-       // Initialize variables to store aggregated stats
-let TotalCalls = 0;
-let TotalAnsweredCalls = 0;
-let TotalNotAnsweredCalls = 0;
+        // Initialize variables to store aggregated stats
+        let TotalCalls = 0;
+        let TotalAnsweredCalls = 0;
+        let TotalNotAnsweredCalls = 0;
 
-// Calculate totals for each agent
-foundAgent1.forEach((agent) => {
-  TotalCalls += agent.totalCalls || 0;
-  TotalAnsweredCalls += agent.callsAnswered || 0;
-  TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-});
+        // Calculate totals for each agent
+        foundAgent1.forEach((agent) => {
+          TotalCalls += agent.totalCalls || 0;
+          TotalAnsweredCalls += agent.callsAnswered || 0;
+          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+        });
 
-foundAgent2.forEach((agent) => {
-  TotalCalls += agent.totalCalls || 0;
-  TotalAnsweredCalls += agent.callsAnswered || 0;
-  TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-});
+        foundAgent2.forEach((agent) => {
+          TotalCalls += agent.totalCalls || 0;
+          TotalAnsweredCalls += agent.callsAnswered || 0;
+          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+        });
 
-foundAgent3.forEach((agent) => {
-  TotalCalls += agent.totalCalls || 0;
-  TotalAnsweredCalls += agent.callsAnswered || 0;
-  TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-});
+        foundAgent3.forEach((agent) => {
+          TotalCalls += agent.totalCalls || 0;
+          TotalAnsweredCalls += agent.callsAnswered || 0;
+          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+        });
 
-// Calculate TotalAnsweredCall
-const TotalAnsweredCall = TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
+        // Calculate TotalAnsweredCall
+        const TotalAnsweredCall =
+          TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
 
-// Respond with the aggregated stats and dailyStats
-res.send({
-  TotalNotAnsweredCalls,
-  TotalAnsweredCall,
-  TotalCalls,
-});
-
+        // Respond with the aggregated stats and dailyStats
+        res.send({
+          TotalNotAnsweredCalls,
+          TotalAnsweredCall,
+          TotalCalls,
+        });
       } catch (error) {
         console.error("Error fetching daily stats:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -1013,30 +1031,33 @@ res.send({
           "214e92da684138edf44368d371da764c",
           "0411eeeb12d17a340941e91a98a766d0",
           "86f0db493888f1da69b7d46bfaecd360",
-        ]; 
-  
+        ];
+
         const skip = (newPage - 1) * newLimit;
-  
+
         // Constructing the query for the date range
-        const dailyStats = await contactModel.find({
-          $and: [
-            { agentId: { $in: agentIds } },
-            { isDeleted: false },
-            {
-              $and: [
-                {
-                  
-                  "datesCalled": { $gte: startDate }
-                },
-                {
-                  // Check if any date in the array is less than or equal to the end date
-                  "datesCalled": { $lte: endDate }
-                }
-              ]
-            }
-          ]
-        }).populate("referenceToCallId").limit(newLimit).skip(skip);
-        
+        const dailyStats = await contactModel
+          .find({
+            $and: [
+              { agentId: { $in: agentIds } },
+              { isDeleted: false },
+              {
+                $and: [
+                  {
+                    datesCalled: { $gte: startDate },
+                  },
+                  {
+                    // Check if any date in the array is less than or equal to the end date
+                    datesCalled: { $lte: endDate },
+                  },
+                ],
+              },
+            ],
+          })
+          .populate("referenceToCallId")
+          .limit(newLimit)
+          .skip(skip);
+
         const totalCount = await contactModel.countDocuments({
           $and: [
             { agentId: { $in: agentIds } },
@@ -1044,36 +1065,38 @@ res.send({
             {
               $and: [
                 {
-                  
-                  "datesCalled": { $gte: startDate }
+                  datesCalled: { $gte: startDate },
                 },
                 {
                   // Check if any date in the array is less than or equal to the end date
-                  "datesCalled": { $lte: endDate }
-                }
-              ]
-            }
-          ]
+                  datesCalled: { $lte: endDate },
+                },
+              ],
+            },
+          ],
         });
-  
-        const totalPages = Math.ceil(totalCount / newLimit); 
-        res.json({totalCount, totalPages, dailyStats });
+
+        const totalPages = Math.ceil(totalCount / newLimit);
+        res.json({ totalCount, totalPages, dailyStats });
       } catch (error) {
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
   }
-  
+
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", async (req, res) => {
       try {
-        const {startDate, endDate} = req.body
-        const result = await statsToCsv(startDate,endDate)
-        if (typeof result === 'string') {
+        const { startDate, endDate } = req.body;
+        const result = await statsToCsv(startDate, endDate);
+        if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
-            res.setHeader("Content-Disposition", "attachment; filename=logs.csv");
+            res.setHeader(
+              "Content-Disposition",
+              "attachment; filename=logs.csv",
+            );
             res.setHeader("Content-Type", "text/csv");
             const fileStream = fs.createReadStream(filePath);
             fileStream.pipe(res);
@@ -1083,18 +1106,20 @@ res.send({
           }
         } else {
           console.error(`Error retrieving contacts: ${result}`);
-          res.status(500).send(`Error retrieving contacts: ${result}`);}
+          res.status(500).send(`Error retrieving contacts: ${result}`);
+        }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
   }
+
   // testwebsocket() {
   //   this.app.ws('/websockets', async (ws, req) => {
   //     // WebSocket connection handler
   //     console.log('WebSocket connection established');
-      
+
   //     // Handle incoming WebSocket messages
   //     ws.on('message', (msg) => {
   //       console.log('Received message:', msg);
@@ -1108,71 +1133,70 @@ res.send({
   // }
 
   //   TranscriptReview(){
-//   this.app.post("/review-transcript", async (req: Request, res:Response) => {
-//     const { transcript }= req.body
-//     const result = await reviewTranscript(transcript)
-//     res.json({result})
-//   }
-// )  }
-searchForUser(){
-  this.app.post('/search', async (req: Request, res:Response) => {
-    const {agentId, searchTerm} = req.body;
-    if (!searchTerm) {
-      return res.status(400).json({ error: 'Search term is required' });
-    }
-  
-    try {
-      // Perform the search using Mongoose
-      const filteredUsers = await contactModel.find({
-        agentId,
-        $or: [
-          { firstname: { $regex: searchTerm, $options: 'i' } },
-          { lastname: { $regex: searchTerm, $options: 'i' } },
-          { phone: { $regex: searchTerm, $options: 'i' } },
-          { email: { $regex: searchTerm, $options: 'i' } }
-        ],
-        isDeleted:false
-      }).populate("referenceToCallId")
-      res.json(filteredUsers);
-    } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-  
-  
-}
-searchForvagroup(){
-  this.app.post('/search-va-group', async (req: Request, res:Response) => {
-    const { searchTerm} = req.body;
-    if (!searchTerm) {
-      return res.status(400).json({ error: 'Search term is required' });
-    }
+  //   this.app.post("/review-transcript", async (req: Request, res:Response) => {
+  //     const { transcript }= req.body
+  //     const result = await reviewTranscript(transcript)
+  //     res.json({result})
+  //   }
+  // )  }
 
-    const agentIds = [
-      "214e92da684138edf44368d371da764c",
-      "0411eeeb12d17a340941e91a98a766d0",
-      "86f0db493888f1da69b7d46bfaecd360",
-    ]; 
+  searchForUser() {
+    this.app.post("/search", async (req: Request, res: Response) => {
+      const { agentId, searchTerm } = req.body;
+      if (!searchTerm) {
+        return res.status(400).json({ error: "Search term is required" });
+      }
 
-  
-    try {
-      // Perform the search using Mongoose
-      const filteredUsers = await contactModel.find({
-        agentId:{$in:agentIds},
-        $or: [
-          { firstname: { $regex: searchTerm, $options: 'i' } },
-          { lastname: { $regex: searchTerm, $options: 'i' } },
-          { phone: { $regex: searchTerm, $options: 'i' } },
-          { email: { $regex: searchTerm, $options: 'i' } }
-        ],
-        isDeleted:false
-      }).populate("referenceToCallId")
-      res.json(filteredUsers);
-    } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-  
-  
-}
+      try {
+        const filteredUsers = await contactModel
+          .find({
+            agentId,
+            $or: [
+              { firstname: { $regex: searchTerm, $options: "i" } },
+              { lastname: { $regex: searchTerm, $options: "i" } },
+              { phone: { $regex: searchTerm, $options: "i" } },
+              { email: { $regex: searchTerm, $options: "i" } },
+            ],
+            isDeleted: false,
+          })
+          .populate("referenceToCallId");
+        res.json(filteredUsers);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+  }
+  searchForvagroup() {
+    this.app.post("/search-va-group", async (req: Request, res: Response) => {
+      const { searchTerm } = req.body;
+      if (!searchTerm) {
+        return res.status(400).json({ error: "Search term is required" });
+      }
+
+      const agentIds = [
+        "214e92da684138edf44368d371da764c",
+        "0411eeeb12d17a340941e91a98a766d0",
+        "86f0db493888f1da69b7d46bfaecd360",
+      ];
+
+      try {
+        // Perform the search using Mongoose
+        const filteredUsers = await contactModel
+          .find({
+            agentId: { $in: agentIds },
+            $or: [
+              { firstname: { $regex: searchTerm, $options: "i" } },
+              { lastname: { $regex: searchTerm, $options: "i" } },
+              { phone: { $regex: searchTerm, $options: "i" } },
+              { email: { $regex: searchTerm, $options: "i" } },
+            ],
+            isDeleted: false,
+          })
+          .populate("referenceToCallId");
+        res.json(filteredUsers);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+  }
 }
