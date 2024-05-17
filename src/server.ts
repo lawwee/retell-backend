@@ -19,6 +19,7 @@ import {
   EventModel,
 } from "./contacts/contact_model";
 import { TwilioClient } from "./twilio_api";
+import {createClient} from "redis"
 import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
 import {
   IContact,
@@ -46,7 +47,9 @@ import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
 import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 import { reviewTranscript } from "./helper-fuction/transcript-review";
+
 import { unknownagent } from "./TVAG-LLM/unknowagent";
+import { redisClient, redisConnection } from "./utils/redis";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -54,6 +57,7 @@ const smee = new SmeeClient({
   logger: console,
 });
 smee.start();
+redisConnection()
 
 export class Server {
   public app: expressWs.Application;
@@ -63,9 +67,9 @@ export class Server {
   private twilioClient: TwilioClient;
   private client : OpenAI
   storage = multer.diskStorage({
-    destination: "public/", // Destination directory for uploaded files
+    destination: "public/", 
     filename: function (req, file, cb) {
-      cb(null, file.originalname); // Use original file name
+      cb(null, file.originalname); 
     },
   });
    
@@ -738,132 +742,149 @@ export class Server {
     });
   }
 
-  // async getTranscriptAfterCallEnded() {
-  //   this.app.post("/webhook", async (request: Request, response: Response) => {
-  //     const payload = request.body;
-  //     const today = new Date();
-  //     today.setHours(0, 0, 0, 0);
-  //     const todayString = today.toISOString().split("T")[0];
-  //     try {
-  //       if(payload.event === "call_started"){
-  //         console.log(`call started on agent: $${payload.data.agent_id}`)
-  //         console.log("call started")
-  //         const { call_id, agent_id} = payload.data;
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: call_id, agentId:agent_id },
-  //           { status: callstatusenum.IN_PROGRESS },
-  //         );
-          
-  //        }
-  //       if (payload.event === "call_ended") {
-  //         const { call_id, transcript, recording_url , agent_id} = payload.data;
-  //         const result = await EventModel.create({
-  //           callId: call_id,
-  //           recordingUrl: recording_url,
-  //           transcript: transcript
-  //         })
-  //        await DailyStats.updateOne(
-  //           { myDate: todayString, agentId: agent_id },
-  //           { $inc: { totalCalls: 1 } },
-  //           { upsert: true }
-  //       );
-  //       await contactModel.findOneAndUpdate(
-  //         { callId:call_id },
-  //         {
-  //           status: callstatusenum.CALLED,
-  //           $push: { datesCalled: todayString },
-  //           referenceToCallId: result._id
-  //         },
-  //       );
-  //    }
-  //    if(payload.event === "call_analyzed"){
-  //     console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
-  //     if(payload.data.disconnection_reason === "machine_detected"){
-  //       const today = new Date();
-  //       today.setHours(0, 0, 0, 0);
-  //       const todayString = today.toISOString().split("T")[0];
-  //       const result = await DailyStats.updateOne(
-  //         { myDate: todayString, agentId: payload.data.agent_id },
-  //         { $inc: { callsNotAnswered : 1 } },
-  //         { upsert: true }
-  //     );
-  //       await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
-  //         status: callstatusenum.VOICEMAIL,
-  //         linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
-  //         answeredByVM: true,
-  //       });
-  //     }
-  //    }
-  //     } catch (error) {
-  //       console.log(error);
-  //     }
-  //   });
-  // }
-   getTranscriptAfterCallEnded() {
+  async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
-      if (
-        !Retell.verify(
-          JSON.stringify(request.body),
-          process.env.RETELL_API_KEY,
-          request.headers["x-retell-signature"] as string,
-        )
-      ) {
-        console.error("Invalid signature");
-        return;
-      }
-
       const payload = request.body;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
 
-      switch (payload.event){ 
-        case "call_started" :
+      const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
+
+      const isEventAlreadyProcessed = await redisClient.get(webhookRedisKey);
+
+      if (isEventAlreadyProcessed) return;
+
+
+      try {
+        await redisClient.set(webhookRedisKey, "true", {
+          EX: 60
+        });
+        if(payload.event === "call_started"){
+          
           console.log(`call started on agent: $${payload.data.agent_id}`)
+          console.log("call started")
+
+          const { call_id, agent_id} = payload.data;
           await contactModel.findOneAndUpdate(
-            { callId: payload.data.call_id, agentId:payload.data.agent_id },
+            { callId: call_id, agentId:agent_id },
             { status: callstatusenum.IN_PROGRESS },
           );
-          break
-        case "call_ended":
+          
+         }
+        if (payload.event === "call_ended") {
+          const { call_id, transcript, recording_url , agent_id} = payload.data;
           const result = await EventModel.create({
-            callId: payload.data.call_id,
-            recordingUrl: payload.data.recording_url,
-            transcript: payload.data.transcript
+            callId: call_id,
+            recordingUrl: recording_url,
+            transcript: transcript
           })
-          await DailyStats.updateOne(
-            { myDate: todayString, agentId: payload.data.agent_id },
+         await DailyStats.updateOne(
+            { myDate: todayString, agentId: agent_id },
             { $inc: { totalCalls: 1 } },
             { upsert: true }
-          );
-          await contactModel.findOneAndUpdate(
-            { callId: payload.data.call_id },
-            {
-              status: callstatusenum.CALLED,
-              $push: { datesCalled: todayString },
-              referenceToCallId: result._id
-            })
-            break
-        case "call_analyzed" :
-            console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
-            if(payload.data.disconnection_reason === "machine_detected"){
-              const result = await DailyStats.updateOne(
-                { myDate: todayString, agentId: payload.data.agent_id },
-                { $inc: { callsNotAnswered : 1 } },
-                { upsert: true }
-              );
-              await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
-                status: callstatusenum.VOICEMAIL,
-                linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
-                answeredByVM: true,
-              });
-            }
-
-            break
-          }
+        );
+        await contactModel.findOneAndUpdate(
+          { callId:call_id },
+          {
+            status: callstatusenum.CALLED,
+            $push: { datesCalled: todayString },
+            referenceToCallId: result._id
+          },
+        );
+     }
+     if(payload.event === "call_analyzed"){
+      console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
+      if(payload.data.disconnection_reason === "machine_detected"){
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayString = today.toISOString().split("T")[0];
+        const result = await DailyStats.updateOne(
+          { myDate: todayString, agentId: payload.data.agent_id },
+          { $inc: { callsNotAnswered : 1 } },
+          { upsert: true }
+      );
+        await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
+          status: callstatusenum.VOICEMAIL,
+          linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
+          answeredByVM: true,
+        });
+      }
+     }
+      } catch (error) {
+        console.log(error);
+      } finally {
+        await redisClient.del(webhookRedisKey);
+      }
     });
   }
 
+  // async getTranscriptAfterCallEnded() {
+  //   this.app.post("/webhook", async (request: Request, response: Response) => {
+  //     if (
+  //       !Retell.verify(
+  //         JSON.stringify(request.body),
+  //         process.env.RETELL_API_KEY,
+  //         request.headers["x-retell-signature"] as string,
+  //       )
+  //     ) {
+  //       console.error("Invalid signature");
+  //       return;
+  //     }
+
+  //     const payload = request.body;
+  //     const today = new Date();
+  //     today.setHours(0, 0, 0, 0);
+  //     const todayString = today.toISOString().split("T")[0];
+
+      
+  //     switch (payload.event){ 
+  //       case "call_started" :
+
+  //         console.log(`call started on agent: $${payload.data.agent_id}`)
+  //         await contactModel.findOneAndUpdate(
+  //           { callId: payload.data.call_id, agentId:payload.data.agent_id },
+  //           { status: callstatusenum.IN_PROGRESS },
+  //         );
+  //         break
+  //       case "call_ended":
+  //         const result = await EventModel.create({
+  //           callId: payload.data.call_id,
+  //           recordingUrl: payload.data.recording_url,
+  //           transcript: payload.data.transcript
+  //         })
+  //         await DailyStats.updateOne(
+  //           { myDate: todayString, agentId: payload.data.agent_id },
+  //           { $inc: { totalCalls: 1 } },
+  //           { upsert: true }
+  //         );
+  //         await contactModel.findOneAndUpdate(
+  //           { callId: payload.data.call_id },
+  //           {
+  //             status: callstatusenum.CALLED,
+  //             $push: { datesCalled: todayString },
+  //             referenceToCallId: result._id
+  //           })
+  //           break
+  //       case "call_analyzed" :
+  //           console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
+  //           if(payload.data.disconnection_reason === "machine_detected"){
+  //             const result = await DailyStats.updateOne(
+  //               { myDate: todayString, agentId: payload.data.agent_id },
+  //               { $inc: { callsNotAnswered : 1 } },
+  //               { upsert: true }
+  //             );
+  //             await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
+  //               status: callstatusenum.VOICEMAIL,
+  //               linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
+  //               answeredByVM: true,
+  //             });
+  //           }
+
+  //           break
+  //         }
+  //   });
+  // }
 
   deleteAll() {
     this.app.patch("/deleteAll", async (req: Request, res: Response) => {
