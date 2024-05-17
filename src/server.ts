@@ -808,9 +808,6 @@ export class Server {
             `reason for disconnection: ${payload.data.disconnection_reason}`,
           );
           if (payload.data.disconnection_reason === "machine_detected") {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayString = today.toISOString().split("T")[0];
             const result = await DailyStats.updateOne(
               { myDate: todayString, agentId: payload.data.agent_id },
               { $inc: { callsNotAnswered: 1 } },
