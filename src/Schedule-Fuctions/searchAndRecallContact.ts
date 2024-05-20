@@ -49,7 +49,7 @@ export const searchAndRecallContacts = async(
             end_call_after_silence_ms: 15000,
           });
           const registerCallResponse2 = await retellClient.call.create({
-            from_number: postdata.fromNumber,
+            from_number: fromNumber,
             to_number: postdata.toNumber,
             override_agent_id: agentId,
             drop_call_if_machine_detected: true,
