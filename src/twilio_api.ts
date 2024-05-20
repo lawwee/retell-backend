@@ -98,7 +98,6 @@ export class TwilioClient {
       const call = await this.twilio.calls(sid).update({
         twiml: "<Response><Hangup></Hangup></Response>",
       });
-      console.log("End phone call: ", call);
     } catch (error) {
       console.error("Twilio end error: ", error);
     }
