@@ -110,6 +110,7 @@ export class Server {
     this.searchForUser();
     this.getTranscriptAfterCallEnded();
     this.searchForvagroup();
+    this.batchDeleteUser()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1246,5 +1247,30 @@ export class Server {
     });
   }
   
+  batchDeleteUser() {
+    this.app.post("/batch-delete-users", async (req: Request, res: Response) => {
+      const { contactsToDelete } = req.body;
+      
+      if (!contactsToDelete || !Array.isArray(contactsToDelete) || contactsToDelete.length === 0) {
+        return res.status(400).json({ error: "Invalid input. An array of contact IDs is required." });
+      }
   
+      try {
+        const result = await contactModel.updateMany(
+          { _id: { $in: contactsToDelete } },
+          { $set: { isDeleted: true } }
+        );
+        
+        if (result.modifiedCount === 0) {
+          return res.status(200).json({ message: "No contacts found to update." });
+        }
+  
+        res.json({ message: "Contacts sucefully deleted.", result });
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+  }
+  
+
 }
