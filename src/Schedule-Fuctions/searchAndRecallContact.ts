@@ -33,14 +33,34 @@ export const searchAndRecallContacts = async(
             userId: contact._id.toString(),
             agentId,
           };
-          await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
-          await twilioClient.CreatePhoneCall(
-            postdata.fromNumber,
-            postdata.toNumber,
-            postdata.agentId,
-            postdata.userId,
-          );
+          // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
+          // await twilioClient.CreatePhoneCall(
+          //   postdata.fromNumber,
+          //   postdata.toNumber,
+          //   postdata.agentId,
+          //   postdata.userId,
+          // );
 
+          const callRegister = await retellClient.call.register({
+            agent_id: agentId,
+            audio_encoding: "s16le",
+            audio_websocket_protocol: "twilio",
+            sample_rate: 24000,
+            end_call_after_silence_ms: 15000,
+          });
+          const registerCallResponse2 = await retellClient.call.create({
+            from_number: postdata.fromNumber,
+            to_number: postdata.toNumber,
+            override_agent_id: agentId,
+            drop_call_if_machine_detected: true,
+            retell_llm_dynamic_variables: {
+              user_firstname: contact.firstname,
+              user_email: contact.email,
+            },
+          });
+          await contactModel.findByIdAndUpdate(contact._id, {
+            callId: registerCallResponse2.call_id,
+          });
           console.log(
             `Axios call successful for recalled contact: ${contact.firstname}`,
           );
