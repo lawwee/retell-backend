@@ -1166,7 +1166,7 @@ export class Server {
   // }
 
   searchForUser() {
-    this.app.post("/search-va-group", async (req: Request, res: Response) => {
+    this.app.post("/search", async (req: Request, res: Response) => {
       const { agentId, searchTerm } = req.body;
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
@@ -1245,7 +1245,7 @@ export class Server {
   //     }
   //   });
   // }
-  
+
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
       const { searchTerm } = req.body;
