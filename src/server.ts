@@ -456,8 +456,8 @@ export class Server {
           override_agent_id: agentId,
           drop_call_if_machine_detected: true,
           retell_llm_dynamic_variables: {
-            user_firstname: result.firstname,
-            user_email: result.email,
+            firstname: result.firstname,
+            email: result.email,
           },
         });
         await contactModel.findByIdAndUpdate(userId, {
