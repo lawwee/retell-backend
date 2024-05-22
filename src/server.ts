@@ -110,6 +110,7 @@ export class Server {
     this.searchForUser();
     this.getTranscriptAfterCallEnded();
     this.searchForvagroup();
+    this.batchDeleteUser();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -455,8 +456,8 @@ export class Server {
           override_agent_id: agentId,
           drop_call_if_machine_detected: true,
           retell_llm_dynamic_variables: {
-            user_firstname: result.firstname,
-            user_email: result.email,
+            firstname: result.firstname,
+            email: result.email,
           },
         });
         await contactModel.findByIdAndUpdate(userId, {
@@ -571,34 +572,24 @@ export class Server {
             header: true,
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const insertedUsers = [];
               const agentId = req.params.agentId;
+              const usersToInsert: any[] = [];
+
               for (const user of jsonArrayObj) {
-                // Check if a user with the same email exists for any agent
                 const existingUser = await contactModel.findOne({
                   email: user.email,
+                  agentId: user.agentId,
                 });
-                if (!existingUser) {
-                  // If user doesn't exist for any agent, insert them
+                if ( existingUser.agentId === agentId) {
                   const userWithAgentId = { ...user, agentId };
-                  const insertedUser = await contactModel.create(
-                    userWithAgentId,
-                  );
-                  insertedUsers.push(insertedUser);
-                } else {
-                  // If user exists, check if it's associated with the current agent
-                  if (existingUser.agentId !== agentId) {
-                    // If not associated with the current agent, insert them
-                    const userWithAgentId = { ...user, agentId };
-                    const insertedUser = await contactModel.create(
-                      userWithAgentId,
-                    );
-                    insertedUsers.push(insertedUser);
-                  }
+                  usersToInsert.push(userWithAgentId);
                 }
               }
+              const insertedUsers = await contactModel.insertMany(
+                usersToInsert,
+              );
+
               console.log("Upload successful");
-              console.log("Inserted users:", insertedUsers);
               res
                 .status(200)
                 .json({ message: "Upload successful", insertedUsers });
@@ -617,6 +608,7 @@ export class Server {
       },
     );
   }
+
   getjobstatus() {
     this.app.post("/schedules/status", async (req: Request, res: Response) => {
       const { jobId } = req.body;
@@ -764,7 +756,7 @@ export class Server {
       const todayString = today.toISOString().split("T")[0];
       const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
       console.log("webhookRedisKey", webhookRedisKey);
-      const lockTTL = 300; 
+      const lockTTL = 300;
       const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
         NX: true,
         PX: lockTTL,
@@ -807,6 +799,14 @@ export class Server {
           console.log(
             `reason for disconnection: ${payload.data.disconnection_reason}`,
           );
+          const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
+          await EventModel.findOneAndUpdate({
+            callId: payload.data.call_id
+          }, {
+            retellCallSummary: call_summary,
+            userSentiment: user_sentiment,
+            agentSemtiment: agent_sentiment
+          }, {new: true})
           if (payload.data.disconnection_reason === "machine_detected") {
             const result = await DailyStats.updateOne(
               { myDate: todayString, agentId: payload.data.agent_id },
@@ -833,72 +833,6 @@ export class Server {
       }
     });
   }
-
-  // async getTranscriptAfterCallEnded() {
-  //   this.app.post("/webhook", async (request: Request, response: Response) => {
-  //     if (
-  //       !Retell.verify(
-  //         JSON.stringify(request.body),
-  //         process.env.RETELL_API_KEY,
-  //         request.headers["x-retell-signature"] as string,
-  //       )
-  //     ) {
-  //       console.error("Invalid signature");
-  //       return;
-  //     }
-
-  //     const payload = request.body;
-  //     const today = new Date();
-  //     today.setHours(0, 0, 0, 0);
-  //     const todayString = today.toISOString().split("T")[0];
-
-  //     switch (payload.event){
-  //       case "call_started" :
-
-  //         console.log(`call started on agent: $${payload.data.agent_id}`)
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: payload.data.call_id, agentId:payload.data.agent_id },
-  //           { status: callstatusenum.IN_PROGRESS },
-  //         );
-  //         break
-  //       case "call_ended":
-  //         const result = await EventModel.create({
-  //           callId: payload.data.call_id,
-  //           recordingUrl: payload.data.recording_url,
-  //           transcript: payload.data.transcript
-  //         })
-  //         await DailyStats.updateOne(
-  //           { myDate: todayString, agentId: payload.data.agent_id },
-  //           { $inc: { totalCalls: 1 } },
-  //           { upsert: true }
-  //         );
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: payload.data.call_id },
-  //           {
-  //             status: callstatusenum.CALLED,
-  //             $push: { datesCalled: todayString },
-  //             referenceToCallId: result._id
-  //           })
-  //           break
-  //       case "call_analyzed" :
-  //           console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
-  //           if(payload.data.disconnection_reason === "machine_detected"){
-  //             const result = await DailyStats.updateOne(
-  //               { myDate: todayString, agentId: payload.data.agent_id },
-  //               { $inc: { callsNotAnswered : 1 } },
-  //               { upsert: true }
-  //             );
-  //             await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
-  //               status: callstatusenum.VOICEMAIL,
-  //               linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
-  //               answeredByVM: true,
-  //             });
-  //           }
-
-  //           break
-  //         }
-  //   });
-  // }
 
   deleteAll() {
     this.app.patch("/deleteAll", async (req: Request, res: Response) => {
@@ -1137,63 +1071,167 @@ export class Server {
   //   }
   // )  }
 
+  // searchForUser() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+
+  //     try {
+  //       const filteredUsers = await contactModel
+  //         .find({
+  //           agentId,
+  //           $or: [
+  //             { firstname: { $regex: searchTerm, $options: "i" } },
+  //             { lastname: { $regex: searchTerm, $options: "i" } },
+  //             { phone: { $regex: searchTerm, $options: "i" } },
+  //             { email: { $regex: searchTerm, $options: "i" } },
+  //           ],
+  //           isDeleted: false,
+  //         })
+  //         .populate("referenceToCallId");
+  //       res.json(filteredUsers);
+  //     } catch (error) {
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+
   searchForUser() {
     this.app.post("/search", async (req: Request, res: Response) => {
       const { agentId, searchTerm } = req.body;
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
       }
+      const isValidEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
 
       try {
-        const filteredUsers = await contactModel
-          .find({
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim());
+        const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+        const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          const query = {
             agentId,
-            $or: [
-              { firstname: { $regex: searchTerm, $options: "i" } },
-              { lastname: { $regex: searchTerm, $options: "i" } },
-              { phone: { $regex: searchTerm, $options: "i" } },
-              { email: { $regex: searchTerm, $options: "i" } },
-            ],
             isDeleted: false,
-          })
-          .populate("referenceToCallId");
-        res.json(filteredUsers);
+            $or: searchByEmail
+              ? [{ email: { $regex: term, $options: "i" } }]
+              : [
+                  { firstname: { $regex: term, $options: "i" } },
+                  { lastname: { $regex: term, $options: "i" } },
+                  { phone: { $regex: term, $options: "i" } },
+                  { email: { $regex: term, $options: "i" } },
+                ],
+          };
+          return await contactModel.find(query).populate("referenceToCallId");
+        };
+
+        let allResults: any[] = [];
+
+        for (const term of searchTerms) {
+          const results = await searchForTerm(term, firstTermIsEmail);
+          allResults = allResults.concat(results);
+        }
+
+        res.json(allResults);
       } catch (error) {
         res.status(500).json({ error: "Internal server error" });
       }
     });
   }
+
+
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
       const { searchTerm } = req.body;
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
       }
-
       const agentIds = [
         "214e92da684138edf44368d371da764c",
         "0411eeeb12d17a340941e91a98a766d0",
         "86f0db493888f1da69b7d46bfaecd360",
       ];
 
+      const isValidEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
       try {
-        // Perform the search using Mongoose
-        const filteredUsers = await contactModel
-          .find({
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim());
+        const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+        const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          const query = {
             agentId: { $in: agentIds },
-            $or: [
-              { firstname: { $regex: searchTerm, $options: "i" } },
-              { lastname: { $regex: searchTerm, $options: "i" } },
-              { phone: { $regex: searchTerm, $options: "i" } },
-              { email: { $regex: searchTerm, $options: "i" } },
-            ],
             isDeleted: false,
-          })
-          .populate("referenceToCallId");
-        res.json(filteredUsers);
+            $or: searchByEmail
+              ? [{ email: { $regex: term, $options: "i" } }]
+              : [
+                  { firstname: { $regex: term, $options: "i" } },
+                  { lastname: { $regex: term, $options: "i" } },
+                  { phone: { $regex: term, $options: "i" } },
+                  { email: { $regex: term, $options: "i" } },
+                ],
+          };
+          return await contactModel.find(query).populate("referenceToCallId");
+        };
+
+        let allResults: any[] = [];
+
+        for (const term of searchTerms) {
+          const results = await searchForTerm(term, firstTermIsEmail);
+          allResults = allResults.concat(results);
+        }
+
+        res.json(allResults);
       } catch (error) {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+  }
+
+  batchDeleteUser() {
+    this.app.post(
+      "/batch-delete-users",
+      async (req: Request, res: Response) => {
+        const { contactsToDelete } = req.body;
+
+        if (
+          !contactsToDelete ||
+          !Array.isArray(contactsToDelete) ||
+          contactsToDelete.length === 0
+        ) {
+          return res.status(400).json({
+            error: "Invalid input. An array of contact IDs is required.",
+          });
+        }
+
+        try {
+          const result = await contactModel.updateMany(
+            { _id: { $in: contactsToDelete } },
+            { $set: { isDeleted: true } },
+          );
+
+          if (result.modifiedCount === 0) {
+            return res
+              .status(200)
+              .json({ message: "No contacts found to update." });
+          }
+
+          res.json({ message: "Contacts sucefully deleted.", result });
+        } catch (error) {
+          res.status(500).json({ error: "Internal server error" });
+        }
+      },
+    );
   }
 }
