@@ -572,34 +572,24 @@ export class Server {
             header: true,
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const insertedUsers = [];
               const agentId = req.params.agentId;
+              const usersToInsert: any[] = [];
+
               for (const user of jsonArrayObj) {
-                // Check if a user with the same email exists for any agent
                 const existingUser = await contactModel.findOne({
                   email: user.email,
+                  agentId: user.agentId,
                 });
-                if (!existingUser) {
-                  // If user doesn't exist for any agent, insert them
+                if ( existingUser.agentId === agentId) {
                   const userWithAgentId = { ...user, agentId };
-                  const insertedUser = await contactModel.create(
-                    userWithAgentId,
-                  );
-                  insertedUsers.push(insertedUser);
-                } else {
-                  // If user exists, check if it's associated with the current agent
-                  if (existingUser.agentId !== agentId) {
-                    // If not associated with the current agent, insert them
-                    const userWithAgentId = { ...user, agentId };
-                    const insertedUser = await contactModel.create(
-                      userWithAgentId,
-                    );
-                    insertedUsers.push(insertedUser);
-                  }
+                  usersToInsert.push(userWithAgentId);
                 }
               }
+              const insertedUsers = await contactModel.insertMany(
+                usersToInsert,
+              );
+
               console.log("Upload successful");
-              console.log("Inserted users:", insertedUsers);
               res
                 .status(200)
                 .json({ message: "Upload successful", insertedUsers });
@@ -618,6 +608,7 @@ export class Server {
       },
     );
   }
+
   getjobstatus() {
     this.app.post("/schedules/status", async (req: Request, res: Response) => {
       const { jobId } = req.body;
@@ -1310,11 +1301,9 @@ export class Server {
           !Array.isArray(contactsToDelete) ||
           contactsToDelete.length === 0
         ) {
-          return res
-            .status(400)
-            .json({
-              error: "Invalid input. An array of contact IDs is required.",
-            });
+          return res.status(400).json({
+            error: "Invalid input. An array of contact IDs is required.",
+          });
         }
 
         try {
