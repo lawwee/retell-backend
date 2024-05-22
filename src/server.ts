@@ -826,72 +826,6 @@ export class Server {
     });
   }
 
-  // async getTranscriptAfterCallEnded() {
-  //   this.app.post("/webhook", async (request: Request, response: Response) => {
-  //     if (
-  //       !Retell.verify(
-  //         JSON.stringify(request.body),
-  //         process.env.RETELL_API_KEY,
-  //         request.headers["x-retell-signature"] as string,
-  //       )
-  //     ) {
-  //       console.error("Invalid signature");
-  //       return;
-  //     }
-
-  //     const payload = request.body;
-  //     const today = new Date();
-  //     today.setHours(0, 0, 0, 0);
-  //     const todayString = today.toISOString().split("T")[0];
-
-  //     switch (payload.event){
-  //       case "call_started" :
-
-  //         console.log(`call started on agent: $${payload.data.agent_id}`)
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: payload.data.call_id, agentId:payload.data.agent_id },
-  //           { status: callstatusenum.IN_PROGRESS },
-  //         );
-  //         break
-  //       case "call_ended":
-  //         const result = await EventModel.create({
-  //           callId: payload.data.call_id,
-  //           recordingUrl: payload.data.recording_url,
-  //           transcript: payload.data.transcript
-  //         })
-  //         await DailyStats.updateOne(
-  //           { myDate: todayString, agentId: payload.data.agent_id },
-  //           { $inc: { totalCalls: 1 } },
-  //           { upsert: true }
-  //         );
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: payload.data.call_id },
-  //           {
-  //             status: callstatusenum.CALLED,
-  //             $push: { datesCalled: todayString },
-  //             referenceToCallId: result._id
-  //           })
-  //           break
-  //       case "call_analyzed" :
-  //           console.log(`reason for disconnection: ${payload.data.disconnection_reason}`)
-  //           if(payload.data.disconnection_reason === "machine_detected"){
-  //             const result = await DailyStats.updateOne(
-  //               { myDate: todayString, agentId: payload.data.agent_id },
-  //               { $inc: { callsNotAnswered : 1 } },
-  //               { upsert: true }
-  //             );
-  //             await contactModel.findOneAndUpdate({callId: payload.data.call_id}, {
-  //               status: callstatusenum.VOICEMAIL,
-  //               linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
-  //               answeredByVM: true,
-  //             });
-  //           }
-
-  //           break
-  //         }
-  //   });
-  // }
-
   deleteAll() {
     this.app.patch("/deleteAll", async (req: Request, res: Response) => {
       const { agentId } = req.body;
@@ -1203,39 +1137,6 @@ export class Server {
     });
   }
 
-  // searchForvagroup() {
-  //   this.app.post("/search-va-group", async (req: Request, res: Response) => {
-  //     const { searchTerm } = req.body;
-  //     if (!searchTerm) {
-  //       return res.status(400).json({ error: "Search term is required" });
-  //     }
-
-  //     const agentIds = [
-  //       "214e92da684138edf44368d371da764c",
-  //       "0411eeeb12d17a340941e91a98a766d0",
-  //       "86f0db493888f1da69b7d46bfaecd360",
-  //     ];
-
-  //     try {
-  //       // Perform the search using Mongoose
-  //       const filteredUsers = await contactModel
-  //         .find({
-  //           agentId: { $in: agentIds },
-  //           $or: [
-  //             { firstname: { $regex: searchTerm, $options: "i" } },
-  //             { lastname: { $regex: searchTerm, $options: "i" } },
-  //             { phone: { $regex: searchTerm, $options: "i" } },
-  //             { email: { $regex: searchTerm, $options: "i" } },
-  //           ],
-  //           isDeleted: false,
-  //         })
-  //         .populate("referenceToCallId");
-  //       res.json(filteredUsers);
-  //     } catch (error) {
-  //       res.status(500).json({ error: "Internal server error" });
-  //     }
-  //   });
-  // }
 
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {

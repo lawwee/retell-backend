@@ -88,21 +88,22 @@ const transcriptSchema = new Schema({
   transcript: { type: String },
   recordingUrl: { type: String },
 });
-ContactSchema.pre('save', async function(next) {
-  const user = this;
-  const existingUser = await contactModel.findOne({
-    email: user.email,
-    agentId: user.agentId
-  });
 
-  if (existingUser) {
-    // If user already exists, skip saving
-    return next(new Error('User with the same email and agentId already exists'));
-  }
+// ContactSchema.pre('save', async function(next) {
+//   const user = this;
+//   const existingUser = await contactModel.findOne({
+//     email: user.email,
+//     agentId: user.agentId
+//   });
 
-  // If user doesn't exist, proceed with saving
-  next();
-});
+//   if (existingUser) {
+//     // If user already exists, skip saving
+//     return next(new Error('User with the same email and agentId already exists'));
+//   }
+
+//   // If user doesn't exist, proceed with saving
+//   next();
+// });
 
 export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);
