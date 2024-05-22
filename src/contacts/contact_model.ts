@@ -87,6 +87,9 @@ const transcriptSchema = new Schema({
   },
   transcript: { type: String },
   recordingUrl: { type: String },
+  retellCallSummary: {type: String},
+  userSentiment:{type: String},
+  agentSemtiment:{type: String}
 });
 
 // ContactSchema.pre('save', async function(next) {

@@ -799,6 +799,14 @@ export class Server {
           console.log(
             `reason for disconnection: ${payload.data.disconnection_reason}`,
           );
+          const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
+          await EventModel.findOneAndUpdate({
+            callId: payload.data.call_id
+          }, {
+            retellCallSummary: call_summary,
+            userSentiment: user_sentiment,
+            agentSemtiment: agent_sentiment
+          }, {new: true})
           if (payload.data.disconnection_reason === "machine_detected") {
             const result = await DailyStats.updateOne(
               { myDate: todayString, agentId: payload.data.agent_id },
