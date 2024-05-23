@@ -111,6 +111,7 @@ export class Server {
     this.getTranscriptAfterCallEnded();
     this.searchForvagroup();
     this.batchDeleteUser();
+    this.getNotCalledUsersAndDelete()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1233,5 +1234,20 @@ export class Server {
         }
       },
     );
+  }
+  getNotCalledUsersAndDelete (){
+    this.app.post ("/delete-uncalled", async (req: Request, res: Response) => {
+      try {
+        const { agentId} = req.body
+        if(!agentId){
+          throw new Error("Please provide an agent ID")
+        }
+        const result = await contactModel.updateMany({agentId, status: "not called"}, {isDeleted: true})
+        res.json({message:"Deleted All contacts that are not called", result})
+      
+      } catch (error) {
+        console.log(error)
+      }
+    })
   }
 }
