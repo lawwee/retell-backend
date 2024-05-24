@@ -442,30 +442,36 @@ export class Server {
         //   "86f0db493888f1da69b7d46bfaecd360",
         //   { llm_websocket_url: "wss://api.retellai.com/retell-llm-new/ad9324685fc388fcdf9f9ab057a3b521" },
         // );
-
         console.log(fromNumber, toNumber, userId, agentId);
-        const callRegister = await this.retellClient.call.register({
-          agent_id: agentId,
-          audio_encoding: "s16le",
-          audio_websocket_protocol: "twilio",
-          sample_rate: 24000,
-          end_call_after_silence_ms: 15000,
-        });
-        const registerCallResponse2 = await this.retellClient.call.create({
-          from_number: fromNumber,
-          to_number: toNumber,
-          override_agent_id: agentId,
-          drop_call_if_machine_detected: true,
-          retell_llm_dynamic_variables: {
-            firstname: result.firstname,
-            email: result.email,
-          },
-        });
-        await contactModel.findByIdAndUpdate(userId, {
-          callId: registerCallResponse2.call_id,
-        });
+        try {
+          const callRegister = await this.retellClient.call.register({
+            agent_id: agentId,
+            audio_encoding: "s16le",
+            audio_websocket_protocol: "twilio",
+            sample_rate: 24000,
+            end_call_after_silence_ms: 15000,
+          });
+          const registerCallResponse2 = await this.retellClient.call.create({
+            from_number: fromNumber,
+            to_number: toNumber,
+            override_agent_id: agentId,
+            drop_call_if_machine_detected: true,
+            retell_llm_dynamic_variables: {
+              firstname: result.firstname,
+              email: result.email,
+            },
+          });
+          await contactModel.findByIdAndUpdate(userId, {
+            callId: registerCallResponse2.call_id,
+          });
+          res.send({ callCreation: registerCallResponse2, callRegister });
+        } catch (error) {
+          console.log("This is the error:",error)
+          await contactModel.findByIdAndUpdate(userId, {
+            status:"call-failed"
+          })
 
-        res.send({ callCreation: registerCallResponse2, callRegister });
+        }
       },
     );
   }
@@ -749,6 +755,88 @@ export class Server {
     });
   }
 
+  // async getTranscriptAfterCallEnded() {
+  //   this.app.post("/webhook", async (request: Request, response: Response) => {
+  //     const payload = request.body;
+  //     const today = new Date();
+  //     today.setHours(0, 0, 0, 0);
+  //     const todayString = today.toISOString().split("T")[0];
+  //     const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
+  //     const lockTTL = 300;
+  //     const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
+  //       NX: true,
+  //       PX: lockTTL,
+  //     });
+  //     if (!lockAcquired) {
+  //       return;
+  //     }
+  //     try {
+  //       if (payload.event === "call_started") {
+  //         console.log(`call started for: $${payload.data.call_id}`);
+  //         const { call_id, agent_id } = payload.data;
+  //         await contactModel.findOneAndUpdate(
+  //           { callId: call_id, agentId: agent_id },
+  //           { status: callstatusenum.IN_PROGRESS },
+  //         );
+  //       }
+  //       if (payload.event === "call_ended") {
+  //         const { call_id, transcript, recording_url, agent_id } = payload.data;
+  //         const result = await EventModel.create({
+  //           callId: call_id,
+  //           recordingUrl: recording_url,
+  //           transcript: transcript,
+  //         });
+  //         await DailyStats.updateOne(
+  //           { myDate: todayString, agentId: agent_id },
+  //           { $inc: { totalCalls: 1 } },
+  //           { upsert: true },
+  //         );
+  //         await contactModel.findOneAndUpdate(
+  //           { callId: call_id },
+  //           {
+  //             status: callstatusenum.CALLED,
+  //             $push: { datesCalled: todayString },
+  //             referenceToCallId: result._id,
+  //           },
+  //         );
+  //       }
+  //       if (payload.event === "call_analyzed") {
+  //         const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
+  //         await EventModel.findOneAndUpdate({
+  //           callId: payload.data.call_id
+  //         }, {
+  //           retellCallSummary: call_summary,
+  //           userSentiment: user_sentiment,
+  //           agentSemtiment: agent_sentiment,
+
+  //         }, {new: true})
+  //         if (payload.data.disconnection_reason === "machine_detected") {
+  //           const result = await DailyStats.updateOne(
+  //             { myDate: todayString, agentId: payload.data.agent_id },
+  //             { $inc: { callsNotAnswered: 1 } },
+  //             { upsert: true },
+  //           );
+  //           await contactModel.findOneAndUpdate(
+  //             { callId: payload.data.call_id },
+  //             {
+  //               status: callstatusenum.VOICEMAIL,
+  //               linktocallLogModel: result.upsertedId
+  //                 ? result.upsertedId._id
+  //                 : null,
+  //               answeredByVM: true,
+  //             },
+  //           );
+  //         }
+  //         await redisClient.del(webhookRedisKey);
+  //         return;
+  //       }
+  //     } catch (error) {
+  //       console.log(error);
+  //     }
+  //   });
+  // }
+
+
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
@@ -756,14 +844,12 @@ export class Server {
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
       const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
-      console.log("webhookRedisKey", webhookRedisKey);
       const lockTTL = 300;
       const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
         NX: true,
         PX: lockTTL,
       });
       if (!lockAcquired) {
-        console.log("Event already processed for key:", webhookRedisKey);
         return;
       }
       try {
@@ -776,38 +862,32 @@ export class Server {
           );
         }
         if (payload.event === "call_ended") {
+          console.log("call ended for: ", payload.data.call_id)
+        }
+        if (payload.event === "call_analyzed") {
+          const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
           const { call_id, transcript, recording_url, agent_id } = payload.data;
-          const result = await EventModel.create({
+          const results = await EventModel.create({
             callId: call_id,
+            retellCallSummary: call_summary,
+            userSentiment: user_sentiment,
+            agentSemtiment: agent_sentiment,
             recordingUrl: recording_url,
             transcript: transcript,
-          });
+            disconnectionReason: payload.data.disconnection_reason
+          })
           await DailyStats.updateOne(
             { myDate: todayString, agentId: agent_id },
             { $inc: { totalCalls: 1 } },
             { upsert: true },
           );
-          await contactModel.findOneAndUpdate(
+           await contactModel.findOneAndUpdate(
             { callId: call_id },
             {
               status: callstatusenum.CALLED,
               $push: { datesCalled: todayString },
-              referenceToCallId: result._id,
-            },
-          );
-        }
-        if (payload.event === "call_analyzed") {
-          console.log(
-            `reason for disconnection: ${payload.data.disconnection_reason}`,
-          );
-          const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
-          await EventModel.findOneAndUpdate({
-            callId: payload.data.call_id
-          }, {
-            retellCallSummary: call_summary,
-            userSentiment: user_sentiment,
-            agentSemtiment: agent_sentiment
-          }, {new: true})
+              referenceToCallId: results._id,
+            })
           if (payload.data.disconnection_reason === "machine_detected") {
             const result = await DailyStats.updateOne(
               { myDate: todayString, agentId: payload.data.agent_id },
@@ -825,8 +905,8 @@ export class Server {
               },
             );
           }
+
           await redisClient.del(webhookRedisKey);
-          console.log("Deleted key:", webhookRedisKey);
           return;
         }
       } catch (error) {
@@ -834,7 +914,6 @@ export class Server {
       }
     });
   }
-
   deleteAll() {
     this.app.patch("/deleteAll", async (req: Request, res: Response) => {
       const { agentId } = req.body;
