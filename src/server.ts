@@ -75,7 +75,17 @@ export class Server {
   constructor() {
     this.app = expressWs(express()).app;
     this.app.use(express.json());
-    this.app.use(cors());
+    this.app.use(
+      cors({
+        origin: [
+          "https://intuitiveagents.netlify.app",
+          "https://www.intuitiveagents.netlify.app",
+          "http://localahost:8080",
+          "http://localhost:3001",
+        ],
+        credentials: true,
+      }),
+    );
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
     this.client = new OpenAI({
@@ -111,7 +121,7 @@ export class Server {
     this.getTranscriptAfterCallEnded();
     this.searchForvagroup();
     this.batchDeleteUser();
-    this.getNotCalledUsersAndDelete()
+    this.getNotCalledUsersAndDelete();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -466,11 +476,10 @@ export class Server {
           });
           res.send({ callCreation: registerCallResponse2, callRegister });
         } catch (error) {
-          console.log("This is the error:",error)
+          console.log("This is the error:", error);
           await contactModel.findByIdAndUpdate(userId, {
-            status:"call-failed"
-          })
-
+            status: "call-failed",
+          });
         }
       },
     );
@@ -587,7 +596,7 @@ export class Server {
                   email: user.email,
                   agentId: user.agentId,
                 });
-                if ( existingUser.agentId === agentId) {
+                if (existingUser.agentId === agentId) {
                   const userWithAgentId = { ...user, agentId };
                   usersToInsert.push(userWithAgentId);
                 }
@@ -836,7 +845,6 @@ export class Server {
   //   });
   // }
 
-
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
@@ -862,10 +870,11 @@ export class Server {
           );
         }
         if (payload.event === "call_ended") {
-          console.log("call ended for: ", payload.data.call_id)
+          console.log("call ended for: ", payload.data.call_id);
         }
         if (payload.event === "call_analyzed") {
-          const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
+          const { call_summary, user_sentiment, agent_sentiment } =
+            payload.data.call_analysis;
           const { call_id, transcript, recording_url, agent_id } = payload.data;
           const results = await EventModel.create({
             callId: call_id,
@@ -874,38 +883,36 @@ export class Server {
             agentSemtiment: agent_sentiment,
             recordingUrl: recording_url,
             transcript: transcript,
-            disconnectionReason: payload.data.disconnection_reason
-          })
-          await DailyStats.updateOne(
+            disconnectionReason: payload.data.disconnection_reason,
+          });
+          const isMachine =
+            payload.data.disconnection_reason === "machine_detected";
+          const statsResults = await DailyStats.updateOne(
             { myDate: todayString, agentId: agent_id },
-            { $inc: { totalCalls: 1 } },
+            {
+              $inc: {
+                totalCalls: 1,
+                ...(isMachine && {
+                  callsNotAnswered: 1,
+                }),
+              },
+            },
             { upsert: true },
           );
-           await contactModel.findOneAndUpdate(
+          await contactModel.findOneAndUpdate(
             { callId: call_id },
             {
-              status: callstatusenum.CALLED,
+              status: isMachine
+                ? callstatusenum.VOICEMAIL
+                : callstatusenum.CALLED,
               $push: { datesCalled: todayString },
               referenceToCallId: results._id,
-            })
-          if (payload.data.disconnection_reason === "machine_detected") {
-            const result = await DailyStats.updateOne(
-              { myDate: todayString, agentId: payload.data.agent_id },
-              { $inc: { callsNotAnswered: 1 } },
-              { upsert: true },
-            );
-            await contactModel.findOneAndUpdate(
-              { callId: payload.data.call_id },
-              {
-                status: callstatusenum.VOICEMAIL,
-                linktocallLogModel: result.upsertedId
-                  ? result.upsertedId._id
-                  : null,
-                answeredByVM: true,
-              },
-            );
-          }
-
+              linktocallLogModel: statsResults.upsertedId
+                ? statsResults.upsertedId._id
+                : null,
+              answeredByVM: true,
+            },
+          );
           await redisClient.del(webhookRedisKey);
           return;
         }
@@ -1225,7 +1232,6 @@ export class Server {
     });
   }
 
-
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
       const { searchTerm } = req.body;
@@ -1314,19 +1320,24 @@ export class Server {
       },
     );
   }
-  getNotCalledUsersAndDelete (){
-    this.app.post ("/delete-uncalled", async (req: Request, res: Response) => {
+  getNotCalledUsersAndDelete() {
+    this.app.post("/delete-uncalled", async (req: Request, res: Response) => {
       try {
-        const { agentId} = req.body
-        if(!agentId){
-          throw new Error("Please provide an agent ID")
+        const { agentId } = req.body;
+        if (!agentId) {
+          throw new Error("Please provide an agent ID");
         }
-        const result = await contactModel.updateMany({agentId, status: "not called"}, {isDeleted: true})
-        res.json({message:"Deleted All contacts that are not called", result})
-      
+        const result = await contactModel.updateMany(
+          { agentId, status: "not called" },
+          { isDeleted: true },
+        );
+        res.json({
+          message: "Deleted All contacts that are not called",
+          result,
+        });
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
-    })
+    });
   }
 }

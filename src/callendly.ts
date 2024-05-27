@@ -2,11 +2,23 @@ import axios from "axios";
 
 export async function checkAvailability(): Promise<string[]> {
   try {
+    // Get the current time
+    const currentTime = new Date();
+
+    // Add 2 minutes to the current time
+    const twoMinutesLater = new Date(currentTime.getTime() + 2 * 60000); // 2 minutes = 2 * 60,000 milliseconds
+
+    // Format the dates in the desired ISO 8601 format
+    const startDate = twoMinutesLater.toISOString();
+    const endDate = new Date(currentTime.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days = 7 * 24 * 60 * 60 * 1000 milliseconds
+
     const response = await axios.get(
-      `https://api.calendly.com/user_availability_schedules`,
+      `https://api.calendly.com/event_type_available_times`,
       {
         params: {
-          user: process.env.CALLENDY_URI,
+         event_type: process.env.CALLENDY_URI,
+         start_time:startDate,
+         end_time:endDate
         },
         headers: {
           "Content-Type": "application/json",
@@ -15,32 +27,30 @@ export async function checkAvailability(): Promise<string[]> {
       },
     );
 
+    console.log("this is the response", response.data.collection)
     const availableTimes: string[] = [];
 
     response.data.collection.forEach((schedule: any) => {
-      schedule.rules.forEach((rule: any) => {
-        if (rule.intervals && rule.intervals.length > 0) {
-          rule.intervals.forEach((interval: any) => {
-            const { from } = interval; // Destructure from
-            const [hour, minute] = from.split(":").map(Number); // Extract hour and minute
+      if (schedule.status === 'available') { // Check if status is available
+        const startTime = new Date(schedule.start_time); // Parse the start time
 
-            // Convert 24-hour format to 12-hour format
-            const period = hour >= 12 ? "pm" : "am";
-            const formattedHour = (hour % 12 || 12).toString(); // Convert hour to 12-hour format
+        // Get the day of the week
+        const dayOfWeek = startTime.toLocaleString('en-US', { weekday: 'long' });
 
-            const formattedMinute = minute.toString().padStart(2, "0"); // Add leading zero if minute < 10
+        // Convert the start time to 12-hour format
+        const formattedTime = startTime.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
 
-            const formattedTime = `${formattedHour}:${formattedMinute}${period}`;
+        // Construct the result string
+        const resultString = `${dayOfWeek} ${formattedTime}`;
 
-            availableTimes.push(`${rule.wday}: ${formattedTime}`);
-          });
-        }
-      });
+        // Add the formatted time to the list of available times
+        availableTimes.push(resultString);
+      }
     });
 
     return availableTimes;
   } catch (error) {
-    console.error("Error fetching available times from Calendly:", error);
+    console.log("Error fetching available times from Calendly:", error);  
     return []; // Return an empty array in case of error
   }
 }
