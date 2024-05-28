@@ -48,7 +48,7 @@ export async function checkAvailability(): Promise<string[]> {
       }
     });
 
-    return availableTimes;
+    return availableTimes.slice(0,2);
   } catch (error) {
     console.log("Error fetching available times from Calendly:", error);  
     return []; // Return an empty array in case of error
