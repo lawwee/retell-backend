@@ -81,7 +81,7 @@ export class Server {
           "https://intuitiveagents.netlify.app",
           "https://www.intuitiveagents.netlify.app",
           "http://localahost:8080",
-          "http://localhost:3001",
+          "http://localhost:3000",
         ],
         credentials: true,
       }),
