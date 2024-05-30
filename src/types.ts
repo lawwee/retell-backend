@@ -38,7 +38,7 @@ export enum callstatusenum {
   IN_PROGRESS = "on call",
   CALLED = "call-connected",
   BUSY = "busy",
-  FAILED = "failed",
+  FAILED = "call-failed",
   VOICEMAIL = "called-NA-VM",
   CANCELED = "canceled",
   NOT_CALLED = "not called",

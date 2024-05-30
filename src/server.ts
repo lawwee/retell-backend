@@ -472,7 +472,7 @@ export class Server {
         } catch (error) {
           console.log("This is the error:", error);
           await contactModel.findByIdAndUpdate(userId, {
-            status: "call-failed",
+            status: callstatusenum.FAILED,
           });
         }
       },
@@ -929,9 +929,9 @@ export class Server {
   logsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
-        const { agentId, limit } = req.body;
+        const { agentId, limit  , statusOption} = req.body;
         const newlimit = parseInt(limit);
-        const result = await logsToCsv(agentId, newlimit);
+        const result = await logsToCsv(agentId, newlimit, statusOption);
         if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
