@@ -77,14 +77,7 @@ export class Server {
     this.app.use(express.json());
     this.app.use(
       cors({
-        origin: [
-          "https://intuitiveagents.netlify.app",
-          "https://www.intuitiveagents.netlify.app",
-          "http://localahost:8080",
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ],
-        credentials: true,
+        origin: "*",
       }),
     );
     this.app.use(express.urlencoded({ extended: true }));
