@@ -90,7 +90,8 @@ const transcriptSchema = new Schema({
   retellCallSummary: {type: String},
   userSentiment:{type: String},
   agentSemtiment:{type: String},
-  disconnectionReason:{ type: String}
+  disconnectionReason:{ type: String},
+  analyzedTranscript:{type:String}
 }, {timestamps: true});
 
 // ContactSchema.pre('save', async function(next) {

@@ -870,6 +870,7 @@ export class Server {
           const { call_summary, user_sentiment, agent_sentiment } =
             payload.data.call_analysis;
           const { call_id, transcript, recording_url, agent_id } = payload.data;
+          const analyzedTranscript = await reviewTranscript(transcript)
           const results = await EventModel.create({
             callId: call_id,
             retellCallSummary: call_summary,
@@ -878,6 +879,8 @@ export class Server {
             recordingUrl: recording_url,
             transcript: transcript,
             disconnectionReason: payload.data.disconnection_reason,
+            analyzedTranscript
+        
           });
           const isMachine =
             payload.data.disconnection_reason === "machine_detected";
@@ -905,6 +908,7 @@ export class Server {
                 ? statsResults.upsertedId._id
                 : null,
               answeredByVM: true,
+              
             },
           );
           await redisClient.del(webhookRedisKey);

@@ -55,18 +55,6 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
     const totalFailedForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.FAILED})
     // Calculate the total number of pages
     const totalPages = Math.ceil(totalCount / limit);
-
-     // // Iterate over dailyStats to extract and analyze transcripts
-    //  const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
-    //   const transcript = stat.referenceToCallId?.transcript ?? '';
-    //   const analyzedTranscript = await reviewTranscript(transcript); 
-    //   return {
-    //     ...stat.toObject(),
-    //     originalTranscript: transcript,
-    //     analyzedTranscript: analyzedTranscript.message.content
-    //   } as ContactDocument
-    // }));
-    // Return the contacts and total pages
     return { 
       totalContactForAgent,
       totalCalledForAgent,
@@ -81,20 +69,6 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
   }
 };
 
-
-// type ContactDocument = Omit<Document & IContact, "_id">;
-// export const getAllContact = async (agentId: string): Promise<ContactDocument[] | string> => {
-//   try {
-//     const foundContacts = await contactModel
-//       .find({ agentId, isDeleted: { $ne: true } })
-//       .sort({ createdAt: "desc" })
-//       .populate("referenceToCallId");
-//     return foundContacts;
-//   } catch (error) {
-//     console.error("Error fetching all contacts:", error);
-//     return "error getting contact";
-//   }
-// };
 
 export const deleteOneContact = async (id: string) => {
   try {
