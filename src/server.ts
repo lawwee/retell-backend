@@ -1183,23 +1183,73 @@ export class Server {
   //   });
   // }
 
+  // searchForUser() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+  //     const isValidEmail = (email: string) => {
+  //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //       return emailRegex.test(email);
+  //     };
+
+  //     try {
+  //       const searchTerms = searchTerm
+  //         .split(",")
+  //         .map((term: string) => term.trim());
+  //       const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+  //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
+  //         const query = {
+  //           agentId,
+  //           isDeleted: false,
+  //           $or: searchByEmail
+  //             ? [{ email: { $regex: term, $options: "i" } }]
+  //             : [
+  //                 { firstname: { $regex: term, $options: "i" } },
+  //                 { lastname: { $regex: term, $options: "i" } },
+  //                 { phone: { $regex: term, $options: "i" } },
+  //                 { email: { $regex: term, $options: "i" } },
+  //               ],
+  //         };
+  //         return await contactModel.find(query).populate("referenceToCallId");
+
+          
+  //       };
+
+  //       let allResults: any[] = [];
+
+  //       for (const term of searchTerms) {
+  //         const results = await searchForTerm(term, firstTermIsEmail);
+  //         allResults = allResults.concat(results);
+  //       }
+
+  //       res.json(allResults);
+  //     } catch (error) {
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+
   searchForUser() {
     this.app.post("/search", async (req: Request, res: Response) => {
       const { agentId, searchTerm } = req.body;
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
       }
+  
       const isValidEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
       };
-
+  
       try {
         const searchTerms = searchTerm
           .split(",")
           .map((term: string) => term.trim());
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
+  
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query = {
             agentId,
@@ -1213,22 +1263,39 @@ export class Server {
                   { email: { $regex: term, $options: "i" } },
                 ],
           };
-          return await contactModel.find(query).populate("referenceToCallId");
+  
+          const contacts = await contactModel.find(query).populate("referenceToCallId");
+  
+          // Process transcript for each contact
+          const contactsWithTranscript = await Promise.all(contacts.map(async (contact) => {
+            const transcript = contact.referenceToCallId?.transcript || '';
+            const reviewedTranscript = await reviewTranscript(transcript);
+            
+            // Return contact with reviewed transcript appended
+            return {
+              ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
+              transcript: reviewedTranscript.message.content,
+            };
+          }));
+  
+          return contactsWithTranscript;
         };
-
+  
         let allResults: any[] = [];
-
+  
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
         }
-
+  
         res.json(allResults);
       } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
   }
+  
 
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
