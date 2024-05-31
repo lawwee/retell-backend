@@ -1274,7 +1274,7 @@ export class Server {
             // Return contact with reviewed transcript appended
             return {
               ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
-              transcript: reviewedTranscript.message.content,
+              analyzedTranscript: reviewedTranscript.message.content,
             };
           }));
   
