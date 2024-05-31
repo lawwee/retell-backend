@@ -30,7 +30,7 @@ export const logsToCsv = async (
     const contactsData = await Promise.all(
       foundContacts.map(async (contact) => {
         const transcript = contact.referenceToCallId?.transcript;
-        // const analyzedTranscript = await reviewTranscript(transcript);
+        const analyzedTranscript = await reviewTranscript(transcript);
         return {
           firstname: contact.firstname,
           lastname: contact.lastname,
@@ -38,7 +38,7 @@ export const logsToCsv = async (
           phone: contact.phone,
           status: contact.status,
           transcript: transcript,
-          // analyzedTranscript: analyzedTranscript.message.content,
+          analyzedTranscript: analyzedTranscript?.message.content,
           call_recording_url: contact.referenceToCallId?.recordingUrl,
         };
       }),
@@ -58,6 +58,8 @@ export const logsToCsv = async (
         { id: "status", title: "Status" },
         { id: "transcript", title: "Transcript" },
         { id: "call_recording_url", title: " Call Recording url" },
+        { id: "analyzedTranscript", title: "analyzedTranscript" },
+        
       ],
     });
     await csvWriter.writeRecords(contactsData);
