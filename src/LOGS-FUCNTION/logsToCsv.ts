@@ -6,18 +6,18 @@ import { callstatusenum } from "../types";
 export const logsToCsv = async (
   agentId: string,
   newlimit: number,
-  statusOption?: "called" | "notcalled" | "vm" | "failed",
+  statusOption?: "Called" | "notCalled" | "vm" | "Failed",
 ) => {
   try {
     let callStatus;
 
-    if (statusOption === "called") {
+    if (statusOption === "Called") {
       callStatus = callstatusenum.CALLED;
-    } else if (statusOption === "notcalled") {
+    } else if (statusOption === "notCalled") {
       callStatus = callstatusenum.NOT_CALLED;
     } else if (statusOption === "vm") {
       callStatus = callstatusenum.VOICEMAIL;
-    } else if (statusOption === "failed") {
+    } else if (statusOption === "Failed") {
       callStatus = callstatusenum.FAILED;
     }
     const foundContacts = await contactModel
@@ -39,7 +39,7 @@ export const logsToCsv = async (
           status: contact.status,
           transcript: transcript,
           // analyzedTranscript: analyzedTranscript.message.content,
-          call_recording_url: contact.referenceToCallId.recordingUrl,
+          call_recording_url: contact.referenceToCallId?.recordingUrl,
         };
       }),
     );
