@@ -135,7 +135,6 @@ export const logsToCsv = async (
       .populate("referenceToCallId")
       .limit(newlimit);
 
-    // Extract relevant fields from found contacts
     const contactsData = await Promise.all(
       foundContacts.map(async (contact) => {
         const transcript = contact.referenceToCallId?.transcript;
@@ -166,14 +165,12 @@ export const logsToCsv = async (
           case "Uninterested":
             return contact.analyzedTranscript === "Uninterested";
           default:
-            return true; // If statusOption is not specified, return all contacts
+            return true; 
         }
       });
     }
-
-    // Write contacts data to CSV file
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
-    console.log("File path:", filePath); // Log file path for debugging
+    console.log("File path:", filePath); 
 
     const csvWriter = createObjectCsvWriter({
       path: filePath,

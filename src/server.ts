@@ -880,7 +880,7 @@ export class Server {
             recordingUrl: recording_url,
             transcript: transcript,
             disconnectionReason: payload.data.disconnection_reason,
-            analyzedTranscript
+            analyzedTranscript: analyzedTranscript.message.content
         
           });
           const isMachine =
