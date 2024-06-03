@@ -48,6 +48,7 @@ import { reviewTranscript } from "./helper-fuction/transcript-review";
 
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
+import { userModel } from "./users/userModel";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -1404,5 +1405,26 @@ export class Server {
         console.log(error);
       }
     });
+  }
+  loginUser(){
+
+  }
+  signInUser(){
+    this.app.post("", async (req:Request, res: Response) => {
+      try {
+        const { email, password, group} = req.body
+        if(!email|| !password|| !group){
+          res.send({message: "Please provide all needed details"})
+        }
+        const savedUser =  await userModel.create(
+          email,
+          password,
+          group
+        )
+        res.send({ message: "User created sucessfully"})
+      } catch (error) {
+        console.log(error)
+      }
+    })
   }
 }

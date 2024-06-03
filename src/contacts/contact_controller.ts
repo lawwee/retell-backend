@@ -36,7 +36,8 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
   totalCalledForAgent: number, 
   totalPages: number,
   totalNotCalledForAgent: number ,
-  failedCalls: number
+  failedCalls: number,
+  vm:number
 } | string> => {
   try {
     const skip = (page - 1) * limit;
@@ -53,6 +54,7 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
     const totalCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.CALLED})
     const totalNotCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.NOT_CALLED})
     const totalFailedForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.FAILED})
+    const answeredByVMForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.VOICEMAIL})
     // Calculate the total number of pages
     const totalPages = Math.ceil(totalCount / limit);
 
@@ -73,7 +75,8 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
       totalNotCalledForAgent, 
       totalPages,
       failedCalls:totalFailedForAgent,
-      contacts: statsWithTranscripts 
+      contacts: statsWithTranscripts,
+      vm: answeredByVMForAgent
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
