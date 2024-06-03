@@ -1,0 +1,25 @@
+FirstName,LastName,Email,Phone Number,Status,Transcript, Call Recording url,analyzedTranscript
+Raul,Soledad,tigertrainfitness@gmail.com,(806) 549-3742,call-connected,"Agent: Hi, is this Raul?
+User: Hello.
+User: It sure is. How may I help
+Agent: Hi Raul, Ethan with Virtual Team Expert following up on an inquiry we received in the past for our virtual assistant services. Are you still looking for help?
+",https://dxc03zgurdly9.cloudfront.net/e7fb689587fbe8ec6151c3b2e7091ba9/recording.wav,Interested
+Michael,Church,michael.church@fairwaymc.com,(1615) 948-8587,call-connected,"Agent: Hi, is this Michael?
+User: This Michael?
+User: Yes.
+Agent: Hi Michael, Ethan with Virtual Team Expert following up on 
+",https://dxc03zgurdly9.cloudfront.net/3510cf0153d30ef747b28babf09e06c7/recording.wav,Interested
+Meri,Zimmerman,meri@myprintingpros.com,(925) 788-4926,call-connected,"Agent: Hi, is this Meri?
+User: This is Mary.
+User: Yeah.
+Agent: Hi Mary, Ethan with Virtual Team Expert following 
+User: Hello?
+Agent: up on an inquiry we recieved in the past for our virtual assistant services, and wanted to see if you were still looking for help?
+",https://dxc03zgurdly9.cloudfront.net/9a40adc2dca3920132db5ad50c63534e/recording.wav,Interested
+Shawn,Thompson,sthompson@diamondcapadvisors.com,(310) 432 - 8584,call-connected,"Agent: Hi, is this Shawn?
+User: Hello? This is Sean Thompson
+User: Diamond Capital
+",https://dxc03zgurdly9.cloudfront.net/901dfaba9d7e0c67d893b4c689d32546/recording.wav,Interested
+JJ,Hardy,jjhardy81@outlook.com,(757) 325-5910,call-connected,"Agent: Hi, is this JJ?
+User: Hello. This is JJ Hardy with Victory Leadership Coach.
+",https://dxc03zgurdly9.cloudfront.net/bd89ab7df0df78910cc3d79090474c69/recording.wav,Interested
