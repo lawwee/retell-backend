@@ -108,7 +108,7 @@ export const scheduleCronJob = async (
           }
 
           // Wait for a specified time before processing the next contact
-          await new Promise((resolve) => setTimeout(resolve, 10000));
+          await new Promise((resolve) => setTimeout(resolve, 8000));
         }
         console.log("Contacts processed will start recall");
         // Call function to search and recall contacts if needed

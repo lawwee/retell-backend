@@ -934,9 +934,9 @@ export class Server {
   logsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
-        const { agentId, limit  , statusOption} = req.body;
+        const { agentId, limit  , statusOption, sentimentOption} = req.body;
         const newlimit = parseInt(limit);
-        const result = await logsToCsv(agentId, newlimit, statusOption);
+        const result = await logsToCsv(agentId, newlimit, statusOption, sentimentOption);
         if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {

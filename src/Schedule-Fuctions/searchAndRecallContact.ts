@@ -85,7 +85,7 @@ export const searchAndRecallContacts = async (
           `Error processing recalled contact ${contact.firstname}: ${errorMessage}`,
         );
       }
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      await new Promise((resolve) => setTimeout(resolve, 8000));
     }
     await jobModel.findOneAndUpdate(
       { jobId },
