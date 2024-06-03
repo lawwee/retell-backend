@@ -36,7 +36,7 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
       const transcript = contact.referenceToCallId?.transcript;
-      // const analyzedTranscript = await reviewTranscript(transcript);
+      const analyzedTranscript = await reviewTranscript(transcript);
       return {
         firstname: contact.firstname,
         lastname:contact.lastname,
@@ -44,8 +44,8 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
         phone: contact.phone,
         status: contact.status,
         transcript: transcript,
-        // analyzedTranscript: analyzedTranscript.message.content,
-        call_recording_url: contact.referenceToCallId.recordingUrl,
+        analyzedTranscript: analyzedTranscript?.message.content,
+        call_recording_url: contact.referenceToCallId?.recordingUrl,
       };
     }));
 
@@ -61,6 +61,7 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
         { id: "status", title: "Status" },
         { id: "transcript", title: "Transcript" },
         { id: "call_recording_url", title: "Call_Recording_Url" },
+        { id: "analyzedTranscript", title: "analyzedTranscript" },
       ],
     });
 

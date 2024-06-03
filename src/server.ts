@@ -48,6 +48,7 @@ import { reviewTranscript } from "./helper-fuction/transcript-review";
 
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
+import { userModel } from "./users/userModel";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -472,7 +473,7 @@ export class Server {
         } catch (error) {
           console.log("This is the error:", error);
           await contactModel.findByIdAndUpdate(userId, {
-            status: "call-failed",
+            status: callstatusenum.FAILED,
           });
         }
       },
@@ -870,6 +871,7 @@ export class Server {
           const { call_summary, user_sentiment, agent_sentiment } =
             payload.data.call_analysis;
           const { call_id, transcript, recording_url, agent_id } = payload.data;
+          const analyzedTranscript = await reviewTranscript(transcript)
           const results = await EventModel.create({
             callId: call_id,
             retellCallSummary: call_summary,
@@ -878,6 +880,8 @@ export class Server {
             recordingUrl: recording_url,
             transcript: transcript,
             disconnectionReason: payload.data.disconnection_reason,
+            analyzedTranscript
+        
           });
           const isMachine =
             payload.data.disconnection_reason === "machine_detected";
@@ -905,6 +909,7 @@ export class Server {
                 ? statsResults.upsertedId._id
                 : null,
               answeredByVM: true,
+              
             },
           );
           await redisClient.del(webhookRedisKey);
@@ -929,9 +934,9 @@ export class Server {
   logsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
-        const { agentId, limit } = req.body;
+        const { agentId, limit  , statusOption} = req.body;
         const newlimit = parseInt(limit);
-        const result = await logsToCsv(agentId, newlimit);
+        const result = await logsToCsv(agentId, newlimit, statusOption);
         if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
@@ -1179,23 +1184,73 @@ export class Server {
   //   });
   // }
 
+  // searchForUser() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+  //     const isValidEmail = (email: string) => {
+  //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //       return emailRegex.test(email);
+  //     };
+
+  //     try {
+  //       const searchTerms = searchTerm
+  //         .split(",")
+  //         .map((term: string) => term.trim());
+  //       const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+  //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
+  //         const query = {
+  //           agentId,
+  //           isDeleted: false,
+  //           $or: searchByEmail
+  //             ? [{ email: { $regex: term, $options: "i" } }]
+  //             : [
+  //                 { firstname: { $regex: term, $options: "i" } },
+  //                 { lastname: { $regex: term, $options: "i" } },
+  //                 { phone: { $regex: term, $options: "i" } },
+  //                 { email: { $regex: term, $options: "i" } },
+  //               ],
+  //         };
+  //         return await contactModel.find(query).populate("referenceToCallId");
+
+          
+  //       };
+
+  //       let allResults: any[] = [];
+
+  //       for (const term of searchTerms) {
+  //         const results = await searchForTerm(term, firstTermIsEmail);
+  //         allResults = allResults.concat(results);
+  //       }
+
+  //       res.json(allResults);
+  //     } catch (error) {
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+
   searchForUser() {
     this.app.post("/search", async (req: Request, res: Response) => {
       const { agentId, searchTerm } = req.body;
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
       }
+  
       const isValidEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
       };
-
+  
       try {
         const searchTerms = searchTerm
           .split(",")
           .map((term: string) => term.trim());
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
+  
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query = {
             agentId,
@@ -1209,22 +1264,39 @@ export class Server {
                   { email: { $regex: term, $options: "i" } },
                 ],
           };
-          return await contactModel.find(query).populate("referenceToCallId");
+  
+          const contacts = await contactModel.find(query).populate("referenceToCallId");
+  
+          // Process transcript for each contact
+          const contactsWithTranscript = await Promise.all(contacts.map(async (contact) => {
+            const transcript = contact.referenceToCallId?.transcript || '';
+            const reviewedTranscript = await reviewTranscript(transcript);
+            
+            // Return contact with reviewed transcript appended
+            return {
+              ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
+              analyzedTranscript: reviewedTranscript.message.content,
+            };
+          }));
+  
+          return contactsWithTranscript;
         };
-
+  
         let allResults: any[] = [];
-
+  
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
         }
-
+  
         res.json(allResults);
       } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
   }
+  
 
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
@@ -1333,5 +1405,26 @@ export class Server {
         console.log(error);
       }
     });
+  }
+  loginUser(){
+
+  }
+  signInUser(){
+    this.app.post("", async (req:Request, res: Response) => {
+      try {
+        const { email, password, group} = req.body
+        if(!email|| !password|| !group){
+          res.send({message: "Please provide all needed details"})
+        }
+        const savedUser =  await userModel.create(
+          email,
+          password,
+          group
+        )
+        res.send({ message: "User created sucessfully"})
+      } catch (error) {
+        console.log(error)
+      }
+    })
   }
 }

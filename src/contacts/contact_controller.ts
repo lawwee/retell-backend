@@ -35,7 +35,9 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
   totalContactForAgent: number, 
   totalCalledForAgent: number, 
   totalPages: number,
-  totalNotCalledForAgent: number 
+  totalNotCalledForAgent: number ,
+  failedCalls: number,
+  vm:number
 } | string> => {
   try {
     const skip = (page - 1) * limit;
@@ -51,26 +53,30 @@ export const getAllContact = async (agentId: string, page:number, limit:number):
     const totalContactForAgent = await contactModel.countDocuments({agentId, isDeleted:false})
     const totalCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.CALLED})
     const totalNotCalledForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.NOT_CALLED})
+    const totalFailedForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.FAILED})
+    const answeredByVMForAgent = await contactModel.countDocuments({agentId, isDeleted:false, status:callstatusenum.VOICEMAIL})
     // Calculate the total number of pages
     const totalPages = Math.ceil(totalCount / limit);
 
      // // Iterate over dailyStats to extract and analyze transcripts
-    //  const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
-    //   const transcript = stat.referenceToCallId?.transcript ?? '';
-    //   const analyzedTranscript = await reviewTranscript(transcript); 
-    //   return {
-    //     ...stat.toObject(),
-    //     originalTranscript: transcript,
-    //     analyzedTranscript: analyzedTranscript.message.content
-    //   } as ContactDocument
-    // }));
+     const statsWithTranscripts = await Promise.all(foundContacts.map(async (stat) => {
+      const transcript = stat.referenceToCallId?.transcript ?? '';
+      const analyzedTranscript = await reviewTranscript(transcript); 
+      return {
+        ...stat.toObject(),
+        originalTranscript: transcript,
+        analyzedTranscript: analyzedTranscript.message.content
+      } as ContactDocument
+    }));
     // Return the contacts and total pages
     return { 
       totalContactForAgent,
       totalCalledForAgent,
       totalNotCalledForAgent, 
       totalPages,
-      contacts: foundContacts 
+      failedCalls:totalFailedForAgent,
+      contacts: statsWithTranscripts,
+      vm: answeredByVMForAgent
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
