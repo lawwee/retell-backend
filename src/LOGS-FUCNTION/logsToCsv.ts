@@ -103,14 +103,19 @@ import { callstatusenum } from "../types";
 export const logsToCsv = async (
   agentId: string,
   newlimit: number,
-  statusOption?: "Called" | "notCalled" | "vm" | "Failed",
+  statusOption?: "Called" | "notCalled" | "vm" | "Failed"| "All",
   sentimentOption?:
     | "Interested"
     | "Incomplete Call"
     | "Scheduled"
-    | "Uninterested",
+    | "Uninterested"
+    | "Call back"
 ) => {
   try {
+
+    // if(statusOption === "All"){
+      
+    // }
     let query: { agentId: string; isDeleted: boolean; status?: string } = {
       agentId,
       isDeleted: false,
@@ -125,6 +130,8 @@ export const logsToCsv = async (
         callStatus = callstatusenum.VOICEMAIL;
       } else if (statusOption === "Failed") {
         callStatus = callstatusenum.FAILED;
+      } else if  (statusOption === "All"){
+        callStatus = ""
       }
       query.status = callStatus;
     }
@@ -164,6 +171,8 @@ export const logsToCsv = async (
             return contact.analyzedTranscript === "Scheduled";
           case "Uninterested":
             return contact.analyzedTranscript === "Uninterested";
+          case "Call back":
+            return contact.analyzedTranscript === "Call back";
           default:
             return true; 
         }

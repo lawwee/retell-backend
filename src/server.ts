@@ -45,7 +45,7 @@ import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
 import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 import { reviewTranscript } from "./helper-fuction/transcript-review";
-
+import jwt from "jsonwebtoken"
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
@@ -117,6 +117,7 @@ export class Server {
     this.searchForvagroup();
     this.batchDeleteUser();
     this.getNotCalledUsersAndDelete();
+    this.signUpUser()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -759,87 +760,6 @@ export class Server {
     });
   }
 
-  // async getTranscriptAfterCallEnded() {
-  //   this.app.post("/webhook", async (request: Request, response: Response) => {
-  //     const payload = request.body;
-  //     const today = new Date();
-  //     today.setHours(0, 0, 0, 0);
-  //     const todayString = today.toISOString().split("T")[0];
-  //     const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
-  //     const lockTTL = 300;
-  //     const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
-  //       NX: true,
-  //       PX: lockTTL,
-  //     });
-  //     if (!lockAcquired) {
-  //       return;
-  //     }
-  //     try {
-  //       if (payload.event === "call_started") {
-  //         console.log(`call started for: $${payload.data.call_id}`);
-  //         const { call_id, agent_id } = payload.data;
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: call_id, agentId: agent_id },
-  //           { status: callstatusenum.IN_PROGRESS },
-  //         );
-  //       }
-  //       if (payload.event === "call_ended") {
-  //         const { call_id, transcript, recording_url, agent_id } = payload.data;
-  //         const result = await EventModel.create({
-  //           callId: call_id,
-  //           recordingUrl: recording_url,
-  //           transcript: transcript,
-  //         });
-  //         await DailyStats.updateOne(
-  //           { myDate: todayString, agentId: agent_id },
-  //           { $inc: { totalCalls: 1 } },
-  //           { upsert: true },
-  //         );
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: call_id },
-  //           {
-  //             status: callstatusenum.CALLED,
-  //             $push: { datesCalled: todayString },
-  //             referenceToCallId: result._id,
-  //           },
-  //         );
-  //       }
-  //       if (payload.event === "call_analyzed") {
-  //         const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
-  //         await EventModel.findOneAndUpdate({
-  //           callId: payload.data.call_id
-  //         }, {
-  //           retellCallSummary: call_summary,
-  //           userSentiment: user_sentiment,
-  //           agentSemtiment: agent_sentiment,
-
-  //         }, {new: true})
-  //         if (payload.data.disconnection_reason === "machine_detected") {
-  //           const result = await DailyStats.updateOne(
-  //             { myDate: todayString, agentId: payload.data.agent_id },
-  //             { $inc: { callsNotAnswered: 1 } },
-  //             { upsert: true },
-  //           );
-  //           await contactModel.findOneAndUpdate(
-  //             { callId: payload.data.call_id },
-  //             {
-  //               status: callstatusenum.VOICEMAIL,
-  //               linktocallLogModel: result.upsertedId
-  //                 ? result.upsertedId._id
-  //                 : null,
-  //               answeredByVM: true,
-  //             },
-  //           );
-  //         }
-  //         await redisClient.del(webhookRedisKey);
-  //         return;
-  //       }
-  //     } catch (error) {
-  //       console.log(error);
-  //     }
-  //   });
-  // }
-
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
@@ -1409,21 +1329,23 @@ export class Server {
   loginUser(){
 
   }
-  signInUser(){
-    this.app.post("", async (req:Request, res: Response) => {
+  signUpUser(){
+    this.app.post("/user/signup", async (req:Request, res: Response) => {
       try {
         const { email, password, group} = req.body
         if(!email|| !password|| !group){
           res.send({message: "Please provide all needed details"})
         }
         const savedUser =  await userModel.create(
-          email,
+          {email,
           password,
-          group
+          group}
         )
-        res.send({ message: "User created sucessfully"})
+        const token = jwt.sign({userId: savedUser._id, email: savedUser.email},"HI",{expiresIn:"1d"})
+        res.send({ message: "User created sucessfully", token})
       } catch (error) {
         console.log(error)
+        res.send("error while signing up")
       }
     })
   }
