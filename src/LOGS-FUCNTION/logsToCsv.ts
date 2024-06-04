@@ -120,7 +120,7 @@ export const logsToCsv = async (
       agentId,
       isDeleted: false,
     };
-    if (statusOption) {
+    if (statusOption && statusOption !== "All") {
       let callStatus;
       if (statusOption === "Called") {
         callStatus = callstatusenum.CALLED;
@@ -131,11 +131,10 @@ export const logsToCsv = async (
       } else if (statusOption === "Failed") {
         callStatus = callstatusenum.FAILED;
       } else if  (statusOption === "All"){
-        callStatus = ""
+        callStatus = null
       }
       query.status = callStatus;
-    }
-
+  }
     const foundContacts = await contactModel
       .find(query)
       .sort({ createdAt: "desc" })
