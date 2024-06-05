@@ -45,7 +45,7 @@ import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
 import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 import { reviewTranscript } from "./helper-fuction/transcript-review";
-import jwt from "jsonwebtoken"
+import jwt from "jsonwebtoken";
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
@@ -117,7 +117,8 @@ export class Server {
     this.searchForvagroup();
     this.batchDeleteUser();
     this.getNotCalledUsersAndDelete();
-    this.signUpUser()
+    this.signUpUser();
+    this.removeDuplicates();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -791,7 +792,7 @@ export class Server {
           const { call_summary, user_sentiment, agent_sentiment } =
             payload.data.call_analysis;
           const { call_id, transcript, recording_url, agent_id } = payload.data;
-          const analyzedTranscript = await reviewTranscript(transcript)
+          const analyzedTranscript = await reviewTranscript(transcript);
           const results = await EventModel.create({
             callId: call_id,
             retellCallSummary: call_summary,
@@ -800,8 +801,7 @@ export class Server {
             recordingUrl: recording_url,
             transcript: transcript,
             disconnectionReason: payload.data.disconnection_reason,
-            analyzedTranscript: analyzedTranscript.message.content
-        
+            analyzedTranscript: analyzedTranscript.message.content,
           });
           const isMachine =
             payload.data.disconnection_reason === "machine_detected";
@@ -829,7 +829,6 @@ export class Server {
                 ? statsResults.upsertedId._id
                 : null,
               answeredByVM: true,
-              
             },
           );
           await redisClient.del(webhookRedisKey);
@@ -854,9 +853,14 @@ export class Server {
   logsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
-        const { agentId, limit  , statusOption, sentimentOption} = req.body;
+        const { agentId, limit, statusOption, sentimentOption } = req.body;
         const newlimit = parseInt(limit);
-        const result = await logsToCsv(agentId, newlimit, statusOption, sentimentOption);
+        const result = await logsToCsv(
+          agentId,
+          newlimit,
+          statusOption,
+          sentimentOption,
+        );
         if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
@@ -1136,7 +1140,6 @@ export class Server {
   //         };
   //         return await contactModel.find(query).populate("referenceToCallId");
 
-          
   //       };
 
   //       let allResults: any[] = [];
@@ -1155,22 +1158,22 @@ export class Server {
 
   searchForUser() {
     this.app.post("/search", async (req: Request, res: Response) => {
-      const { agentId, searchTerm } = req.body;
+      const { agentId, searchTerm, startDate, endDate } = req.body;
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
       }
-  
+
       const isValidEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
       };
-  
+
       try {
         const searchTerms = searchTerm
           .split(",")
           .map((term: string) => term.trim());
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
-  
+
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query = {
             agentId,
@@ -1184,31 +1187,35 @@ export class Server {
                   { email: { $regex: term, $options: "i" } },
                 ],
           };
-  
-          const contacts = await contactModel.find(query).populate("referenceToCallId");
-  
+
+          const contacts = await contactModel
+            .find(query)
+            .populate("referenceToCallId");
+
           // Process transcript for each contact
-          const contactsWithTranscript = await Promise.all(contacts.map(async (contact) => {
-            const transcript = contact.referenceToCallId?.transcript || '';
-            const reviewedTranscript = await reviewTranscript(transcript);
-            
-            // Return contact with reviewed transcript appended
-            return {
-              ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
-              analyzedTranscript: reviewedTranscript.message.content,
-            };
-          }));
-  
+          const contactsWithTranscript = await Promise.all(
+            contacts.map(async (contact) => {
+              const transcript = contact.referenceToCallId?.transcript || "";
+              const reviewedTranscript = await reviewTranscript(transcript);
+
+              // Return contact with reviewed transcript appended
+              return {
+                ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
+                analyzedTranscript: reviewedTranscript.message.content,
+              };
+            }),
+          );
+
           return contactsWithTranscript;
         };
-  
+
         let allResults: any[] = [];
-  
+
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
         }
-  
+
         res.json(allResults);
       } catch (error) {
         console.error(error);
@@ -1216,14 +1223,69 @@ export class Server {
       }
     });
   }
-  
+
+  // searchForvagroup() {
+  //   this.app.post("/search-va-group", async (req: Request, res: Response) => {
+  //     const { searchTerm } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+  //     const agentIds = [
+  //       "214e92da684138edf44368d371da764c",
+  //       "0411eeeb12d17a340941e91a98a766d0",
+  //       "86f0db493888f1da69b7d46bfaecd360",
+  //     ];
+
+  //     const isValidEmail = (email: string) => {
+  //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //       return emailRegex.test(email);
+  //     };
+
+  //     try {
+  //       const searchTerms = searchTerm
+  //         .split(",")
+  //         .map((term: string) => term.trim());
+  //       const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+  //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
+  //         const query = {
+  //           agentId: { $in: agentIds },
+  //           isDeleted: false,
+  //           $or: searchByEmail
+  //             ? [{ email: { $regex: term, $options: "i" } }]
+  //             : [
+  //                 { firstname: { $regex: term, $options: "i" } },
+  //                 { lastname: { $regex: term, $options: "i" } },
+  //                 { phone: { $regex: term, $options: "i" } },
+  //                 { email: { $regex: term, $options: "i" } },
+  //               ],
+  //         };
+  //         return await contactModel.find(query).populate("referenceToCallId");
+  //       };
+
+  //       let allResults: any[] = [];
+
+  //       for (const term of searchTerms) {
+  //         const results = await searchForTerm(term, firstTermIsEmail);
+  //         allResults = allResults.concat(results);
+  //       }
+
+  //       res.json(allResults);
+  //     } catch (error) {
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
 
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
-      const { searchTerm } = req.body;
+      const { searchTerm, startDate, endDate, statusOption, sentimentOption } =
+        req.body;
+
       if (!searchTerm) {
         return res.status(400).json({ error: "Search term is required" });
       }
+
       const agentIds = [
         "214e92da684138edf44368d371da764c",
         "0411eeeb12d17a340941e91a98a766d0",
@@ -1242,7 +1304,7 @@ export class Server {
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
-          const query = {
+          let query: any = {
             agentId: { $in: agentIds },
             isDeleted: false,
             $or: searchByEmail
@@ -1254,18 +1316,75 @@ export class Server {
                   { email: { $regex: term, $options: "i" } },
                 ],
           };
+          if (startDate && endDate) {
+            query["datesCalled"] = {
+              $gte: startDate,
+              $lte: endDate,
+            };
+          }
+
+          if (statusOption && statusOption !== "All") {
+            let callStatus;
+            if (statusOption === "Called") {
+              callStatus = callstatusenum.CALLED;
+            } else if (statusOption === "notCalled") {
+              callStatus = callstatusenum.NOT_CALLED;
+            } else if (statusOption === "vm") {
+              callStatus = callstatusenum.VOICEMAIL;
+            } else if (statusOption === "Failed") {
+              callStatus = callstatusenum.FAILED;
+            }
+            query["status"] = callStatus;
+          }
+
           return await contactModel.find(query).populate("referenceToCallId");
         };
 
         let allResults: any[] = [];
-
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
         }
 
+         allResults = await Promise.all(
+          allResults.map(async (contact) => {
+            const transcript = contact.referenceToCallId?.transcript;
+            const analyzedTranscript = await reviewTranscript(transcript);
+            return {
+              firstname: contact.firstname,
+              lastname: contact.lastname,
+              email: contact.email,
+              phone: contact.phone,
+              status: contact.status,
+              transcript: transcript,
+              analyzedTranscript: analyzedTranscript?.message.content,
+              call_recording_url: contact.referenceToCallId?.recordingUrl,
+            };
+          }),
+        );
+
+        if (sentimentOption) {
+          allResults = allResults.filter((contact) => {
+            switch (sentimentOption) {
+              case "Interested":
+                return contact.analyzedTranscript === "Interested";
+              case "Incomplete Call":
+                return contact.analyzedTranscript === "Incomplete Call";
+              case "Scheduled":
+                return contact.analyzedTranscript === "Scheduled";
+              case "Uninterested":
+                return contact.analyzedTranscript === "Uninterested";
+              case "Call back":
+                return contact.analyzedTranscript === "Call back";
+              default:
+                return true;
+            }
+          });
+        }
+
         res.json(allResults);
       } catch (error) {
+        console.log(error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
@@ -1326,27 +1445,64 @@ export class Server {
       }
     });
   }
-  loginUser(){
+  loginUser() {}
 
-  }
-  signUpUser(){
-    this.app.post("/user/signup", async (req:Request, res: Response) => {
+
+  signUpUser() {
+    this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
-        const { email, password, group} = req.body
-        if(!email|| !password|| !group){
-          res.send({message: "Please provide all needed details"})
+        const { email, password, group } = req.body;
+        if (!email || !password || !group) {
+          res.send({ message: "Please provide all needed details" });
         }
-        const savedUser =  await userModel.create(
-          {email,
-          password,
-          group}
-        )
-        const token = jwt.sign({userId: savedUser._id, email: savedUser.email},"HI",{expiresIn:"1d"})
-        res.send({ message: "User created sucessfully", token})
+        const savedUser = await userModel.create({ email, password, group });
+        const token = jwt.sign(
+          { userId: savedUser._id, email: savedUser.email },
+          "HI",
+          { expiresIn: "1d" },
+        );
+        res.send({ message: "User created sucessfully", token });
       } catch (error) {
-        console.log(error)
-        res.send("error while signing up")
+        console.log(error);
+        res.send("error while signing up");
       }
-    })
+    });
+  }
+
+  removeDuplicates() {
+    this.app.post("/example", async (req: Request, res: Response) => {
+      try {
+        // Aggregate to count duplicate documents by email
+        const duplicateCounts = await contactModel.aggregate([
+          {
+            $group: {
+              _id: "$email",
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $match: {
+              count: { $gt: 1 }, // Filter out emails with only one occurrence
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalDuplicates: { $sum: "$count" }, // Sum up the counts of all duplicate emails
+            },
+          },
+        ]);
+
+        // Extract total count of duplicate documents
+        const totalDuplicates =
+          duplicateCounts.length > 0 ? duplicateCounts[0].totalDuplicates : 0;
+
+        console.log("Total duplicate documents:", totalDuplicates);
+        res.send(`Total duplicate documents: ${totalDuplicates}`);
+      } catch (error) {
+        console.error("Error counting duplicate documents:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
   }
 }

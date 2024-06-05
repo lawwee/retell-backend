@@ -20,11 +20,9 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
           {
             $and: [
               {
-                
                 "datesCalled": { $gte: startDate }
               },
               {
-                // Check if any date in the array is less than or equal to the end date
                 "datesCalled": { $lte: endDate }
               }
             ]
