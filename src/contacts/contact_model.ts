@@ -6,15 +6,18 @@ const ContactSchema = new Schema<IContact>(
   {
     firstname: {
       type: String,
+      required: true
     },
     email: {
       type: String,
+      required: true
     },
     lastname: {
       type: String,
     },
     phone: {
       type: String,
+      required: true
     },
     isusercalled: {
       type: Boolean,
@@ -29,6 +32,7 @@ const ContactSchema = new Schema<IContact>(
     },
     agentId: {
       type: String,
+      required: true
     },
     status: {
       type: String,

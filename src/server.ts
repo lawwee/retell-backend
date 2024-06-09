@@ -570,57 +570,120 @@ export class Server {
       },
     );
   }
+  // uploadcsvToDb() {
+  //   this.app.post(
+  //     "/upload/:agentId",
+  //     this.upload.single("csvFile"),
+  //     async (req: Request, res: Response) => {
+  //       try {
+  //         if (!req.file) {
+  //           return res.status(400).json({ message: "No file uploaded" });
+  //         }
+  //         const csvFile = req.file;
+  //         const csvData = fs.readFileSync(csvFile.path, "utf8");
+  //         Papa.parse(csvData, {
+  //           header: true,
+  //           complete: async (results) => {
+  //             const jsonArrayObj: IContact[] = results.data as IContact[];
+  //             console.log(jsonArrayObj)
+  //             const agentId = req.params.agentId;
+  //             let uploadedNumber = 0
+  //             let failedUploadedNumber = 0
+  //             let contactToUpload = []
+  //             for (const user of jsonArrayObj) {
+  //               try {
+  //                 const existingUser = await contactModel.findOne({
+  //                   email: user.email,
+  //                   agentId: user.agentId,
+  //                 });
+  //                 if (!existingUser) {
+  //                   const userWithAgentId = { ...user, agentId };
+  //                   // await contactModel.create(userWithAgentId)
+  //                   contactToUpload.push(userWithAgentId)
+  //                   uploadedNumber++
+  //                 }
+  //               } catch (error) {
+  //                 failedUploadedNumber++
+  //               }
+
+  //             }
+  //             res
+  //               .status(200)
+  //               .json({ message: `Upload successful, contact uploaded is :${uploadedNumber}, failed cotacts are: ${failedUploadedNumber}` });
+  //           },
+  //           error: (err: Error) => {
+  //             console.error("Error parsing CSV:", err);
+  //             res.status(500).json({ message: "Failed to parse CSV data" });
+  //           },
+  //         });
+  //       } catch (err) {
+  //         console.error("Error:", err);
+  //         res
+  //           .status(500)
+  //           .json({ message: "Failed to upload CSV data to database" });
+  //       }
+  //     },
+  //   );
+  // }
+
   uploadcsvToDb() {
-    this.app.post(
-      "/upload/:agentId",
-      this.upload.single("csvFile"),
-      async (req: Request, res: Response) => {
-        try {
-          if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded" });
-          }
-          const csvFile = req.file;
-          const csvData = fs.readFileSync(csvFile.path, "utf8");
-          Papa.parse(csvData, {
-            header: true,
-            complete: async (results) => {
-              const jsonArrayObj: IContact[] = results.data as IContact[];
-              const agentId = req.params.agentId;
-              const usersToInsert: any[] = [];
-
-              for (const user of jsonArrayObj) {
-                const existingUser = await contactModel.findOne({
-                  email: user.email,
-                  agentId: user.agentId,
-                });
-                if (existingUser.agentId === agentId) {
-                  const userWithAgentId = { ...user, agentId };
-                  usersToInsert.push(userWithAgentId);
-                }
-              }
-              const insertedUsers = await contactModel.insertMany(
-                usersToInsert,
-              );
-
-              console.log("Upload successful");
-              res
-                .status(200)
-                .json({ message: "Upload successful", insertedUsers });
-            },
-            error: (err: Error) => {
-              console.error("Error parsing CSV:", err);
-              res.status(500).json({ message: "Failed to parse CSV data" });
-            },
-          });
-        } catch (err) {
-          console.error("Error:", err);
-          res
-            .status(500)
-            .json({ message: "Failed to upload CSV data to database" });
+  this.app.post(
+    "/upload/:agentId",
+    this.upload.single("csvFile"),
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded" });
         }
-      },
-    );
-  }
+        const csvFile = req.file;
+        const csvData = fs.readFileSync(csvFile.path, "utf8");
+        Papa.parse(csvData, {
+          header: true,
+          complete: async (results) => {
+            const jsonArrayObj: IContact[] = results.data as IContact[];
+            const agentId = req.params.agentId;
+            let uploadedNumber = 0;
+            const failedUsers: { email?: string; firstname?: string; phone?: string }[] = [];
+            const successfulUsers: { email: string; firstname: string; phone: string }[] = [];
+
+            for (const user of jsonArrayObj) {
+              if (user.firstname && user.phone && user.email) {
+                try {
+                  const existingUser = await contactModel.findOne({
+                    email: user.email,
+                    agentId: user.agentId,
+                  });
+                  if (!existingUser) {
+                    const userWithAgentId = { ...user, agentId };
+                    successfulUsers.push(userWithAgentId)
+                    uploadedNumber++;
+                  }
+                } catch (error) {
+                  failedUsers.push({ email: user.email, firstname: user.firstname, phone: user.phone });
+                }
+              } else {
+                failedUsers.push({ email: user.email, firstname: user.firstname, phone: user.phone });
+              }
+            }
+            await contactModel.insertMany(successfulUsers);
+
+            res.status(200).json({
+              message: `Upload successful, contacts uploaded: ${uploadedNumber}`,
+              failedUsers: failedUsers,
+            });
+          },
+          error: (err: Error) => {
+            console.error("Error parsing CSV:", err);
+            res.status(500).json({ message: "Failed to parse CSV data" });
+          },
+        });
+      } catch (err) {
+        console.error("Error:", err);
+        res.status(500).json({ message: "Failed to upload CSV data to database" });
+      }
+    },
+  );
+}
 
   getjobstatus() {
     this.app.post("/schedules/status", async (req: Request, res: Response) => {
@@ -853,7 +916,14 @@ export class Server {
   logsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
-        const { agentId,startDate, endDate, limit, statusOption, sentimentOption } = req.body;
+        const {
+          agentId,
+          startDate,
+          endDate,
+          limit,
+          statusOption,
+          sentimentOption,
+        } = req.body;
         const newlimit = parseInt(limit);
         const result = await logsToCsv(
           agentId,
@@ -861,7 +931,7 @@ export class Server {
           startDate,
           endDate,
           statusOption,
-          sentimentOption
+          sentimentOption,
         );
         if (typeof result === "string") {
           const filePath: string = result;
@@ -1082,9 +1152,6 @@ export class Server {
   //     res.json({result})
   //   }
   // )  }
-
-
-
 
   // searchForUser() {
   //   this.app.post("/search", async (req: Request, res: Response) => {
@@ -1351,7 +1418,7 @@ export class Server {
           allResults = allResults.concat(results);
         }
 
-         allResults = await Promise.all(
+        allResults = await Promise.all(
           allResults.map(async (contact) => {
             const transcript = contact.referenceToCallId?.transcript;
             const analyzedTranscript = await reviewTranscript(transcript);
@@ -1452,7 +1519,6 @@ export class Server {
   }
   loginUser() {}
 
-
   signUpUser() {
     this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
@@ -1477,23 +1543,27 @@ export class Server {
   removeDuplicates() {
     this.app.post("/example", async (req: Request, res: Response) => {
       try {
-        const users = await contactModel.find().populate('referenceToCallId');
-      
+        const users = await contactModel.find().populate("referenceToCallId");
+
         // Using for...of loop
         for (const user of users) {
-          if (user.referenceToCallId && !user.referenceToCallId.analyzedTranscript) {
-            const analyzedTranscript = await reviewTranscript(user.referenceToCallId.transcript);
+          if (
+            user.referenceToCallId &&
+            !user.referenceToCallId.analyzedTranscript
+          ) {
+            const analyzedTranscript = await reviewTranscript(
+              user.referenceToCallId.transcript,
+            );
             user.referenceToCallId.analyzedTranscript = analyzedTranscript;
             await user.save();
           }
-          console.log(`complete for : ${user.firstname}`)
+          console.log(`complete for : ${user.firstname}`);
         }
-      
-        res.send('Analysis and saving completed successfully.');
+
+        res.send("Analysis and saving completed successfully.");
       } catch (error) {
-        console.error('Error:', error);
+        console.error("Error:", error);
       }
-      
     });
   }
 }
