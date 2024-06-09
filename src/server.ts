@@ -52,7 +52,7 @@ import { userModel } from "./users/userModel";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
-  target: "http://localhost:8080/webhook",
+  target: "https://intuitiveagents.io/webhook",
   logger: console,
 });
 smee.start();
@@ -778,7 +778,7 @@ export class Server {
       }
       try {
         if (payload.event === "call_started") {
-          console.log(`call started for: $${payload.data.call_id}`);
+          console.log(`call started for: ${payload.data.call_id}`);
           const { call_id, agent_id } = payload.data;
           await contactModel.findOneAndUpdate(
             { callId: call_id, agentId: agent_id },
@@ -853,13 +853,15 @@ export class Server {
   logsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
-        const { agentId, limit, statusOption, sentimentOption } = req.body;
+        const { agentId,startDate, endDate, limit, statusOption, sentimentOption } = req.body;
         const newlimit = parseInt(limit);
         const result = await logsToCsv(
           agentId,
           newlimit,
+          startDate,
+          endDate,
           statusOption,
-          sentimentOption,
+          sentimentOption
         );
         if (typeof result === "string") {
           const filePath: string = result;
@@ -1081,6 +1083,9 @@ export class Server {
   //   }
   // )  }
 
+
+
+
   // searchForUser() {
   //   this.app.post("/search", async (req: Request, res: Response) => {
   //     const { agentId, searchTerm } = req.body;
@@ -1156,85 +1161,12 @@ export class Server {
   //   });
   // }
 
-  searchForUser() {
-    this.app.post("/search", async (req: Request, res: Response) => {
-      const { agentId, searchTerm, startDate, endDate } = req.body;
-      if (!searchTerm) {
-        return res.status(400).json({ error: "Search term is required" });
-      }
-
-      const isValidEmail = (email: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-      };
-
-      try {
-        const searchTerms = searchTerm
-          .split(",")
-          .map((term: string) => term.trim());
-        const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
-        const searchForTerm = async (term: string, searchByEmail: boolean) => {
-          const query = {
-            agentId,
-            isDeleted: false,
-            $or: searchByEmail
-              ? [{ email: { $regex: term, $options: "i" } }]
-              : [
-                  { firstname: { $regex: term, $options: "i" } },
-                  { lastname: { $regex: term, $options: "i" } },
-                  { phone: { $regex: term, $options: "i" } },
-                  { email: { $regex: term, $options: "i" } },
-                ],
-          };
-
-          const contacts = await contactModel
-            .find(query)
-            .populate("referenceToCallId");
-
-          // Process transcript for each contact
-          const contactsWithTranscript = await Promise.all(
-            contacts.map(async (contact) => {
-              const transcript = contact.referenceToCallId?.transcript || "";
-              const reviewedTranscript = await reviewTranscript(transcript);
-
-              // Return contact with reviewed transcript appended
-              return {
-                ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
-                analyzedTranscript: reviewedTranscript.message.content,
-              };
-            }),
-          );
-
-          return contactsWithTranscript;
-        };
-
-        let allResults: any[] = [];
-
-        for (const term of searchTerms) {
-          const results = await searchForTerm(term, firstTermIsEmail);
-          allResults = allResults.concat(results);
-        }
-
-        res.json(allResults);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
-  }
-
   // searchForvagroup() {
-  //   this.app.post("/search-va-group", async (req: Request, res: Response) => {
-  //     const { searchTerm } = req.body;
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm, startDate, endDate } = req.body;
   //     if (!searchTerm) {
   //       return res.status(400).json({ error: "Search term is required" });
   //     }
-  //     const agentIds = [
-  //       "214e92da684138edf44368d371da764c",
-  //       "0411eeeb12d17a340941e91a98a766d0",
-  //       "86f0db493888f1da69b7d46bfaecd360",
-  //     ];
 
   //     const isValidEmail = (email: string) => {
   //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1249,7 +1181,7 @@ export class Server {
 
   //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
   //         const query = {
-  //           agentId: { $in: agentIds },
+  //           agentId,
   //           isDeleted: false,
   //           $or: searchByEmail
   //             ? [{ email: { $regex: term, $options: "i" } }]
@@ -1260,7 +1192,26 @@ export class Server {
   //                 { email: { $regex: term, $options: "i" } },
   //               ],
   //         };
-  //         return await contactModel.find(query).populate("referenceToCallId");
+
+  //         const contacts = await contactModel
+  //           .find(query)
+  //           .populate("referenceToCallId");
+
+  //         // Process transcript for each contact
+  //         const contactsWithTranscript = await Promise.all(
+  //           contacts.map(async (contact) => {
+  //             const transcript = contact.referenceToCallId?.transcript || "";
+  //             const reviewedTranscript = await reviewTranscript(transcript);
+
+  //             // Return contact with reviewed transcript appended
+  //             return {
+  //               ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
+  //               analyzedTranscript: reviewedTranscript.message.content,
+  //             };
+  //           }),
+  //         );
+
+  //         return contactsWithTranscript;
   //       };
 
   //       let allResults: any[] = [];
@@ -1272,6 +1223,7 @@ export class Server {
 
   //       res.json(allResults);
   //     } catch (error) {
+  //       console.error(error);
   //       res.status(500).json({ error: "Internal server error" });
   //     }
   //   });
@@ -1279,6 +1231,59 @@ export class Server {
 
   searchForvagroup() {
     this.app.post("/search-va-group", async (req: Request, res: Response) => {
+      const { searchTerm } = req.body;
+      if (!searchTerm) {
+        return res.status(400).json({ error: "Search term is required" });
+      }
+      const agentIds = [
+        "214e92da684138edf44368d371da764c",
+        "0411eeeb12d17a340941e91a98a766d0",
+        "86f0db493888f1da69b7d46bfaecd360",
+      ];
+
+      const isValidEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
+      try {
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim());
+        const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+        const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          const query = {
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            $or: searchByEmail
+              ? [{ email: { $regex: term, $options: "i" } }]
+              : [
+                  { firstname: { $regex: term, $options: "i" } },
+                  { lastname: { $regex: term, $options: "i" } },
+                  { phone: { $regex: term, $options: "i" } },
+                  { email: { $regex: term, $options: "i" } },
+                ],
+          };
+          return await contactModel.find(query).populate("referenceToCallId");
+        };
+
+        let allResults: any[] = [];
+
+        for (const term of searchTerms) {
+          const results = await searchForTerm(term, firstTermIsEmail);
+          allResults = allResults.concat(results);
+        }
+
+        res.json(allResults);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+  }
+
+  searchForUser() {
+    this.app.post("/search", async (req: Request, res: Response) => {
       const { searchTerm, startDate, endDate, statusOption, sentimentOption } =
         req.body;
 
@@ -1472,37 +1477,23 @@ export class Server {
   removeDuplicates() {
     this.app.post("/example", async (req: Request, res: Response) => {
       try {
-        // Aggregate to count duplicate documents by email
-        const duplicateCounts = await contactModel.aggregate([
-          {
-            $group: {
-              _id: "$email",
-              count: { $sum: 1 },
-            },
-          },
-          {
-            $match: {
-              count: { $gt: 1 }, // Filter out emails with only one occurrence
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              totalDuplicates: { $sum: "$count" }, // Sum up the counts of all duplicate emails
-            },
-          },
-        ]);
-
-        // Extract total count of duplicate documents
-        const totalDuplicates =
-          duplicateCounts.length > 0 ? duplicateCounts[0].totalDuplicates : 0;
-
-        console.log("Total duplicate documents:", totalDuplicates);
-        res.send(`Total duplicate documents: ${totalDuplicates}`);
+        const users = await contactModel.find().populate('referenceToCallId');
+      
+        // Using for...of loop
+        for (const user of users) {
+          if (user.referenceToCallId && !user.referenceToCallId.analyzedTranscript) {
+            const analyzedTranscript = await reviewTranscript(user.referenceToCallId.transcript);
+            user.referenceToCallId.analyzedTranscript = analyzedTranscript;
+            await user.save();
+          }
+          console.log(`complete for : ${user.firstname}`)
+        }
+      
+        res.send('Analysis and saving completed successfully.');
       } catch (error) {
-        console.error("Error counting duplicate documents:", error);
-        res.status(500).send("Internal Server Error");
+        console.error('Error:', error);
       }
+      
     });
   }
 }

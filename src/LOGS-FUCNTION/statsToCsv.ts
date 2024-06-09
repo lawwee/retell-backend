@@ -52,14 +52,14 @@ export const statsToCsv = async (startDate: string, endDate: string) => {
     const csvWriter = createObjectCsvWriter({
       path: filePath,
       header: [
-        { id: "firstname", title: "FirstName" },
-        { id: "lastname", title: "LastName" },
-        { id: "email", title: "Email" },
-        { id: "phone", title: "Phone Number" },
+        { id: "firstname", title: "firstname" },
+        { id: "lastname", title: "lastname" },
+        { id: "email", title: "email" },
+        { id: "phone", title: "phone" },
         { id: "status", title: "Status" },
-        { id: "transcript", title: "Transcript" },
-        { id: "call_recording_url", title: "Call_Recording_Url" },
-        { id: "analyzedTranscript", title: "analyzedTranscript" },
+        { id: "transcript", title: "transcript" },
+        { id: "call_recording_url", title: "call_recording_url" },
+        { id: "analyzedTranscript", title: "" },
       ],
     });
 

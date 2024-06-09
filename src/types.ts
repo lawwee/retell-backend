@@ -158,3 +158,13 @@ export interface FunctionCall {
   arguments: Record<string, any>;
   result?: string;
 }
+
+export interface transcriptEnum {
+  Uninterested: "Uninterested",
+  Interested :"Interested",
+  Scheduled:"Scheduled",
+  Voicemail:"Voicemail",
+ incomplete_call:"Incomplete call",
+ call_back:"Call back"
+
+}
