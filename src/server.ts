@@ -903,10 +903,6 @@ export class Server {
             statusOption,
             sentimentOption,
           } = req.body;
-          if (!agentId || !startDate || !endDate) {
-            res.status(400).send("Please provide required parameters");
-            throw new Error("Please provide required parameters");
-          }
           const newlimit = parseInt(limit);
           const result = await logsToCsv(
             agentId,
