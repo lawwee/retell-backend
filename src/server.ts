@@ -901,7 +901,7 @@ export class Server {
             statusOption,
             sentimentOption,
           } = req.body;
-          if (!agentId || !startDate || !endDate) {
+          if (!agentId ) {
             res.status(400).send("Please provide required parameters");
             throw new Error("Please provide required parameters");
           }
