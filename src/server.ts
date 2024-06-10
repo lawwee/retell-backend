@@ -484,7 +484,9 @@ export class Server {
         try {
           const result = await getAllContact(agentId, newpage, newLimit);
           res.json({ result });
-        } catch (error) {}
+        } catch (error) {
+          console.log(error)
+        }
       },
     );
   }
@@ -496,7 +498,7 @@ export class Server {
         try {
           const result = await deleteOneContact(id);
           res.json({ result });
-        } catch (error) {}
+        } catch (error) {console.log(error)}
       },
     );
   }
@@ -901,7 +903,7 @@ export class Server {
             statusOption,
             sentimentOption,
           } = req.body;
-          if (!agentId ) {
+          if (!agentId || !startDate || !endDate) {
             res.status(400).send("Please provide required parameters");
             throw new Error("Please provide required parameters");
           }
