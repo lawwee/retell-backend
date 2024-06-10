@@ -21,7 +21,6 @@ import {
   jobModel,
   EventModel,
 } from "./contacts/contact_model";
-import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
 import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
@@ -50,7 +49,6 @@ import jwt from "jsonwebtoken";
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
-import authmiddleware from "./middleware/protect";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -70,14 +68,7 @@ export class Server {
   storage = multer.diskStorage({
     destination: "public/",
     filename: function (req, file, cb) {
-      const timestamp = Date.now();
-      const fileExtension = file.originalname.split(".").pop();
-      const newFilename = `${file.originalname
-        .split(".")
-        .slice(0, -1)
-        .join(".")}_${timestamp}.${fileExtension}`;
-
-      cb(null, newFilename);
+      cb(null, file.originalname);
     },
   });
 
@@ -119,14 +110,15 @@ export class Server {
     this.peopleStatsLog();
     this.peopleStatToCsv();
     this.createPhoneCall2();
+    // this.testwebsocket()
+    // this.TranscriptReview()
     this.searchForUser();
     this.getTranscriptAfterCallEnded();
     this.searchForvagroup();
     this.batchDeleteUser();
     this.getNotCalledUsersAndDelete();
     this.signUpUser();
-    this.loginAdmin();
-    this.loginUser();
+    this.removeDuplicates();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -139,6 +131,42 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
+
+  //   testReetellWebsocket() {
+  //     this.app.ws('/testwebsocket', async (ws, req) => {
+  //         const user = { agentId: "1" };
+  //         console.log('WebSocket connection established');
+  //         // Handle incoming WebSocket messages
+  //         ws.on('message', async (msg) => {
+  //             console.log('Received message:', msg);
+  //             const message = " i am No 1";
+  //             let counter = 0;
+  //             const intervalId = setInterval(() => {
+  //                 if (counter < 5) {
+  //                     ws.send(message);
+  //                     console.log('Message sent:', message);
+  //                     counter++;
+  //                 } else {
+  //                     clearInterval(intervalId);
+  //                     ws.close()
+  //                 }
+  //             }, 1000);
+  //         });
+  //         ws.on('close', async () => {
+  //             const today = new Date();
+  //             const todayString = today.toISOString().split("T")[0];
+  //             await DailyStats.updateOne(
+  //                 { myDate: todayString, agentId: user.agentId },
+  //                 { $inc: { totalCalls: 1 } },
+  //                 { upsert: true }
+  //             );
+  //             console.log('WebSocket connection closed');
+
+  //         });
+
+  //     });
+  // }
+
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -454,75 +482,61 @@ export class Server {
     );
   }
   handleContactSaving() {
-    this.app.post(
-      "/users/create",
-      async (req: Request, res: Response) => {
-        const { firstname, lastname, email, phone, agentId } = req.body;
-        try {
-          const result = await createContact(
-            firstname,
-            lastname,
-            email,
-            phone,
-            agentId,
-          );
-          res.json({ result });
-        } catch (error) {
-          console.log(error);
-        }
-      },
-    );
+    this.app.post("/users/create", async (req: Request, res: Response) => {
+      const { firstname, lastname, email, phone, agentId } = req.body;
+      try {
+        const result = await createContact(
+          firstname,
+          lastname,
+          email,
+          phone,
+          agentId,
+        );
+        res.json({ result });
+      } catch (error) {
+        console.log(error);
+      }
+    });
   }
   handlecontactGet() {
-    this.app.post(
-      "/users/:agentId",
-      async (req: Request, res: Response) => {
-        const agentId = req.params.agentId;
-        const { page, limit } = req.body;
-        const newpage = parseInt(page);
-        const newLimit = parseInt(limit);
-        try {
-          const result = await getAllContact(agentId, newpage, newLimit);
-          res.json({ result });
-        } catch (error) {
-          console.log(error)
-        }
-      },
-    );
+    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
+      const agentId = req.params.agentId;
+      const { page, limit } = req.body;
+      const newpage = parseInt(page);
+      const newLimit = parseInt(limit);
+      try {
+        const result = await getAllContact(agentId, newpage, newLimit);
+        res.json({ result });
+      } catch (error) {}
+    });
   }
   handlecontactDelete() {
-    this.app.patch(
-      "/users/delete",
-      async (req: Request, res: Response) => {
-        const { id } = req.body;
-        try {
-          const result = await deleteOneContact(id);
-          res.json({ result });
-        } catch (error) {console.log(error)}
-      },
-    );
+    this.app.patch("/users/delete", async (req: Request, res: Response) => {
+      const { id } = req.body;
+      try {
+        const result = await deleteOneContact(id);
+        res.json({ result });
+      } catch (error) {}
+    });
   }
   handleContactUpdate() {
-    this.app.patch(
-      "/users/update",
-      async (req: Request, res: Response) => {
-        try {
-          const { id, fields } = req.body;
-          if (!fields) {
-            return res
-              .status(400)
-              .json({ error: "No fields to update provided." });
-          }
-          const result = await updateOneContact(id, fields);
-          res.json({ result });
-        } catch (error) {
-          console.log(error);
-          res
-            .status(500)
-            .json({ error: "An error occurred while updating contact." });
+    this.app.patch("/users/update", async (req: Request, res: Response) => {
+      try {
+        const { id, fields } = req.body;
+        if (!fields) {
+          return res
+            .status(400)
+            .json({ error: "No fields to update provided." });
         }
-      },
-    );
+        const result = await updateOneContact(id, fields);
+        res.json({ result });
+      } catch (error) {
+        console.log(error);
+        res
+          .status(500)
+          .json({ error: "An error occurred while updating contact." });
+      }
+    });
   }
   createPhoneCall() {
     this.app.post(
@@ -556,101 +570,133 @@ export class Server {
       },
     );
   }
+  // uploadcsvToDb() {
+  //   this.app.post(
+  //     "/upload/:agentId",
+  //     this.upload.single("csvFile"),
+  //     async (req: Request, res: Response) => {
+  //       try {
+  //         if (!req.file) {
+  //           return res.status(400).json({ message: "No file uploaded" });
+  //         }
+  //         const csvFile = req.file;
+  //         const csvData = fs.readFileSync(csvFile.path, "utf8");
+  //         Papa.parse(csvData, {
+  //           header: true,
+  //           complete: async (results) => {
+  //             const jsonArrayObj: IContact[] = results.data as IContact[];
+  //             console.log(jsonArrayObj)
+  //             const agentId = req.params.agentId;
+  //             let uploadedNumber = 0
+  //             let failedUploadedNumber = 0
+  //             let contactToUpload = []
+  //             for (const user of jsonArrayObj) {
+  //               try {
+  //                 const existingUser = await contactModel.findOne({
+  //                   email: user.email,
+  //                   agentId: user.agentId,
+  //                 });
+  //                 if (!existingUser) {
+  //                   const userWithAgentId = { ...user, agentId };
+  //                   // await contactModel.create(userWithAgentId)
+  //                   contactToUpload.push(userWithAgentId)
+  //                   uploadedNumber++
+  //                 }
+  //               } catch (error) {
+  //                 failedUploadedNumber++
+  //               }
+
+  //             }
+  //             res
+  //               .status(200)
+  //               .json({ message: `Upload successful, contact uploaded is :${uploadedNumber}, failed cotacts are: ${failedUploadedNumber}` });
+  //           },
+  //           error: (err: Error) => {
+  //             console.error("Error parsing CSV:", err);
+  //             res.status(500).json({ message: "Failed to parse CSV data" });
+  //           },
+  //         });
+  //       } catch (err) {
+  //         console.error("Error:", err);
+  //         res
+  //           .status(500)
+  //           .json({ message: "Failed to upload CSV data to database" });
+  //       }
+  //     },
+  //   );
+  // }
+
   uploadcsvToDb() {
-    this.app.post(
-      "/upload/:agentId",
-      this.upload.single("csvFile"),
-      async (req: Request, res: Response) => {
-        try {
-          if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded" });
-          }
-          const csvFile = req.file;
-          const csvData = fs.readFileSync(csvFile.path, "utf8");
-          Papa.parse(csvData, {
-            header: true,
-            complete: async (results) => {
-              const jsonArrayObj: IContact[] = results.data as IContact[];
-              const agentId = req.params.agentId;
-              let uploadedNumber = 0;
-              const failedUsers: {
-                email?: string;
-                firstname?: string;
-                phone?: string;
-              }[] = [];
-              const successfulUsers: {
-                email: string;
-                firstname: string;
-                phone: string;
-              }[] = [];
-
-              for (const user of jsonArrayObj) {
-                if (user.firstname && user.phone && user.email) {
-                  try {
-                    const existingUser = await contactModel.findOne({
-                      email: user.email,
-                      agentId: user.agentId,
-                    });
-                    if (!existingUser) {
-                      const userWithAgentId = { ...user, agentId };
-                      successfulUsers.push(userWithAgentId);
-                      uploadedNumber++;
-                    }
-                  } catch (error) {
-                    failedUsers.push({
-                      email: user.email,
-                      firstname: user.firstname,
-                      phone: user.phone,
-                    });
-                  }
-                } else {
-                  failedUsers.push({
-                    email: user.email,
-                    firstname: user.firstname,
-                    phone: user.phone,
-                  });
-                }
-              }
-              await contactModel.insertMany(successfulUsers);
-
-              res.status(200).json({
-                message: `Upload successful, contacts uploaded: ${uploadedNumber}`,
-                failedUsers: failedUsers,
-              });
-            },
-            error: (err: Error) => {
-              console.error("Error parsing CSV:", err);
-              res.status(500).json({ message: "Failed to parse CSV data" });
-            },
-          });
-        } catch (err) {
-          console.error("Error:", err);
-          res
-            .status(500)
-            .json({ message: "Failed to upload CSV data to database" });
+  this.app.post(
+    "/upload/:agentId",
+    this.upload.single("csvFile"),
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded" });
         }
-      },
-    );
-  }
+        const csvFile = req.file;
+        const csvData = fs.readFileSync(csvFile.path, "utf8");
+        Papa.parse(csvData, {
+          header: true,
+          complete: async (results) => {
+            const jsonArrayObj: IContact[] = results.data as IContact[];
+            const agentId = req.params.agentId;
+            let uploadedNumber = 0;
+            const failedUsers: { email?: string; firstname?: string; phone?: string }[] = [];
+            const successfulUsers: { email: string; firstname: string; phone: string }[] = [];
+
+            for (const user of jsonArrayObj) {
+              if (user.firstname && user.phone && user.email) {
+                try {
+                  const existingUser = await contactModel.findOne({
+                    email: user.email,
+                    agentId: user.agentId,
+                  });
+                  if (!existingUser) {
+                    const userWithAgentId = { ...user, agentId };
+                    successfulUsers.push(userWithAgentId)
+                    uploadedNumber++;
+                  }
+                } catch (error) {
+                  failedUsers.push({ email: user.email, firstname: user.firstname, phone: user.phone });
+                }
+              } else {
+                failedUsers.push({ email: user.email, firstname: user.firstname, phone: user.phone });
+              }
+            }
+            await contactModel.insertMany(successfulUsers);
+
+            res.status(200).json({
+              message: `Upload successful, contacts uploaded: ${uploadedNumber}`,
+              failedUsers: failedUsers,
+            });
+          },
+          error: (err: Error) => {
+            console.error("Error parsing CSV:", err);
+            res.status(500).json({ message: "Failed to parse CSV data" });
+          },
+        });
+      } catch (err) {
+        console.error("Error:", err);
+        res.status(500).json({ message: "Failed to upload CSV data to database" });
+      }
+    },
+  );
+}
 
   getjobstatus() {
-    this.app.post(
-      "/schedules/status",
-      async (req: Request, res: Response) => {
-        const { jobId } = req.body;
-        const result = await jobModel.findOne({ jobId });
-        res.json({ result });
-      },
-    );
+    this.app.post("/schedules/status", async (req: Request, res: Response) => {
+      const { jobId } = req.body;
+      const result = await jobModel.findOne({ jobId });
+      res.json({ result });
+    });
   }
   getAllJobSchedule() {
-    this.app.get(
-      "/schedules/get",
-      async (req: Request, res: Response) => {
-        const result = await jobModel.find().sort({ createdAt: "desc" });
-        res.json({ result });
-      },
-    );
+    this.app.get("/schedules/get", async (req: Request, res: Response) => {
+      const result = await jobModel.find().sort({ createdAt: "desc" });
+      res.json({ result });
+    });
   }
   resetAgentStatus() {
     this.app.post(
@@ -666,122 +712,102 @@ export class Server {
     );
   }
   schedulemycall() {
-    this.app.post(
-      "/schedule",
-      async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber } = req.body;
-        const scheduledTimePST = moment
-          .tz("America/Los_Angeles")
-          .set({
-            hour,
-            minute,
-            second: 0,
-            millisecond: 0,
-          })
-          .toDate();
-        const formattedDate = moment(scheduledTimePST).format(
-          "YYYY-MM-DDTHH:mm:ss",
-        );
-        const { jobId, scheduledTime } = await scheduleCronJob(
-          scheduledTimePST,
-          agentId,
-          limit,
-          fromNumber,
-          formattedDate,
-        );
-        res.send({ jobId, scheduledTime });
-      },
-    );
+    this.app.post("/schedule", async (req: Request, res: Response) => {
+      const { hour, minute, agentId, limit, fromNumber } = req.body;
+      const scheduledTimePST = moment
+        .tz("America/Los_Angeles")
+        .set({
+          hour,
+          minute,
+          second: 0,
+          millisecond: 0,
+        })
+        .toDate();
+      const formattedDate = moment(scheduledTimePST).format(
+        "YYYY-MM-DDTHH:mm:ss",
+      );
+      const { jobId, scheduledTime } = await scheduleCronJob(
+        scheduledTimePST,
+        agentId,
+        limit,
+        fromNumber,
+        formattedDate,
+      );
+      res.send({ jobId, scheduledTime });
+    });
   }
   stopSpecificJob() {
-    this.app.post(
-      "/stop-job",
-      async (req: Request, res: Response) => {
-        try {
-          const { jobId } = req.body;
-          if (!jobId) {
-            console.log("No jobId provided.");
-            return res.status(400).send("No jobId provided.");
-          }
-          const job = await jobModel.findOneAndUpdate(
-            { jobId },
-            {
-              shouldContinueProcessing: false,
-              callstatus: jobstatus.CANCELLED,
-            },
-          );
-
-          if (!job) {
-            console.log("No job found with the provided jobId:", jobId);
-            return res
-              .status(404)
-              .send("No job found with the provided jobId.");
-          }
-          console.log(`Processing stopped for job ${jobId}.`);
-          return res.send("Processing stopped for job.");
-        } catch (error: any) {
-          console.error("Error stopping job:", error);
-          return res
-            .status(500)
-            .send("Error stopping job: " + (error.message || error));
+    this.app.post("/stop-job", async (req: Request, res: Response) => {
+      try {
+        const { jobId } = req.body;
+        if (!jobId) {
+          console.log("No jobId provided.");
+          return res.status(400).send("No jobId provided.");
         }
-      },
-    );
+        const job = await jobModel.findOneAndUpdate(
+          { jobId },
+          { shouldContinueProcessing: false, callstatus: jobstatus.CANCELLED },
+        );
+
+        if (!job) {
+          console.log("No job found with the provided jobId:", jobId);
+          return res.status(404).send("No job found with the provided jobId.");
+        }
+        console.log(`Processing stopped for job ${jobId}.`);
+        return res.send("Processing stopped for job.");
+      } catch (error: any) {
+        console.error("Error stopping job:", error);
+        return res
+          .status(500)
+          .send("Error stopping job: " + (error.message || error));
+      }
+    });
   }
   stopSpecificSchedule() {
-    this.app.post(
-      "/cancel-schedule",
-      async (req: Request, res: Response) => {
-        const { jobId } = req.body;
-        const scheduledJobs = schedule.scheduledJobs;
+    this.app.post("/cancel-schedule", async (req: Request, res: Response) => {
+      const { jobId } = req.body;
+      const scheduledJobs = schedule.scheduledJobs;
 
-        if (!jobId) {
-          return res.status(404).send(`Please provide an ID`);
-        }
-        // Check if the specified job exists
-        if (!scheduledJobs.hasOwnProperty(jobId)) {
-          return res.status(404).send(`Job with ID ${jobId} not found.`);
-        }
-        const isCancelled = schedule.cancelJob(jobId);
-        if (isCancelled) {
-          await jobModel.findOneAndUpdate(
-            { jobId },
-            { callstatus: jobstatus.CANCELLED },
-          );
-          res.send(`Job with ID ${jobId} cancelled successfully.`);
-        } else {
-          res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
-        }
-      },
-    );
+      if (!jobId) {
+        return res.status(404).send(`Please provide an ID`);
+      }
+      // Check if the specified job exists
+      if (!scheduledJobs.hasOwnProperty(jobId)) {
+        return res.status(404).send(`Job with ID ${jobId} not found.`);
+      }
+      const isCancelled = schedule.cancelJob(jobId);
+      if (isCancelled) {
+        await jobModel.findOneAndUpdate(
+          { jobId },
+          { callstatus: jobstatus.CANCELLED },
+        );
+        res.send(`Job with ID ${jobId} cancelled successfully.`);
+      } else {
+        res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
+      }
+    });
   }
 
   getAllJob() {
-    this.app.get(
-      "/get-jobs",
-      async (req: Request, res: Response) => {
-        const scheduledJobs = schedule.scheduledJobs;
-        let responseString = "";
-        for (const jobId in scheduledJobs) {
-          if (scheduledJobs.hasOwnProperty(jobId)) {
-            const job = scheduledJobs[jobId];
-            responseString += `Job ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n`;
-          }
+    this.app.get("/get-jobs", async (req: Request, res: Response) => {
+      const scheduledJobs = schedule.scheduledJobs;
+      let responseString = "";
+      for (const jobId in scheduledJobs) {
+        if (scheduledJobs.hasOwnProperty(jobId)) {
+          const job = scheduledJobs[jobId];
+          responseString += `Job ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n`;
         }
-        res.send({ responseString });
-      },
-    );
+      }
+      res.send({ responseString });
+    });
   }
 
   getCallLogs() {
-    this.app.post(
-      "/call-logs",
-      async (req: Request, res: Response) => {
-        const { agentId } = req.body;
-        const result = await jobModel.find({ agentId });
-        res.json({ result });
-      },
-    );
+    this.app.post("/call-logs", async (req: Request, res: Response) => {
+      const { agentId } = req.body;
+      const result = await jobModel.find({ agentId });
+      res.json({ result });
+    });
   }
 
   getTimefromcallendly() {
@@ -877,186 +903,154 @@ export class Server {
     });
   }
   deleteAll() {
-    this.app.patch(
-      "/deleteAll",
-      async (req: Request, res: Response) => {
-        const { agentId } = req.body;
-        const result = await contactModel.updateMany(
-          { agentId },
-          { isDeleted: true },
-        );
-        res.send(result);
-      },
-    );
+    this.app.patch("/deleteAll", async (req: Request, res: Response) => {
+      const { agentId } = req.body;
+      const result = await contactModel.updateMany(
+        { agentId },
+        { isDeleted: true },
+      );
+      res.send(result);
+    });
   }
 
   logsToCsv() {
-    this.app.post(
-      "/call-logs-csv",
-      async (req: Request, res: Response) => {
-        try {
-          const {
-            agentId,
-            startDate,
-            endDate,
-            limit,
-            statusOption,
-            sentimentOption,
-          } = req.body;
-          const newlimit = parseInt(limit);
-          const result = await logsToCsv(
-            agentId,
-            newlimit,
-            startDate,
-            endDate,
-            statusOption,
-            sentimentOption,
-          );
-          if (typeof result === "string") {
-            const filePath: string = result;
-            if (fs.existsSync(filePath)) {
-              res.setHeader(
-                "Content-Disposition",
-                "attachment; filename=logs.csv",
-              );
-              res.setHeader("Content-Type", "text/csv");
-              const fileStream = fs.createReadStream(filePath);
-              fileStream.pipe(res);
-            } else {
-              console.error("CSV file does not exist");
-              res.status(404).send("CSV file not found");
-            }
+    this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
+      try {
+        const {
+          agentId,
+          startDate,
+          endDate,
+          limit,
+          statusOption,
+          sentimentOption,
+        } = req.body;
+        const newlimit = parseInt(limit);
+        const result = await logsToCsv(
+          agentId,
+          newlimit,
+          startDate,
+          endDate,
+          statusOption,
+          sentimentOption,
+        );
+        if (typeof result === "string") {
+          const filePath: string = result;
+          if (fs.existsSync(filePath)) {
+            res.setHeader(
+              "Content-Disposition",
+              "attachment; filename=logs.csv",
+            );
+            res.setHeader("Content-Type", "text/csv");
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
           } else {
-            console.error(`Error retrieving contacts: ${result}`);
-            res.status(500).send(`Error retrieving contacts: ${result}`);
+            console.error("CSV file does not exist");
+            res.status(404).send("CSV file not found");
           }
-        } catch (error) {
-          console.error(`Error retrieving contacts: ${error}`);
-          res.status(500).send(`Error retrieving contacts: ${error}`);
+        } else {
+          console.error(`Error retrieving contacts: ${result}`);
+          res.status(500).send(`Error retrieving contacts: ${result}`);
         }
-      },
-    );
+      } catch (error) {
+        console.error(`Error retrieving contacts: ${error}`);
+        res.status(500).send(`Error retrieving contacts: ${error}`);
+      }
+    });
   }
 
   statsForAgent() {
-    this.app.post(
-      "/get-stats",
-      async (req: Request, res: Response) => {
-        try {
-          const agent1 = "214e92da684138edf44368d371da764c";
-          const agent2 = "0411eeeb12d17a340941e91a98a766d0";
-          const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-          const { startDate, endDate } = req.body;
+    this.app.post("/get-stats", async (req: Request, res: Response) => {
+      try {
+        const agent1 = "214e92da684138edf44368d371da764c";
+        const agent2 = "0411eeeb12d17a340941e91a98a766d0";
+        const agent3 = "86f0db493888f1da69b7d46bfaecd360";
+        const { startDate, endDate } = req.body;
 
-          // Validate date
-          if (!startDate || !endDate) {
-            throw new Error("Date is missing in the request body");
-          }
-
-          // Find documents for each agent
-          const foundAgent1: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent1 },
-            ],
-          });
-
-          const foundAgent2: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent2 },
-            ],
-          });
-
-          const foundAgent3: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent3 },
-            ],
-          });
-
-          // Initialize variables to store aggregated stats
-          let TotalCalls = 0;
-          let TotalAnsweredCalls = 0;
-          let TotalNotAnsweredCalls = 0;
-
-          // Calculate totals for each agent
-          foundAgent1.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          foundAgent2.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          foundAgent3.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          // Calculate TotalAnsweredCall
-          const TotalAnsweredCall =
-            TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
-
-          // Respond with the aggregated stats and dailyStats
-          res.send({
-            TotalNotAnsweredCalls,
-            TotalAnsweredCall,
-            TotalCalls,
-          });
-        } catch (error) {
-          console.error("Error fetching daily stats:", error);
-          res.status(500).json({ message: "Internal server error" });
+        // Validate date
+        if (!startDate || !endDate) {
+          throw new Error("Date is missing in the request body");
         }
-      },
-    );
+
+        // Find documents for each agent
+        const foundAgent1: Ilogs[] = await DailyStats.find({
+          $and: [
+            { myDate: { $gte: startDate, $lte: endDate } },
+            { agentId: agent1 },
+          ],
+        });
+
+        const foundAgent2: Ilogs[] = await DailyStats.find({
+          $and: [
+            { myDate: { $gte: startDate, $lte: endDate } },
+            { agentId: agent2 },
+          ],
+        });
+
+        const foundAgent3: Ilogs[] = await DailyStats.find({
+          $and: [
+            { myDate: { $gte: startDate, $lte: endDate } },
+            { agentId: agent3 },
+          ],
+        });
+
+        // Initialize variables to store aggregated stats
+        let TotalCalls = 0;
+        let TotalAnsweredCalls = 0;
+        let TotalNotAnsweredCalls = 0;
+
+        // Calculate totals for each agent
+        foundAgent1.forEach((agent) => {
+          TotalCalls += agent.totalCalls || 0;
+          TotalAnsweredCalls += agent.callsAnswered || 0;
+          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+        });
+
+        foundAgent2.forEach((agent) => {
+          TotalCalls += agent.totalCalls || 0;
+          TotalAnsweredCalls += agent.callsAnswered || 0;
+          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+        });
+
+        foundAgent3.forEach((agent) => {
+          TotalCalls += agent.totalCalls || 0;
+          TotalAnsweredCalls += agent.callsAnswered || 0;
+          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+        });
+
+        // Calculate TotalAnsweredCall
+        const TotalAnsweredCall =
+          TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
+
+        // Respond with the aggregated stats and dailyStats
+        res.send({
+          TotalNotAnsweredCalls,
+          TotalAnsweredCall,
+          TotalCalls,
+        });
+      } catch (error) {
+        console.error("Error fetching daily stats:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
   }
 
   peopleStatsLog() {
-    this.app.post(
-      "/get-metadata",
-      async (req: Request, res: Response) => {
-        try {
-          const { startDate, endDate, limit, page } = req.body;
-          const newLimit = parseInt(limit);
-          const newPage = parseInt(page);
-          const agentIds = [
-            "214e92da684138edf44368d371da764c",
-            "0411eeeb12d17a340941e91a98a766d0",
-            "86f0db493888f1da69b7d46bfaecd360",
-          ];
+    this.app.post("/get-metadata", async (req: Request, res: Response) => {
+      try {
+        const { startDate, endDate, limit, page } = req.body;
+        const newLimit = parseInt(limit);
+        const newPage = parseInt(page);
+        const agentIds = [
+          "214e92da684138edf44368d371da764c",
+          "0411eeeb12d17a340941e91a98a766d0",
+          "86f0db493888f1da69b7d46bfaecd360",
+        ];
 
-          const skip = (newPage - 1) * newLimit;
+        const skip = (newPage - 1) * newLimit;
 
-          // Constructing the query for the date range
-          const dailyStats = await contactModel
-            .find({
-              $and: [
-                { agentId: { $in: agentIds } },
-                { isDeleted: false },
-                {
-                  $and: [
-                    {
-                      datesCalled: { $gte: startDate },
-                    },
-                    {
-                      // Check if any date in the array is less than or equal to the end date
-                      datesCalled: { $lte: endDate },
-                    },
-                  ],
-                },
-              ],
-            })
-            .populate("referenceToCallId")
-            .limit(newLimit)
-            .skip(skip);
-
-          const totalCount = await contactModel.countDocuments({
+        // Constructing the query for the date range
+        const dailyStats = await contactModel
+          .find({
             $and: [
               { agentId: { $in: agentIds } },
               { isDeleted: false },
@@ -1072,16 +1066,36 @@ export class Server {
                 ],
               },
             ],
-          });
+          })
+          .populate("referenceToCallId")
+          .limit(newLimit)
+          .skip(skip);
 
-          const totalPages = Math.ceil(totalCount / newLimit);
-          res.json({ totalCount, totalPages, dailyStats });
-        } catch (error) {
-          console.log(error);
-          res.status(500).json({ error: "Internal Server Error" });
-        }
-      },
-    );
+        const totalCount = await contactModel.countDocuments({
+          $and: [
+            { agentId: { $in: agentIds } },
+            { isDeleted: false },
+            {
+              $and: [
+                {
+                  datesCalled: { $gte: startDate },
+                },
+                {
+                  // Check if any date in the array is less than or equal to the end date
+                  datesCalled: { $lte: endDate },
+                },
+              ],
+            },
+          ],
+        });
+
+        const totalPages = Math.ceil(totalCount / newLimit);
+        res.json({ totalCount, totalPages, dailyStats });
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
   }
 
   peopleStatToCsv() {
@@ -1113,187 +1127,339 @@ export class Server {
       }
     });
   }
-  searchForvagroup() {
-    this.app.post(
-      "/search-va-group",
-      async (req: Request, res: Response) => {
-        const { searchTerm } = req.body;
-        if (!searchTerm) {
-          return res.status(400).json({ error: "Search term is required" });
-        }
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
 
-        const isValidEmail = (email: string) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email);
+  // testwebsocket() {
+  //   this.app.ws('/websockets', async (ws, req) => {
+  //     // WebSocket connection handler
+  //     console.log('WebSocket connection established');
+
+  //     // Handle incoming WebSocket messages
+  //     ws.on('message', (msg) => {
+  //       console.log('Received message:', msg);
+  //     });
+
+  //     // Handle WebSocket closure
+  //     ws.on('close', () => {
+  //       console.log('WebSocket connection closed');
+  //     });
+  //   });
+  // }
+
+  //   TranscriptReview(){
+  //   this.app.post("/review-transcript", async (req: Request, res:Response) => {
+  //     const { transcript }= req.body
+  //     const result = await reviewTranscript(transcript)
+  //     res.json({result})
+  //   }
+  // )  }
+
+  // searchForUser() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+
+  //     try {
+  //       const filteredUsers = await contactModel
+  //         .find({
+  //           agentId,
+  //           $or: [
+  //             { firstname: { $regex: searchTerm, $options: "i" } },
+  //             { lastname: { $regex: searchTerm, $options: "i" } },
+  //             { phone: { $regex: searchTerm, $options: "i" } },
+  //             { email: { $regex: searchTerm, $options: "i" } },
+  //           ],
+  //           isDeleted: false,
+  //         })
+  //         .populate("referenceToCallId");
+  //       res.json(filteredUsers);
+  //     } catch (error) {
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+
+  // searchForUser() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+  //     const isValidEmail = (email: string) => {
+  //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //       return emailRegex.test(email);
+  //     };
+
+  //     try {
+  //       const searchTerms = searchTerm
+  //         .split(",")
+  //         .map((term: string) => term.trim());
+  //       const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+  //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
+  //         const query = {
+  //           agentId,
+  //           isDeleted: false,
+  //           $or: searchByEmail
+  //             ? [{ email: { $regex: term, $options: "i" } }]
+  //             : [
+  //                 { firstname: { $regex: term, $options: "i" } },
+  //                 { lastname: { $regex: term, $options: "i" } },
+  //                 { phone: { $regex: term, $options: "i" } },
+  //                 { email: { $regex: term, $options: "i" } },
+  //               ],
+  //         };
+  //         return await contactModel.find(query).populate("referenceToCallId");
+
+  //       };
+
+  //       let allResults: any[] = [];
+
+  //       for (const term of searchTerms) {
+  //         const results = await searchForTerm(term, firstTermIsEmail);
+  //         allResults = allResults.concat(results);
+  //       }
+
+  //       res.json(allResults);
+  //     } catch (error) {
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+
+  // searchForvagroup() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const { agentId, searchTerm, startDate, endDate } = req.body;
+  //     if (!searchTerm) {
+  //       return res.status(400).json({ error: "Search term is required" });
+  //     }
+
+  //     const isValidEmail = (email: string) => {
+  //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //       return emailRegex.test(email);
+  //     };
+
+  //     try {
+  //       const searchTerms = searchTerm
+  //         .split(",")
+  //         .map((term: string) => term.trim());
+  //       const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+  //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
+  //         const query = {
+  //           agentId,
+  //           isDeleted: false,
+  //           $or: searchByEmail
+  //             ? [{ email: { $regex: term, $options: "i" } }]
+  //             : [
+  //                 { firstname: { $regex: term, $options: "i" } },
+  //                 { lastname: { $regex: term, $options: "i" } },
+  //                 { phone: { $regex: term, $options: "i" } },
+  //                 { email: { $regex: term, $options: "i" } },
+  //               ],
+  //         };
+
+  //         const contacts = await contactModel
+  //           .find(query)
+  //           .populate("referenceToCallId");
+
+  //         // Process transcript for each contact
+  //         const contactsWithTranscript = await Promise.all(
+  //           contacts.map(async (contact) => {
+  //             const transcript = contact.referenceToCallId?.transcript || "";
+  //             const reviewedTranscript = await reviewTranscript(transcript);
+
+  //             // Return contact with reviewed transcript appended
+  //             return {
+  //               ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
+  //               analyzedTranscript: reviewedTranscript.message.content,
+  //             };
+  //           }),
+  //         );
+
+  //         return contactsWithTranscript;
+  //       };
+
+  //       let allResults: any[] = [];
+
+  //       for (const term of searchTerms) {
+  //         const results = await searchForTerm(term, firstTermIsEmail);
+  //         allResults = allResults.concat(results);
+  //       }
+
+  //       res.json(allResults);
+  //     } catch (error) {
+  //       console.error(error);
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+
+  searchForvagroup() {
+    this.app.post("/search-va-group", async (req: Request, res: Response) => {
+      const { searchTerm } = req.body;
+      if (!searchTerm) {
+        return res.status(400).json({ error: "Search term is required" });
+      }
+      const agentIds = [
+        "214e92da684138edf44368d371da764c",
+        "0411eeeb12d17a340941e91a98a766d0",
+        "86f0db493888f1da69b7d46bfaecd360",
+      ];
+
+      const isValidEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
+      try {
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim());
+        const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+        const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          const query = {
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            $or: searchByEmail
+              ? [{ email: { $regex: term, $options: "i" } }]
+              : [
+                  { firstname: { $regex: term, $options: "i" } },
+                  { lastname: { $regex: term, $options: "i" } },
+                  { phone: { $regex: term, $options: "i" } },
+                  { email: { $regex: term, $options: "i" } },
+                ],
+          };
+          return await contactModel.find(query).populate("referenceToCallId");
         };
 
-        try {
-          const searchTerms = searchTerm
-            .split(",")
-            .map((term: string) => term.trim());
-          const firstTermIsEmail = isValidEmail(searchTerms[0]);
+        let allResults: any[] = [];
 
-          const searchForTerm = async (
-            term: string,
-            searchByEmail: boolean,
-          ) => {
-            const query = {
-              agentId: { $in: agentIds },
-              isDeleted: false,
-              $or: searchByEmail
-                ? [{ email: { $regex: term, $options: "i" } }]
-                : [
-                    { firstname: { $regex: term, $options: "i" } },
-                    { lastname: { $regex: term, $options: "i" } },
-                    { phone: { $regex: term, $options: "i" } },
-                    { email: { $regex: term, $options: "i" } },
-                  ],
-            };
-            return await contactModel.find(query).populate("referenceToCallId");
-          };
-
-          let allResults: any[] = [];
-
-          for (const term of searchTerms) {
-            const results = await searchForTerm(term, firstTermIsEmail);
-            allResults = allResults.concat(results);
-          }
-
-          res.json(allResults);
-        } catch (error) {
-          res.status(500).json({ error: "Internal server error" });
+        for (const term of searchTerms) {
+          const results = await searchForTerm(term, firstTermIsEmail);
+          allResults = allResults.concat(results);
         }
-      },
-    );
+
+        res.json(allResults);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
   }
 
   searchForUser() {
-    this.app.post(
-      "/search",
-      async (req: Request, res: Response) => {
-        const {
-          searchTerm,
-          startDate,
-          endDate,
-          statusOption,
-          sentimentOption,
-        } = req.body;
+    this.app.post("/search", async (req: Request, res: Response) => {
+      const { searchTerm, startDate, endDate, statusOption, sentimentOption } =
+        req.body;
 
-        if (!searchTerm) {
-          return res.status(400).json({ error: "Search term is required" });
-        }
+      if (!searchTerm) {
+        return res.status(400).json({ error: "Search term is required" });
+      }
 
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
+      const agentIds = [
+        "214e92da684138edf44368d371da764c",
+        "0411eeeb12d17a340941e91a98a766d0",
+        "86f0db493888f1da69b7d46bfaecd360",
+      ];
 
-        const isValidEmail = (email: string) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email);
+      const isValidEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
+      try {
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim());
+        const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+        const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          let query: any = {
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            $or: searchByEmail
+              ? [{ email: { $regex: term, $options: "i" } }]
+              : [
+                  { firstname: { $regex: term, $options: "i" } },
+                  { lastname: { $regex: term, $options: "i" } },
+                  { phone: { $regex: term, $options: "i" } },
+                  { email: { $regex: term, $options: "i" } },
+                ],
+          };
+          if (startDate && endDate) {
+            query["datesCalled"] = {
+              $gte: startDate,
+              $lte: endDate,
+            };
+          }
+
+          if (statusOption && statusOption !== "All") {
+            let callStatus;
+            if (statusOption === "Called") {
+              callStatus = callstatusenum.CALLED;
+            } else if (statusOption === "notCalled") {
+              callStatus = callstatusenum.NOT_CALLED;
+            } else if (statusOption === "vm") {
+              callStatus = callstatusenum.VOICEMAIL;
+            } else if (statusOption === "Failed") {
+              callStatus = callstatusenum.FAILED;
+            }
+            query["status"] = callStatus;
+          }
+
+          return await contactModel.find(query).populate("referenceToCallId");
         };
 
-        try {
-          const searchTerms = searchTerm
-            .split(",")
-            .map((term: string) => term.trim());
-          const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
-          const searchForTerm = async (
-            term: string,
-            searchByEmail: boolean,
-          ) => {
-            let query: any = {
-              agentId: { $in: agentIds },
-              isDeleted: false,
-              $or: searchByEmail
-                ? [{ email: { $regex: term, $options: "i" } }]
-                : [
-                    { firstname: { $regex: term, $options: "i" } },
-                    { lastname: { $regex: term, $options: "i" } },
-                    { phone: { $regex: term, $options: "i" } },
-                    { email: { $regex: term, $options: "i" } },
-                  ],
-            };
-            if (startDate && endDate) {
-              query["datesCalled"] = {
-                $gte: startDate,
-                $lte: endDate,
-              };
-            }
-
-            if (statusOption && statusOption !== "All") {
-              let callStatus;
-              if (statusOption === "Called") {
-                callStatus = callstatusenum.CALLED;
-              } else if (statusOption === "notCalled") {
-                callStatus = callstatusenum.NOT_CALLED;
-              } else if (statusOption === "vm") {
-                callStatus = callstatusenum.VOICEMAIL;
-              } else if (statusOption === "Failed") {
-                callStatus = callstatusenum.FAILED;
-              }
-              query["status"] = callStatus;
-            }
-
-            return await contactModel.find(query).populate("referenceToCallId");
-          };
-
-          let allResults: any[] = [];
-          for (const term of searchTerms) {
-            const results = await searchForTerm(term, firstTermIsEmail);
-            allResults = allResults.concat(results);
-          }
-
-          allResults = await Promise.all(
-            allResults.map(async (contact) => {
-              const transcript = contact.referenceToCallId?.transcript;
-              const analyzedTranscript = await reviewTranscript(transcript);
-              return {
-                firstname: contact.firstname,
-                lastname: contact.lastname,
-                email: contact.email,
-                phone: contact.phone,
-                status: contact.status,
-                transcript: transcript,
-                analyzedTranscript: analyzedTranscript?.message.content,
-                call_recording_url: contact.referenceToCallId?.recordingUrl,
-              };
-            }),
-          );
-
-          if (sentimentOption) {
-            allResults = allResults.filter((contact) => {
-              switch (sentimentOption) {
-                case "Interested":
-                  return contact.analyzedTranscript === "Interested";
-                case "Incomplete Call":
-                  return contact.analyzedTranscript === "Incomplete Call";
-                case "Scheduled":
-                  return contact.analyzedTranscript === "Scheduled";
-                case "Uninterested":
-                  return contact.analyzedTranscript === "Uninterested";
-                case "Call back":
-                  return contact.analyzedTranscript === "Call back";
-                default:
-                  return true;
-              }
-            });
-          }
-
-          res.json(allResults);
-        } catch (error) {
-          console.log(error);
-          res.status(500).json({ error: "Internal server error" });
+        let allResults: any[] = [];
+        for (const term of searchTerms) {
+          const results = await searchForTerm(term, firstTermIsEmail);
+          allResults = allResults.concat(results);
         }
-      },
-    );
+
+        allResults = await Promise.all(
+          allResults.map(async (contact) => {
+            const transcript = contact.referenceToCallId?.transcript;
+            const analyzedTranscript = await reviewTranscript(transcript);
+            return {
+              firstname: contact.firstname,
+              lastname: contact.lastname,
+              email: contact.email,
+              phone: contact.phone,
+              status: contact.status,
+              transcript: transcript,
+              analyzedTranscript: analyzedTranscript?.message.content,
+              call_recording_url: contact.referenceToCallId?.recordingUrl,
+            };
+          }),
+        );
+
+        if (sentimentOption) {
+          allResults = allResults.filter((contact) => {
+            switch (sentimentOption) {
+              case "Interested":
+                return contact.analyzedTranscript === "Interested";
+              case "Incomplete Call":
+                return contact.analyzedTranscript === "Incomplete Call";
+              case "Scheduled":
+                return contact.analyzedTranscript === "Scheduled";
+              case "Uninterested":
+                return contact.analyzedTranscript === "Uninterested";
+              case "Call back":
+                return contact.analyzedTranscript === "Call back";
+              default:
+                return true;
+            }
+          });
+        }
+
+        res.json(allResults);
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
   }
 
   batchDeleteUser() {
@@ -1332,120 +1498,71 @@ export class Server {
     );
   }
   getNotCalledUsersAndDelete() {
-    this.app.post(
-      "/delete-uncalled",
-      async (req: Request, res: Response) => {
-        try {
-          const { agentId } = req.body;
-          if (!agentId) {
-            throw new Error("Please provide an agent ID");
-          }
-          const result = await contactModel.updateMany(
-            { agentId, status: "not called" },
-            { isDeleted: true },
-          );
-          res.json({
-            message: "Deleted All contacts that are not called",
-            result,
-          });
-        } catch (error) {
-          console.log(error);
-        }
-      },
-    );
-  }
-  loginUser() {
-    this.app.post("/user/login", async (req: Request, res: Response) => {
+    this.app.post("/delete-uncalled", async (req: Request, res: Response) => {
       try {
-        const { username, password } = req.body;
-        if (!username || !password) {
-          res.send("Provide the login details");
-          throw new Error("Provide the login details");
+        const { agentId } = req.body;
+        if (!agentId) {
+          throw new Error("Please provide an agent ID");
         }
-
-        const userInDb = await userModel.findOne({ username });
-        if (!userInDb) {
-          res.send("Invalid login credentials");
-          throw new Error("Invalid login credentials");
-        }
-        const verifyPassword = await argon2.verify(
-          userInDb.passwordHash,
-          password,
-        );
-        if (!verifyPassword) {
-          res.send("Incorrect password");
-          throw new Error("Incorrect Password");
-        }
-        const token = jwt.sign(
-          { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-          process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+        const result = await contactModel.updateMany(
+          { agentId, status: "not called" },
+          { isDeleted: true },
         );
         res.json({
-          payload: {
-            message: "Logged in succefully",
-            token,
-            username: userInDb.username,
-          },
+          message: "Deleted All contacts that are not called",
+          result,
         });
-      } catch (error) {}
+      } catch (error) {
+        console.log(error);
+      }
     });
   }
+  loginUser() {}
 
-  loginAdmin() {
-    this.app.post("/admin/login", async (req: Request, res: Response) => {
-      try {
-        const { username, password } = req.body;
-        if (!username || !password) {
-          res.send("Provide the login details");
-          throw new Error("Provide the login details");
-        }
-        const userInDb = await userModel.findOne({ username });
-        if (!userInDb) {
-          res.send("Invalid login credentials");
-          throw new Error("Invalid login credentials");
-        }
-        if (userInDb.isAdmin === false) {
-          res.send("Only admins can access here");
-          throw new Error("Not an admin");
-        }
-        const token = jwt.sign(
-          { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-          process.env.JWT_SECRET,
-          { expiresIn: "1h" },
-        );
-        res.json({
-          payload: {
-            message: "Logged in succefully",
-            token,
-            username: userInDb.username,
-          },
-        });
-      } catch (error) {}
-    });
-  }
   signUpUser() {
     this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
-        const { username, email, password, group } = req.body;
-        if (!username || !email || !password || !group) {
+        const { email, password, group } = req.body;
+        if (!email || !password || !group) {
           res.send({ message: "Please provide all needed details" });
         }
-        const savedUser = await userModel.create({
-          username,
-          email,
-          password,
-          group,
-        });
+        const savedUser = await userModel.create({ email, password, group });
         const token = jwt.sign(
           { userId: savedUser._id, email: savedUser.email },
-          process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          "HI",
+          { expiresIn: "1d" },
         );
-        res.json({ payload: { message: "User created sucessfully", token } });
+        res.send({ message: "User created sucessfully", token });
       } catch (error) {
         console.log(error);
         res.send("error while signing up");
+      }
+    });
+  }
+
+  removeDuplicates() {
+    this.app.post("/example", async (req: Request, res: Response) => {
+      try {
+        const users = await contactModel.find().populate("referenceToCallId");
+
+        // Using for...of loop
+        for (const user of users) {
+          if (
+            user.referenceToCallId &&
+            !user.referenceToCallId.analyzedTranscript
+          ) {
+            const analyzedTranscript = await reviewTranscript(
+              user.referenceToCallId.transcript,
+            );
+            user.referenceToCallId.analyzedTranscript = analyzedTranscript;
+            await user.save();
+          }
+          console.log(`complete for : ${user.firstname}`);
+        }
+
+        res.send("Analysis and saving completed successfully.");
+      } catch (error) {
+        console.error("Error:", error);
       }
     });
   }
