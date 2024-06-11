@@ -5,22 +5,21 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer")) {
-      res.send("Authentication token required");
-      throw new Error(" requires a token ");
+     return res.status(400).json({message:"Authentication token required"});
     }
     const token = authHeader.split(" ")[1];
     try {
       const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
       if (!decodedToken) {
-        res.send("Invalid token");
+       return res.status(400).json({message:"Invalid Authentication token"});
       }
       next();
     } catch (error) {
       console.log(error);
-      throw new Error("Authentication error");
+      return res.status(401).json({message:"You are not Authenticated , Please login"})
     }
   } catch (error) {
     console.log(error);
-    res.send("Failed to authenticate token");
+    res.status(500).json({message:"Error while authenticating"})
   }
 };

@@ -1384,19 +1384,19 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          res.status(400).json({message:"Provide the login details"});
+          return res.status(400).json({message:"Provide the login details"});
         }
 
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          res.status(400).json({message:"Invalid login credentials"});
+          return res.status(400).json({message:"Invalid login credentials"});
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          res.status(400).json({message:"Incorrect password"})
+          return res.status(400).json({message:"Incorrect password"});
         }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
@@ -1413,8 +1413,8 @@ export class Server {
           },
         });
       } catch (error) {
-        res.status(500).json({ message: "Error happened during login" });
         console.log(error);
+        return res.status(500).json({ message: "Error happened during login" });
       }
     });
   }
@@ -1424,28 +1424,28 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          res.status(400).json({message:"Provide the login details"});
+          return res.status(400).json({message:"Provide the login details"});
         }
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          res.status(400).json({message:"Invalid login credentials"});
+          return res.status(400).json({message:"Invalid login credentials"});
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          res.status(400).json({message:"Incorrect password"});
+          return res.status(400).json({message:"Incorrect password"});
         }
         if (userInDb.isAdmin === false) {
-          res.status(400).json({message:"Only admins can access here"});
+          return res.status(401).json("Only admins can access here");
         }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1h" },
         );
-        res.status(200).json({
+        return res.status(200).json({
           payload: {
             message: "Logged in succefully",
             token,
@@ -1455,8 +1455,8 @@ export class Server {
           },
         });
       } catch (error) {
-        res.status(500).json({ message: "Error happened during login" });
         console.log(error);
+        return res.status(500).json({ message: "Error happened during login" });
       }
     });
   }
@@ -1465,7 +1465,7 @@ export class Server {
       try {
         const { username, email, password, group } = req.body;
         if (!username || !email || !password || !group) {
-          res.status(400).json({ message: "Please provide all needed details" });
+          return res.status(400).json({ message: "Please provide all needed details" });
         }
         const savedUser = await userModel.create({
           username,
@@ -1478,10 +1478,10 @@ export class Server {
           process.env.JWT_SECRET,
           { expiresIn: "1h" },
         );
-        res.json({ payload: { message: "User created sucessfully", token } });
+        return res.json({ payload: { message: "User created sucessfully", token } });
       } catch (error) {
         console.log(error);
-        res.status(500).json({message:"error while signing up"});
+        return res.status(500).json({message:"error while signing up"});
       }
     });
   }
