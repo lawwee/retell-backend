@@ -364,7 +364,7 @@ export class Server {
   }
   createPhoneCall2() {
     this.app.post(
-      "/create-llm-phone-call",
+      "/create-llm-phone-call", authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
@@ -455,7 +455,7 @@ export class Server {
   }
   handleContactSaving() {
     this.app.post(
-      "/users/create",
+      "/users/create", authmiddleware,
       async (req: Request, res: Response) => {
         const { firstname, lastname, email, phone, agentId } = req.body;
         try {
@@ -475,7 +475,7 @@ export class Server {
   }
   handlecontactGet() {
     this.app.post(
-      "/users/:agentId",
+      "/users/:agentId",authmiddleware,
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const { page, limit } = req.body;
@@ -492,7 +492,7 @@ export class Server {
   }
   handlecontactDelete() {
     this.app.patch(
-      "/users/delete",
+      "/users/delete",authmiddleware,
       async (req: Request, res: Response) => {
         const { id } = req.body;
         try {
@@ -504,7 +504,7 @@ export class Server {
   }
   handleContactUpdate() {
     this.app.patch(
-      "/users/update",
+      "/users/update", authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { id, fields } = req.body;
@@ -526,7 +526,7 @@ export class Server {
   }
   createPhoneCall() {
     this.app.post(
-      "/create-phone-call/:agentId",
+      "/create-phone-call/:agentId",authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agentId;
@@ -558,7 +558,7 @@ export class Server {
   }
   uploadcsvToDb() {
     this.app.post(
-      "/upload/:agentId",
+      "/upload/:agentId", authmiddleware,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         try {
@@ -635,7 +635,7 @@ export class Server {
 
   getjobstatus() {
     this.app.post(
-      "/schedules/status",
+      "/schedules/status", authmiddleware,
       async (req: Request, res: Response) => {
         const { jobId } = req.body;
         const result = await jobModel.findOne({ jobId });
@@ -645,7 +645,7 @@ export class Server {
   }
   getAllJobSchedule() {
     this.app.get(
-      "/schedules/get",
+      "/schedules/get", authmiddleware,
       async (req: Request, res: Response) => {
         const result = await jobModel.find().sort({ createdAt: "desc" });
         res.json({ result });
@@ -654,7 +654,7 @@ export class Server {
   }
   resetAgentStatus() {
     this.app.post(
-      "/users/status/reset",
+      "/users/status/reset", authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
@@ -667,7 +667,7 @@ export class Server {
   }
   schedulemycall() {
     this.app.post(
-      "/schedule",
+      "/schedule", authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber } = req.body;
         const scheduledTimePST = moment
@@ -695,7 +695,7 @@ export class Server {
   }
   stopSpecificJob() {
     this.app.post(
-      "/stop-job",
+      "/stop-job", authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { jobId } = req.body;
@@ -730,7 +730,7 @@ export class Server {
   }
   stopSpecificSchedule() {
     this.app.post(
-      "/cancel-schedule",
+      "/cancel-schedule",authmiddleware,
       async (req: Request, res: Response) => {
         const { jobId } = req.body;
         const scheduledJobs = schedule.scheduledJobs;
@@ -758,7 +758,7 @@ export class Server {
 
   getAllJob() {
     this.app.get(
-      "/get-jobs",
+      "/get-jobs", authmiddleware,
       async (req: Request, res: Response) => {
         const scheduledJobs = schedule.scheduledJobs;
         let responseString = "";
@@ -775,7 +775,7 @@ export class Server {
 
   getCallLogs() {
     this.app.post(
-      "/call-logs",
+      "/call-logs",authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await jobModel.find({ agentId });
@@ -878,7 +878,7 @@ export class Server {
   }
   deleteAll() {
     this.app.patch(
-      "/deleteAll",
+      "/deleteAll",authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
@@ -892,7 +892,7 @@ export class Server {
 
   logsToCsv() {
     this.app.post(
-      "/call-logs-csv",
+      "/call-logs-csv",authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const {
@@ -940,7 +940,7 @@ export class Server {
 
   statsForAgent() {
     this.app.post(
-      "/get-stats",
+      "/get-stats",authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const agent1 = "214e92da684138edf44368d371da764c";
@@ -1019,7 +1019,7 @@ export class Server {
 
   peopleStatsLog() {
     this.app.post(
-      "/get-metadata",
+      "/get-metadata",authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { startDate, endDate, limit, page } = req.body;
@@ -1085,7 +1085,7 @@ export class Server {
   }
 
   peopleStatToCsv() {
-    this.app.post("/get-metadata-csv", async (req, res) => {
+    this.app.post("/get-metadata-csv", authmiddleware, async (req, res) => {
       try {
         const { startDate, endDate } = req.body;
         const result = await statsToCsv(startDate, endDate);
@@ -1115,7 +1115,7 @@ export class Server {
   }
   searchForvagroup() {
     this.app.post(
-      "/search-va-group",
+      "/search-va-group",authmiddleware,
       async (req: Request, res: Response) => {
         const { searchTerm } = req.body;
         if (!searchTerm) {
@@ -1174,7 +1174,7 @@ export class Server {
 
   searchForUser() {
     this.app.post(
-      "/search",
+      "/search",authmiddleware,
       async (req: Request, res: Response) => {
         const {
           searchTerm,
@@ -1298,7 +1298,7 @@ export class Server {
 
   batchDeleteUser() {
     this.app.post(
-      "/batch-delete-users",
+      "/batch-delete-users",authmiddleware,
       async (req: Request, res: Response) => {
         const { contactsToDelete } = req.body;
 
@@ -1333,7 +1333,7 @@ export class Server {
   }
   getNotCalledUsersAndDelete() {
     this.app.post(
-      "/delete-uncalled",
+      "/delete-uncalled",authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { agentId } = req.body;
@@ -1386,6 +1386,8 @@ export class Server {
             message: "Logged in succefully",
             token,
             username: userInDb.username,
+            userId: userInDb._id,
+            group: userInDb.group
           },
         });
       } catch (error) {}
@@ -1405,6 +1407,14 @@ export class Server {
           res.send("Invalid login credentials");
           throw new Error("Invalid login credentials");
         }
+        const verifyPassword = await argon2.verify(
+          userInDb.passwordHash,
+          password,
+        );
+        if (!verifyPassword) {
+          res.send("Incorrect password");
+          throw new Error("Incorrect Password");
+        }
         if (userInDb.isAdmin === false) {
           res.send("Only admins can access here");
           throw new Error("Not an admin");
@@ -1419,6 +1429,8 @@ export class Server {
             message: "Logged in succefully",
             token,
             username: userInDb.username,
+            userId: userInDb._id,
+            group: userInDb.group
           },
         });
       } catch (error) {}
