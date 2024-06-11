@@ -364,7 +364,8 @@ export class Server {
   }
   createPhoneCall2() {
     this.app.post(
-      "/create-llm-phone-call", authmiddleware,
+      "/create-llm-phone-call",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
@@ -455,7 +456,8 @@ export class Server {
   }
   handleContactSaving() {
     this.app.post(
-      "/users/create", authmiddleware,
+      "/users/create",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { firstname, lastname, email, phone, agentId } = req.body;
         try {
@@ -475,7 +477,8 @@ export class Server {
   }
   handlecontactGet() {
     this.app.post(
-      "/users/:agentId",authmiddleware,
+      "/users/:agentId",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const { page, limit } = req.body;
@@ -485,26 +488,30 @@ export class Server {
           const result = await getAllContact(agentId, newpage, newLimit);
           res.json({ result });
         } catch (error) {
-          console.log(error)
+          console.log(error);
         }
       },
     );
   }
   handlecontactDelete() {
     this.app.patch(
-      "/users/delete",authmiddleware,
+      "/users/delete",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { id } = req.body;
         try {
           const result = await deleteOneContact(id);
           res.json({ result });
-        } catch (error) {console.log(error)}
+        } catch (error) {
+          console.log(error);
+        }
       },
     );
   }
   handleContactUpdate() {
     this.app.patch(
-      "/users/update", authmiddleware,
+      "/users/update",
+      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { id, fields } = req.body;
@@ -526,7 +533,8 @@ export class Server {
   }
   createPhoneCall() {
     this.app.post(
-      "/create-phone-call/:agentId",authmiddleware,
+      "/create-phone-call/:agentId",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agentId;
@@ -558,7 +566,8 @@ export class Server {
   }
   uploadcsvToDb() {
     this.app.post(
-      "/upload/:agentId", authmiddleware,
+      "/upload/:agentId",
+      authmiddleware,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         try {
@@ -635,7 +644,8 @@ export class Server {
 
   getjobstatus() {
     this.app.post(
-      "/schedules/status", authmiddleware,
+      "/schedules/status",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { jobId } = req.body;
         const result = await jobModel.findOne({ jobId });
@@ -645,7 +655,8 @@ export class Server {
   }
   getAllJobSchedule() {
     this.app.get(
-      "/schedules/get", authmiddleware,
+      "/schedules/get",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const result = await jobModel.find().sort({ createdAt: "desc" });
         res.json({ result });
@@ -654,7 +665,8 @@ export class Server {
   }
   resetAgentStatus() {
     this.app.post(
-      "/users/status/reset", authmiddleware,
+      "/users/status/reset",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
@@ -667,7 +679,8 @@ export class Server {
   }
   schedulemycall() {
     this.app.post(
-      "/schedule", authmiddleware,
+      "/schedule",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber } = req.body;
         const scheduledTimePST = moment
@@ -695,7 +708,8 @@ export class Server {
   }
   stopSpecificJob() {
     this.app.post(
-      "/stop-job", authmiddleware,
+      "/stop-job",
+      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { jobId } = req.body;
@@ -730,7 +744,8 @@ export class Server {
   }
   stopSpecificSchedule() {
     this.app.post(
-      "/cancel-schedule",authmiddleware,
+      "/cancel-schedule",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { jobId } = req.body;
         const scheduledJobs = schedule.scheduledJobs;
@@ -758,7 +773,8 @@ export class Server {
 
   getAllJob() {
     this.app.get(
-      "/get-jobs", authmiddleware,
+      "/get-jobs",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const scheduledJobs = schedule.scheduledJobs;
         let responseString = "";
@@ -775,7 +791,8 @@ export class Server {
 
   getCallLogs() {
     this.app.post(
-      "/call-logs",authmiddleware,
+      "/call-logs",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await jobModel.find({ agentId });
@@ -878,7 +895,8 @@ export class Server {
   }
   deleteAll() {
     this.app.patch(
-      "/deleteAll",authmiddleware,
+      "/deleteAll",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
@@ -892,7 +910,8 @@ export class Server {
 
   logsToCsv() {
     this.app.post(
-      "/call-logs-csv",authmiddleware,
+      "/call-logs-csv",
+      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const {
@@ -940,7 +959,8 @@ export class Server {
 
   statsForAgent() {
     this.app.post(
-      "/get-stats",authmiddleware,
+      "/get-stats",
+      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const agent1 = "214e92da684138edf44368d371da764c";
@@ -1019,7 +1039,8 @@ export class Server {
 
   peopleStatsLog() {
     this.app.post(
-      "/get-metadata",authmiddleware,
+      "/get-metadata",
+      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { startDate, endDate, limit, page } = req.body;
@@ -1115,7 +1136,8 @@ export class Server {
   }
   searchForvagroup() {
     this.app.post(
-      "/search-va-group",authmiddleware,
+      "/search-va-group",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { searchTerm } = req.body;
         if (!searchTerm) {
@@ -1174,7 +1196,8 @@ export class Server {
 
   searchForUser() {
     this.app.post(
-      "/search",authmiddleware,
+      "/search",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const {
           searchTerm,
@@ -1298,7 +1321,8 @@ export class Server {
 
   batchDeleteUser() {
     this.app.post(
-      "/batch-delete-users",authmiddleware,
+      "/batch-delete-users",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { contactsToDelete } = req.body;
 
@@ -1333,7 +1357,8 @@ export class Server {
   }
   getNotCalledUsersAndDelete() {
     this.app.post(
-      "/delete-uncalled",authmiddleware,
+      "/delete-uncalled",
+      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const { agentId } = req.body;
@@ -1359,13 +1384,13 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          res.send("Provide the login details");
+          res.status(400).json({message:"Provide the login details"});
           throw new Error("Provide the login details");
         }
 
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          res.send("Invalid login credentials");
+          res.status(400).json({message:"Invalid login credentials"});
           throw new Error("Invalid login credentials");
         }
         const verifyPassword = await argon2.verify(
@@ -1373,7 +1398,7 @@ export class Server {
           password,
         );
         if (!verifyPassword) {
-          res.send("Incorrect password");
+          res.status(400).json({message:"Incorrect password"});
           throw new Error("Incorrect Password");
         }
         const token = jwt.sign(
@@ -1387,10 +1412,13 @@ export class Server {
             token,
             username: userInDb.username,
             userId: userInDb._id,
-            group: userInDb.group
+            group: userInDb.group,
           },
         });
-      } catch (error) {}
+      } catch (error) {
+        res.status(500).json({ message: "Error happened during login" });
+        console.log(error);
+      }
     });
   }
 
@@ -1399,12 +1427,12 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          res.send("Provide the login details");
+          res.status(400).json({message:"Provide the login details"});
           throw new Error("Provide the login details");
         }
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          res.send("Invalid login credentials");
+          res.status(400).json({message:"Invalid login credentials"});
           throw new Error("Invalid login credentials");
         }
         const verifyPassword = await argon2.verify(
@@ -1412,11 +1440,11 @@ export class Server {
           password,
         );
         if (!verifyPassword) {
-          res.send("Incorrect password");
+          res.status(400).json({message:"Incorrect password"});
           throw new Error("Incorrect Password");
         }
         if (userInDb.isAdmin === false) {
-          res.send("Only admins can access here");
+          res.status(400).json({message:"Only admins can access here"});
           throw new Error("Not an admin");
         }
         const token = jwt.sign(
@@ -1424,16 +1452,19 @@ export class Server {
           process.env.JWT_SECRET,
           { expiresIn: "1h" },
         );
-        res.json({
+        res.status(200).json({
           payload: {
             message: "Logged in succefully",
             token,
             username: userInDb.username,
             userId: userInDb._id,
-            group: userInDb.group
+            group: userInDb.group,
           },
         });
-      } catch (error) {}
+      } catch (error) {
+        res.status(500).json({ message: "Error happened during login" });
+        console.log(error);
+      }
     });
   }
   signUpUser() {
@@ -1441,7 +1472,7 @@ export class Server {
       try {
         const { username, email, password, group } = req.body;
         if (!username || !email || !password || !group) {
-          res.send({ message: "Please provide all needed details" });
+          res.status(400).json({ message: "Please provide all needed details" });
         }
         const savedUser = await userModel.create({
           username,
@@ -1457,7 +1488,7 @@ export class Server {
         res.json({ payload: { message: "User created sucessfully", token } });
       } catch (error) {
         console.log(error);
-        res.send("error while signing up");
+        res.status(500).json({message:"error while signing up"});
       }
     });
   }
