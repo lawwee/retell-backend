@@ -6,15 +6,18 @@ const ContactSchema = new Schema<IContact>(
   {
     firstname: {
       type: String,
+      required: true
     },
     email: {
       type: String,
+      required: true
     },
     lastname: {
       type: String,
     },
     phone: {
       type: String,
+      required: true
     },
     isusercalled: {
       type: Boolean,
@@ -29,6 +32,7 @@ const ContactSchema = new Schema<IContact>(
     },
     agentId: {
       type: String,
+      required: true
     },
     status: {
       type: String,
@@ -94,21 +98,6 @@ const transcriptSchema = new Schema({
   analyzedTranscript:{type:String}
 }, {timestamps: true});
 
-// ContactSchema.pre('save', async function(next) {
-//   const user = this;
-//   const existingUser = await contactModel.findOne({
-//     email: user.email,
-//     agentId: user.agentId
-//   });
-
-//   if (existingUser) {
-//     // If user already exists, skip saving
-//     return next(new Error('User with the same email and agentId already exists'));
-//   }
-
-//   // If user doesn't exist, proceed with saving
-//   next();
-// });
 
 export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);

@@ -21,6 +21,7 @@ import {
   jobModel,
   EventModel,
 } from "./contacts/contact_model";
+import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
 import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
@@ -45,14 +46,15 @@ import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
 import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
 import { reviewTranscript } from "./helper-fuction/transcript-review";
-
+import jwt from "jsonwebtoken";
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
+import authmiddleware from "./middleware/protect";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
-  target: "http://localhost:8080/webhook",
+  target: "https://intuitiveagents.io/webhook",
   logger: console,
 });
 smee.start();
@@ -68,7 +70,14 @@ export class Server {
   storage = multer.diskStorage({
     destination: "public/",
     filename: function (req, file, cb) {
-      cb(null, file.originalname);
+      const timestamp = Date.now();
+      const fileExtension = file.originalname.split(".").pop();
+      const newFilename = `${file.originalname
+        .split(".")
+        .slice(0, -1)
+        .join(".")}_${timestamp}.${fileExtension}`;
+
+      cb(null, newFilename);
     },
   });
 
@@ -110,13 +119,14 @@ export class Server {
     this.peopleStatsLog();
     this.peopleStatToCsv();
     this.createPhoneCall2();
-    // this.testwebsocket()
-    // this.TranscriptReview()
     this.searchForUser();
     this.getTranscriptAfterCallEnded();
     this.searchForvagroup();
     this.batchDeleteUser();
     this.getNotCalledUsersAndDelete();
+    this.signUpUser();
+    this.loginAdmin();
+    this.loginUser();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -129,42 +139,6 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
-
-  //   testReetellWebsocket() {
-  //     this.app.ws('/testwebsocket', async (ws, req) => {
-  //         const user = { agentId: "1" };
-  //         console.log('WebSocket connection established');
-  //         // Handle incoming WebSocket messages
-  //         ws.on('message', async (msg) => {
-  //             console.log('Received message:', msg);
-  //             const message = " i am No 1";
-  //             let counter = 0;
-  //             const intervalId = setInterval(() => {
-  //                 if (counter < 5) {
-  //                     ws.send(message);
-  //                     console.log('Message sent:', message);
-  //                     counter++;
-  //                 } else {
-  //                     clearInterval(intervalId);
-  //                     ws.close()
-  //                 }
-  //             }, 1000);
-  //         });
-  //         ws.on('close', async () => {
-  //             const today = new Date();
-  //             const todayString = today.toISOString().split("T")[0];
-  //             await DailyStats.updateOne(
-  //                 { myDate: todayString, agentId: user.agentId },
-  //                 { $inc: { totalCalls: 1 } },
-  //                 { upsert: true }
-  //             );
-  //             console.log('WebSocket connection closed');
-
-  //         });
-
-  //     });
-  // }
-
   handleRetellLlmWebSocket() {
     this.app.ws(
       "/llm-websocket/:call_id",
@@ -391,6 +365,7 @@ export class Server {
   createPhoneCall2() {
     this.app.post(
       "/create-llm-phone-call",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
@@ -480,65 +455,86 @@ export class Server {
     );
   }
   handleContactSaving() {
-    this.app.post("/users/create", async (req: Request, res: Response) => {
-      const { firstname, lastname, email, phone, agentId } = req.body;
-      try {
-        const result = await createContact(
-          firstname,
-          lastname,
-          email,
-          phone,
-          agentId,
-        );
-        res.json({ result });
-      } catch (error) {
-        console.log(error);
-      }
-    });
+    this.app.post(
+      "/users/create",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { firstname, lastname, email, phone, agentId } = req.body;
+        try {
+          const result = await createContact(
+            firstname,
+            lastname,
+            email,
+            phone,
+            agentId,
+          );
+          res.json({ result });
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    );
   }
   handlecontactGet() {
-    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
-      const agentId = req.params.agentId;
-      const { page, limit } = req.body;
-      const newpage = parseInt(page);
-      const newLimit = parseInt(limit);
-      try {
-        const result = await getAllContact(agentId, newpage, newLimit);
-        res.json({ result });
-      } catch (error) {}
-    });
+    this.app.post(
+      "/users/:agentId",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const agentId = req.params.agentId;
+        const { page, limit } = req.body;
+        const newpage = parseInt(page);
+        const newLimit = parseInt(limit);
+        try {
+          const result = await getAllContact(agentId, newpage, newLimit);
+          res.json({ result });
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    );
   }
   handlecontactDelete() {
-    this.app.patch("/users/delete", async (req: Request, res: Response) => {
-      const { id } = req.body;
-      try {
-        const result = await deleteOneContact(id);
-        res.json({ result });
-      } catch (error) {}
-    });
+    this.app.patch(
+      "/users/delete",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { id } = req.body;
+        try {
+          const result = await deleteOneContact(id);
+          res.json({ result });
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    );
   }
   handleContactUpdate() {
-    this.app.patch("/users/update", async (req: Request, res: Response) => {
-      try {
-        const { id, fields } = req.body;
-        if (!fields) {
-          return res
-            .status(400)
-            .json({ error: "No fields to update provided." });
+    this.app.patch(
+      "/users/update",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const { id, fields } = req.body;
+          if (!fields) {
+            return res
+              .status(400)
+              .json({ error: "No fields to update provided." });
+          }
+          const result = await updateOneContact(id, fields);
+          res.json({ result });
+        } catch (error) {
+          console.log(error);
+          res
+            .status(500)
+            .json({ error: "An error occurred while updating contact." });
         }
-        const result = await updateOneContact(id, fields);
-        res.json({ result });
-      } catch (error) {
-        console.log(error);
-        res
-          .status(500)
-          .json({ error: "An error occurred while updating contact." });
-      }
-    });
+      },
+    );
   }
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agentId;
@@ -571,6 +567,7 @@ export class Server {
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
+      authmiddleware,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         try {
@@ -584,26 +581,51 @@ export class Server {
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
               const agentId = req.params.agentId;
-              const usersToInsert: any[] = [];
+              let uploadedNumber = 0;
+              const failedUsers: {
+                email?: string;
+                firstname?: string;
+                phone?: string;
+              }[] = [];
+              const successfulUsers: {
+                email: string;
+                firstname: string;
+                phone: string;
+              }[] = [];
 
               for (const user of jsonArrayObj) {
-                const existingUser = await contactModel.findOne({
-                  email: user.email,
-                  agentId: user.agentId,
-                });
-                if (existingUser.agentId === agentId) {
-                  const userWithAgentId = { ...user, agentId };
-                  usersToInsert.push(userWithAgentId);
+                if (user.firstname && user.phone && user.email) {
+                  try {
+                    const existingUser = await contactModel.findOne({
+                      email: user.email,
+                      agentId: user.agentId,
+                    });
+                    if (!existingUser) {
+                      const userWithAgentId = { ...user, agentId };
+                      successfulUsers.push(userWithAgentId);
+                      uploadedNumber++;
+                    }
+                  } catch (error) {
+                    failedUsers.push({
+                      email: user.email,
+                      firstname: user.firstname,
+                      phone: user.phone,
+                    });
+                  }
+                } else {
+                  failedUsers.push({
+                    email: user.email,
+                    firstname: user.firstname,
+                    phone: user.phone,
+                  });
                 }
               }
-              const insertedUsers = await contactModel.insertMany(
-                usersToInsert,
-              );
+              await contactModel.insertMany(successfulUsers);
 
-              console.log("Upload successful");
-              res
-                .status(200)
-                .json({ message: "Upload successful", insertedUsers });
+              res.status(200).json({
+                message: `Upload successful, contacts uploaded: ${uploadedNumber}`,
+                failedUsers: failedUsers,
+              });
             },
             error: (err: Error) => {
               console.error("Error parsing CSV:", err);
@@ -621,21 +643,30 @@ export class Server {
   }
 
   getjobstatus() {
-    this.app.post("/schedules/status", async (req: Request, res: Response) => {
-      const { jobId } = req.body;
-      const result = await jobModel.findOne({ jobId });
-      res.json({ result });
-    });
+    this.app.post(
+      "/schedules/status",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { jobId } = req.body;
+        const result = await jobModel.findOne({ jobId });
+        res.json({ result });
+      },
+    );
   }
   getAllJobSchedule() {
-    this.app.get("/schedules/get", async (req: Request, res: Response) => {
-      const result = await jobModel.find().sort({ createdAt: "desc" });
-      res.json({ result });
-    });
+    this.app.get(
+      "/schedules/get",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const result = await jobModel.find().sort({ createdAt: "desc" });
+        res.json({ result });
+      },
+    );
   }
   resetAgentStatus() {
     this.app.post(
       "/users/status/reset",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
@@ -647,102 +678,127 @@ export class Server {
     );
   }
   schedulemycall() {
-    this.app.post("/schedule", async (req: Request, res: Response) => {
-      const { hour, minute, agentId, limit, fromNumber } = req.body;
-      const scheduledTimePST = moment
-        .tz("America/Los_Angeles")
-        .set({
-          hour,
-          minute,
-          second: 0,
-          millisecond: 0,
-        })
-        .toDate();
-      const formattedDate = moment(scheduledTimePST).format(
-        "YYYY-MM-DDTHH:mm:ss",
-      );
-      const { jobId, scheduledTime } = await scheduleCronJob(
-        scheduledTimePST,
-        agentId,
-        limit,
-        fromNumber,
-        formattedDate,
-      );
-      res.send({ jobId, scheduledTime });
-    });
+    this.app.post(
+      "/schedule",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { hour, minute, agentId, limit, fromNumber } = req.body;
+        const scheduledTimePST = moment
+          .tz("America/Los_Angeles")
+          .set({
+            hour,
+            minute,
+            second: 0,
+            millisecond: 0,
+          })
+          .toDate();
+        const formattedDate = moment(scheduledTimePST).format(
+          "YYYY-MM-DDTHH:mm:ss",
+        );
+        const { jobId, scheduledTime } = await scheduleCronJob(
+          scheduledTimePST,
+          agentId,
+          limit,
+          fromNumber,
+          formattedDate,
+        );
+        res.send({ jobId, scheduledTime });
+      },
+    );
   }
   stopSpecificJob() {
-    this.app.post("/stop-job", async (req: Request, res: Response) => {
-      try {
-        const { jobId } = req.body;
-        if (!jobId) {
-          console.log("No jobId provided.");
-          return res.status(400).send("No jobId provided.");
-        }
-        const job = await jobModel.findOneAndUpdate(
-          { jobId },
-          { shouldContinueProcessing: false, callstatus: jobstatus.CANCELLED },
-        );
+    this.app.post(
+      "/stop-job",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const { jobId } = req.body;
+          if (!jobId) {
+            console.log("No jobId provided.");
+            return res.status(400).send("No jobId provided.");
+          }
+          const job = await jobModel.findOneAndUpdate(
+            { jobId },
+            {
+              shouldContinueProcessing: false,
+              callstatus: jobstatus.CANCELLED,
+            },
+          );
 
-        if (!job) {
-          console.log("No job found with the provided jobId:", jobId);
-          return res.status(404).send("No job found with the provided jobId.");
+          if (!job) {
+            console.log("No job found with the provided jobId:", jobId);
+            return res
+              .status(404)
+              .send("No job found with the provided jobId.");
+          }
+          console.log(`Processing stopped for job ${jobId}.`);
+          return res.send("Processing stopped for job.");
+        } catch (error: any) {
+          console.error("Error stopping job:", error);
+          return res
+            .status(500)
+            .send("Error stopping job: " + (error.message || error));
         }
-        console.log(`Processing stopped for job ${jobId}.`);
-        return res.send("Processing stopped for job.");
-      } catch (error: any) {
-        console.error("Error stopping job:", error);
-        return res
-          .status(500)
-          .send("Error stopping job: " + (error.message || error));
-      }
-    });
+      },
+    );
   }
   stopSpecificSchedule() {
-    this.app.post("/cancel-schedule", async (req: Request, res: Response) => {
-      const { jobId } = req.body;
-      const scheduledJobs = schedule.scheduledJobs;
+    this.app.post(
+      "/cancel-schedule",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { jobId } = req.body;
+        const scheduledJobs = schedule.scheduledJobs;
 
-      if (!jobId) {
-        return res.status(404).send(`Please provide an ID`);
-      }
-      // Check if the specified job exists
-      if (!scheduledJobs.hasOwnProperty(jobId)) {
-        return res.status(404).send(`Job with ID ${jobId} not found.`);
-      }
-      const isCancelled = schedule.cancelJob(jobId);
-      if (isCancelled) {
-        await jobModel.findOneAndUpdate(
-          { jobId },
-          { callstatus: jobstatus.CANCELLED },
-        );
-        res.send(`Job with ID ${jobId} cancelled successfully.`);
-      } else {
-        res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
-      }
-    });
+        if (!jobId) {
+          return res.status(404).send(`Please provide an ID`);
+        }
+        // Check if the specified job exists
+        if (!scheduledJobs.hasOwnProperty(jobId)) {
+          return res.status(404).send(`Job with ID ${jobId} not found.`);
+        }
+        const isCancelled = schedule.cancelJob(jobId);
+        if (isCancelled) {
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: jobstatus.CANCELLED },
+          );
+          res.send(`Job with ID ${jobId} cancelled successfully.`);
+        } else {
+          res.status(500).send(`Failed to cancel job with ID ${jobId}.`);
+        }
+      },
+    );
   }
 
   getAllJob() {
-    this.app.get("/get-jobs", async (req: Request, res: Response) => {
-      const scheduledJobs = schedule.scheduledJobs;
-      let responseString = "";
-      for (const jobId in scheduledJobs) {
-        if (scheduledJobs.hasOwnProperty(jobId)) {
-          const job = scheduledJobs[jobId];
-          responseString += `Job ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n`;
+    this.app.get(
+      "/get-jobs",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const scheduledJobs = schedule.scheduledJobs;
+        let responseString = "";
+        for (const jobId in scheduledJobs) {
+          if (scheduledJobs.hasOwnProperty(jobId)) {
+            const job = scheduledJobs[jobId];
+            responseString += `Job ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n`;
+          }
         }
-      }
-      res.send({ responseString });
-    });
+        res.send({ responseString });
+      },
+    );
   }
 
   getCallLogs() {
-    this.app.post("/call-logs", async (req: Request, res: Response) => {
-      const { agentId } = req.body;
-      const result = await jobModel.find({ agentId });
-      res.json({ result });
-    });
+    this.app.post(
+      "/call-logs",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { agentId } = req.body;
+        const result = await jobModel.find({ agentId });
+        res.json({ result });
+      },
+    );
   }
 
   getTimefromcallendly() {
@@ -758,87 +814,6 @@ export class Server {
       }
     });
   }
-
-  // async getTranscriptAfterCallEnded() {
-  //   this.app.post("/webhook", async (request: Request, response: Response) => {
-  //     const payload = request.body;
-  //     const today = new Date();
-  //     today.setHours(0, 0, 0, 0);
-  //     const todayString = today.toISOString().split("T")[0];
-  //     const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
-  //     const lockTTL = 300;
-  //     const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
-  //       NX: true,
-  //       PX: lockTTL,
-  //     });
-  //     if (!lockAcquired) {
-  //       return;
-  //     }
-  //     try {
-  //       if (payload.event === "call_started") {
-  //         console.log(`call started for: $${payload.data.call_id}`);
-  //         const { call_id, agent_id } = payload.data;
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: call_id, agentId: agent_id },
-  //           { status: callstatusenum.IN_PROGRESS },
-  //         );
-  //       }
-  //       if (payload.event === "call_ended") {
-  //         const { call_id, transcript, recording_url, agent_id } = payload.data;
-  //         const result = await EventModel.create({
-  //           callId: call_id,
-  //           recordingUrl: recording_url,
-  //           transcript: transcript,
-  //         });
-  //         await DailyStats.updateOne(
-  //           { myDate: todayString, agentId: agent_id },
-  //           { $inc: { totalCalls: 1 } },
-  //           { upsert: true },
-  //         );
-  //         await contactModel.findOneAndUpdate(
-  //           { callId: call_id },
-  //           {
-  //             status: callstatusenum.CALLED,
-  //             $push: { datesCalled: todayString },
-  //             referenceToCallId: result._id,
-  //           },
-  //         );
-  //       }
-  //       if (payload.event === "call_analyzed") {
-  //         const {call_summary, user_sentiment,agent_sentiment} = payload.data.call_analysis
-  //         await EventModel.findOneAndUpdate({
-  //           callId: payload.data.call_id
-  //         }, {
-  //           retellCallSummary: call_summary,
-  //           userSentiment: user_sentiment,
-  //           agentSemtiment: agent_sentiment,
-
-  //         }, {new: true})
-  //         if (payload.data.disconnection_reason === "machine_detected") {
-  //           const result = await DailyStats.updateOne(
-  //             { myDate: todayString, agentId: payload.data.agent_id },
-  //             { $inc: { callsNotAnswered: 1 } },
-  //             { upsert: true },
-  //           );
-  //           await contactModel.findOneAndUpdate(
-  //             { callId: payload.data.call_id },
-  //             {
-  //               status: callstatusenum.VOICEMAIL,
-  //               linktocallLogModel: result.upsertedId
-  //                 ? result.upsertedId._id
-  //                 : null,
-  //               answeredByVM: true,
-  //             },
-  //           );
-  //         }
-  //         await redisClient.del(webhookRedisKey);
-  //         return;
-  //       }
-  //     } catch (error) {
-  //       console.log(error);
-  //     }
-  //   });
-  // }
 
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
@@ -857,7 +832,7 @@ export class Server {
       }
       try {
         if (payload.event === "call_started") {
-          console.log(`call started for: $${payload.data.call_id}`);
+          console.log(`call started for: ${payload.data.call_id}`);
           const { call_id, agent_id } = payload.data;
           await contactModel.findOneAndUpdate(
             { callId: call_id, agentId: agent_id },
@@ -871,7 +846,7 @@ export class Server {
           const { call_summary, user_sentiment, agent_sentiment } =
             payload.data.call_analysis;
           const { call_id, transcript, recording_url, agent_id } = payload.data;
-          const analyzedTranscript = await reviewTranscript(transcript)
+          const analyzedTranscript = await reviewTranscript(transcript);
           const results = await EventModel.create({
             callId: call_id,
             retellCallSummary: call_summary,
@@ -880,8 +855,7 @@ export class Server {
             recordingUrl: recording_url,
             transcript: transcript,
             disconnectionReason: payload.data.disconnection_reason,
-            analyzedTranscript
-        
+            analyzedTranscript: analyzedTranscript.message.content,
           });
           const isMachine =
             payload.data.disconnection_reason === "machine_detected";
@@ -909,7 +883,6 @@ export class Server {
                 ? statsResults.upsertedId._id
                 : null,
               answeredByVM: true,
-              
             },
           );
           await redisClient.del(webhookRedisKey);
@@ -921,140 +894,190 @@ export class Server {
     });
   }
   deleteAll() {
-    this.app.patch("/deleteAll", async (req: Request, res: Response) => {
-      const { agentId } = req.body;
-      const result = await contactModel.updateMany(
-        { agentId },
-        { isDeleted: true },
-      );
-      res.send(result);
-    });
+    this.app.patch(
+      "/deleteAll",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { agentId } = req.body;
+        const result = await contactModel.updateMany(
+          { agentId },
+          { isDeleted: true },
+        );
+        res.send(result);
+      },
+    );
   }
 
   logsToCsv() {
-    this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
-      try {
-        const { agentId, limit  , statusOption, sentimentOption} = req.body;
-        const newlimit = parseInt(limit);
-        const result = await logsToCsv(agentId, newlimit, statusOption, sentimentOption);
-        if (typeof result === "string") {
-          const filePath: string = result;
-          if (fs.existsSync(filePath)) {
-            res.setHeader(
-              "Content-Disposition",
-              "attachment; filename=logs.csv",
-            );
-            res.setHeader("Content-Type", "text/csv");
-            const fileStream = fs.createReadStream(filePath);
-            fileStream.pipe(res);
+    this.app.post(
+      "/call-logs-csv",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const {
+            agentId,
+            startDate,
+            endDate,
+            limit,
+            statusOption,
+            sentimentOption,
+          } = req.body;
+          const newlimit = parseInt(limit);
+          const result = await logsToCsv(
+            agentId,
+            newlimit,
+            startDate,
+            endDate,
+            statusOption,
+            sentimentOption,
+          );
+          if (typeof result === "string") {
+            const filePath: string = result;
+            if (fs.existsSync(filePath)) {
+              res.setHeader(
+                "Content-Disposition",
+                "attachment; filename=logs.csv",
+              );
+              res.setHeader("Content-Type", "text/csv");
+              const fileStream = fs.createReadStream(filePath);
+              fileStream.pipe(res);
+            } else {
+              console.error("CSV file does not exist");
+              res.status(404).send("CSV file not found");
+            }
           } else {
-            console.error("CSV file does not exist");
-            res.status(404).send("CSV file not found");
+            console.error(`Error retrieving contacts: ${result}`);
+            res.status(500).send(`Error retrieving contacts: ${result}`);
           }
-        } else {
-          console.error(`Error retrieving contacts: ${result}`);
-          res.status(500).send(`Error retrieving contacts: ${result}`);
+        } catch (error) {
+          console.error(`Error retrieving contacts: ${error}`);
+          res.status(500).send(`Error retrieving contacts: ${error}`);
         }
-      } catch (error) {
-        console.error(`Error retrieving contacts: ${error}`);
-        res.status(500).send(`Error retrieving contacts: ${error}`);
-      }
-    });
+      },
+    );
   }
 
   statsForAgent() {
-    this.app.post("/get-stats", async (req: Request, res: Response) => {
-      try {
-        const agent1 = "214e92da684138edf44368d371da764c";
-        const agent2 = "0411eeeb12d17a340941e91a98a766d0";
-        const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-        const { startDate, endDate } = req.body;
+    this.app.post(
+      "/get-stats",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const agent1 = "214e92da684138edf44368d371da764c";
+          const agent2 = "0411eeeb12d17a340941e91a98a766d0";
+          const agent3 = "86f0db493888f1da69b7d46bfaecd360";
+          const { startDate, endDate } = req.body;
 
-        // Validate date
-        if (!startDate || !endDate) {
-          throw new Error("Date is missing in the request body");
+          // Validate date
+          if (!startDate || !endDate) {
+            throw new Error("Date is missing in the request body");
+          }
+
+          // Find documents for each agent
+          const foundAgent1: Ilogs[] = await DailyStats.find({
+            $and: [
+              { myDate: { $gte: startDate, $lte: endDate } },
+              { agentId: agent1 },
+            ],
+          });
+
+          const foundAgent2: Ilogs[] = await DailyStats.find({
+            $and: [
+              { myDate: { $gte: startDate, $lte: endDate } },
+              { agentId: agent2 },
+            ],
+          });
+
+          const foundAgent3: Ilogs[] = await DailyStats.find({
+            $and: [
+              { myDate: { $gte: startDate, $lte: endDate } },
+              { agentId: agent3 },
+            ],
+          });
+
+          // Initialize variables to store aggregated stats
+          let TotalCalls = 0;
+          let TotalAnsweredCalls = 0;
+          let TotalNotAnsweredCalls = 0;
+
+          // Calculate totals for each agent
+          foundAgent1.forEach((agent) => {
+            TotalCalls += agent.totalCalls || 0;
+            TotalAnsweredCalls += agent.callsAnswered || 0;
+            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+          });
+
+          foundAgent2.forEach((agent) => {
+            TotalCalls += agent.totalCalls || 0;
+            TotalAnsweredCalls += agent.callsAnswered || 0;
+            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+          });
+
+          foundAgent3.forEach((agent) => {
+            TotalCalls += agent.totalCalls || 0;
+            TotalAnsweredCalls += agent.callsAnswered || 0;
+            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+          });
+
+          // Calculate TotalAnsweredCall
+          const TotalAnsweredCall =
+            TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
+
+          // Respond with the aggregated stats and dailyStats
+          res.send({
+            TotalNotAnsweredCalls,
+            TotalAnsweredCall,
+            TotalCalls,
+          });
+        } catch (error) {
+          console.error("Error fetching daily stats:", error);
+          res.status(500).json({ message: "Internal server error" });
         }
-
-        // Find documents for each agent
-        const foundAgent1: Ilogs[] = await DailyStats.find({
-          $and: [
-            { myDate: { $gte: startDate, $lte: endDate } },
-            { agentId: agent1 },
-          ],
-        });
-
-        const foundAgent2: Ilogs[] = await DailyStats.find({
-          $and: [
-            { myDate: { $gte: startDate, $lte: endDate } },
-            { agentId: agent2 },
-          ],
-        });
-
-        const foundAgent3: Ilogs[] = await DailyStats.find({
-          $and: [
-            { myDate: { $gte: startDate, $lte: endDate } },
-            { agentId: agent3 },
-          ],
-        });
-
-        // Initialize variables to store aggregated stats
-        let TotalCalls = 0;
-        let TotalAnsweredCalls = 0;
-        let TotalNotAnsweredCalls = 0;
-
-        // Calculate totals for each agent
-        foundAgent1.forEach((agent) => {
-          TotalCalls += agent.totalCalls || 0;
-          TotalAnsweredCalls += agent.callsAnswered || 0;
-          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-        });
-
-        foundAgent2.forEach((agent) => {
-          TotalCalls += agent.totalCalls || 0;
-          TotalAnsweredCalls += agent.callsAnswered || 0;
-          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-        });
-
-        foundAgent3.forEach((agent) => {
-          TotalCalls += agent.totalCalls || 0;
-          TotalAnsweredCalls += agent.callsAnswered || 0;
-          TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-        });
-
-        // Calculate TotalAnsweredCall
-        const TotalAnsweredCall =
-          TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
-
-        // Respond with the aggregated stats and dailyStats
-        res.send({
-          TotalNotAnsweredCalls,
-          TotalAnsweredCall,
-          TotalCalls,
-        });
-      } catch (error) {
-        console.error("Error fetching daily stats:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    });
+      },
+    );
   }
 
   peopleStatsLog() {
-    this.app.post("/get-metadata", async (req: Request, res: Response) => {
-      try {
-        const { startDate, endDate, limit, page } = req.body;
-        const newLimit = parseInt(limit);
-        const newPage = parseInt(page);
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
+    this.app.post(
+      "/get-metadata",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const { startDate, endDate, limit, page } = req.body;
+          const newLimit = parseInt(limit);
+          const newPage = parseInt(page);
+          const agentIds = [
+            "214e92da684138edf44368d371da764c",
+            "0411eeeb12d17a340941e91a98a766d0",
+            "86f0db493888f1da69b7d46bfaecd360",
+          ];
 
-        const skip = (newPage - 1) * newLimit;
+          const skip = (newPage - 1) * newLimit;
 
-        // Constructing the query for the date range
-        const dailyStats = await contactModel
-          .find({
+          // Constructing the query for the date range
+          const dailyStats = await contactModel
+            .find({
+              $and: [
+                { agentId: { $in: agentIds } },
+                { isDeleted: false },
+                {
+                  $and: [
+                    {
+                      datesCalled: { $gte: startDate },
+                    },
+                    {
+                      // Check if any date in the array is less than or equal to the end date
+                      datesCalled: { $lte: endDate },
+                    },
+                  ],
+                },
+              ],
+            })
+            .populate("referenceToCallId")
+            .limit(newLimit)
+            .skip(skip);
+
+          const totalCount = await contactModel.countDocuments({
             $and: [
               { agentId: { $in: agentIds } },
               { isDeleted: false },
@@ -1070,40 +1093,20 @@ export class Server {
                 ],
               },
             ],
-          })
-          .populate("referenceToCallId")
-          .limit(newLimit)
-          .skip(skip);
+          });
 
-        const totalCount = await contactModel.countDocuments({
-          $and: [
-            { agentId: { $in: agentIds } },
-            { isDeleted: false },
-            {
-              $and: [
-                {
-                  datesCalled: { $gte: startDate },
-                },
-                {
-                  // Check if any date in the array is less than or equal to the end date
-                  datesCalled: { $lte: endDate },
-                },
-              ],
-            },
-          ],
-        });
-
-        const totalPages = Math.ceil(totalCount / newLimit);
-        res.json({ totalCount, totalPages, dailyStats });
-      } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "Internal Server Error" });
-      }
-    });
+          const totalPages = Math.ceil(totalCount / newLimit);
+          res.json({ totalCount, totalPages, dailyStats });
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({ error: "Internal Server Error" });
+        }
+      },
+    );
   }
 
   peopleStatToCsv() {
-    this.app.post("/get-metadata-csv", async (req, res) => {
+    this.app.post("/get-metadata-csv", authmiddleware, async (req, res) => {
       try {
         const { startDate, endDate } = req.body;
         const result = await statsToCsv(startDate, endDate);
@@ -1131,229 +1134,195 @@ export class Server {
       }
     });
   }
+  searchForvagroup() {
+    this.app.post(
+      "/search-va-group",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const { searchTerm } = req.body;
+        if (!searchTerm) {
+          return res.status(400).json({ error: "Search term is required" });
+        }
+        const agentIds = [
+          "214e92da684138edf44368d371da764c",
+          "0411eeeb12d17a340941e91a98a766d0",
+          "86f0db493888f1da69b7d46bfaecd360",
+        ];
 
-  // testwebsocket() {
-  //   this.app.ws('/websockets', async (ws, req) => {
-  //     // WebSocket connection handler
-  //     console.log('WebSocket connection established');
+        const isValidEmail = (email: string) => {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(email);
+        };
 
-  //     // Handle incoming WebSocket messages
-  //     ws.on('message', (msg) => {
-  //       console.log('Received message:', msg);
-  //     });
+        try {
+          const searchTerms = searchTerm
+            .split(",")
+            .map((term: string) => term.trim());
+          const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-  //     // Handle WebSocket closure
-  //     ws.on('close', () => {
-  //       console.log('WebSocket connection closed');
-  //     });
-  //   });
-  // }
+          const searchForTerm = async (
+            term: string,
+            searchByEmail: boolean,
+          ) => {
+            const query = {
+              agentId: { $in: agentIds },
+              isDeleted: false,
+              $or: searchByEmail
+                ? [{ email: { $regex: term, $options: "i" } }]
+                : [
+                    { firstname: { $regex: term, $options: "i" } },
+                    { lastname: { $regex: term, $options: "i" } },
+                    { phone: { $regex: term, $options: "i" } },
+                    { email: { $regex: term, $options: "i" } },
+                  ],
+            };
+            return await contactModel.find(query).populate("referenceToCallId");
+          };
 
-  //   TranscriptReview(){
-  //   this.app.post("/review-transcript", async (req: Request, res:Response) => {
-  //     const { transcript }= req.body
-  //     const result = await reviewTranscript(transcript)
-  //     res.json({result})
-  //   }
-  // )  }
+          let allResults: any[] = [];
 
-  // searchForUser() {
-  //   this.app.post("/search", async (req: Request, res: Response) => {
-  //     const { agentId, searchTerm } = req.body;
-  //     if (!searchTerm) {
-  //       return res.status(400).json({ error: "Search term is required" });
-  //     }
+          for (const term of searchTerms) {
+            const results = await searchForTerm(term, firstTermIsEmail);
+            allResults = allResults.concat(results);
+          }
 
-  //     try {
-  //       const filteredUsers = await contactModel
-  //         .find({
-  //           agentId,
-  //           $or: [
-  //             { firstname: { $regex: searchTerm, $options: "i" } },
-  //             { lastname: { $regex: searchTerm, $options: "i" } },
-  //             { phone: { $regex: searchTerm, $options: "i" } },
-  //             { email: { $regex: searchTerm, $options: "i" } },
-  //           ],
-  //           isDeleted: false,
-  //         })
-  //         .populate("referenceToCallId");
-  //       res.json(filteredUsers);
-  //     } catch (error) {
-  //       res.status(500).json({ error: "Internal server error" });
-  //     }
-  //   });
-  // }
-
-  // searchForUser() {
-  //   this.app.post("/search", async (req: Request, res: Response) => {
-  //     const { agentId, searchTerm } = req.body;
-  //     if (!searchTerm) {
-  //       return res.status(400).json({ error: "Search term is required" });
-  //     }
-  //     const isValidEmail = (email: string) => {
-  //       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  //       return emailRegex.test(email);
-  //     };
-
-  //     try {
-  //       const searchTerms = searchTerm
-  //         .split(",")
-  //         .map((term: string) => term.trim());
-  //       const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
-  //       const searchForTerm = async (term: string, searchByEmail: boolean) => {
-  //         const query = {
-  //           agentId,
-  //           isDeleted: false,
-  //           $or: searchByEmail
-  //             ? [{ email: { $regex: term, $options: "i" } }]
-  //             : [
-  //                 { firstname: { $regex: term, $options: "i" } },
-  //                 { lastname: { $regex: term, $options: "i" } },
-  //                 { phone: { $regex: term, $options: "i" } },
-  //                 { email: { $regex: term, $options: "i" } },
-  //               ],
-  //         };
-  //         return await contactModel.find(query).populate("referenceToCallId");
-
-          
-  //       };
-
-  //       let allResults: any[] = [];
-
-  //       for (const term of searchTerms) {
-  //         const results = await searchForTerm(term, firstTermIsEmail);
-  //         allResults = allResults.concat(results);
-  //       }
-
-  //       res.json(allResults);
-  //     } catch (error) {
-  //       res.status(500).json({ error: "Internal server error" });
-  //     }
-  //   });
-  // }
+          res.json(allResults);
+        } catch (error) {
+          res.status(500).json({ error: "Internal server error" });
+        }
+      },
+    );
+  }
 
   searchForUser() {
-    this.app.post("/search", async (req: Request, res: Response) => {
-      const { agentId, searchTerm } = req.body;
-      if (!searchTerm) {
-        return res.status(400).json({ error: "Search term is required" });
-      }
-  
-      const isValidEmail = (email: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-      };
-  
-      try {
-        const searchTerms = searchTerm
-          .split(",")
-          .map((term: string) => term.trim());
-        const firstTermIsEmail = isValidEmail(searchTerms[0]);
-  
-        const searchForTerm = async (term: string, searchByEmail: boolean) => {
-          const query = {
-            agentId,
-            isDeleted: false,
-            $or: searchByEmail
-              ? [{ email: { $regex: term, $options: "i" } }]
-              : [
-                  { firstname: { $regex: term, $options: "i" } },
-                  { lastname: { $regex: term, $options: "i" } },
-                  { phone: { $regex: term, $options: "i" } },
-                  { email: { $regex: term, $options: "i" } },
-                ],
-          };
-  
-          const contacts = await contactModel.find(query).populate("referenceToCallId");
-  
-          // Process transcript for each contact
-          const contactsWithTranscript = await Promise.all(contacts.map(async (contact) => {
-            const transcript = contact.referenceToCallId?.transcript || '';
-            const reviewedTranscript = await reviewTranscript(transcript);
-            
-            // Return contact with reviewed transcript appended
-            return {
-              ...contact.toObject(), // Convert Mongoose document to plain JavaScript object
-              analyzedTranscript: reviewedTranscript.message.content,
+    this.app.post(
+      "/search",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const {
+          searchTerm,
+          startDate,
+          endDate,
+          statusOption,
+          sentimentOption,
+        } = req.body;
+
+        if (!searchTerm) {
+          return res.status(400).json({ error: "Search term is required" });
+        }
+
+        const agentIds = [
+          "214e92da684138edf44368d371da764c",
+          "0411eeeb12d17a340941e91a98a766d0",
+          "86f0db493888f1da69b7d46bfaecd360",
+        ];
+
+        const isValidEmail = (email: string) => {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(email);
+        };
+
+        try {
+          const searchTerms = searchTerm
+            .split(",")
+            .map((term: string) => term.trim());
+          const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+          const searchForTerm = async (
+            term: string,
+            searchByEmail: boolean,
+          ) => {
+            let query: any = {
+              agentId: { $in: agentIds },
+              isDeleted: false,
+              $or: searchByEmail
+                ? [{ email: { $regex: term, $options: "i" } }]
+                : [
+                    { firstname: { $regex: term, $options: "i" } },
+                    { lastname: { $regex: term, $options: "i" } },
+                    { phone: { $regex: term, $options: "i" } },
+                    { email: { $regex: term, $options: "i" } },
+                  ],
             };
-          }));
-  
-          return contactsWithTranscript;
-        };
-  
-        let allResults: any[] = [];
-  
-        for (const term of searchTerms) {
-          const results = await searchForTerm(term, firstTermIsEmail);
-          allResults = allResults.concat(results);
-        }
-  
-        res.json(allResults);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
-  }
-  
+            if (startDate && endDate) {
+              query["datesCalled"] = {
+                $gte: startDate,
+                $lte: endDate,
+              };
+            }
 
-  searchForvagroup() {
-    this.app.post("/search-va-group", async (req: Request, res: Response) => {
-      const { searchTerm } = req.body;
-      if (!searchTerm) {
-        return res.status(400).json({ error: "Search term is required" });
-      }
-      const agentIds = [
-        "214e92da684138edf44368d371da764c",
-        "0411eeeb12d17a340941e91a98a766d0",
-        "86f0db493888f1da69b7d46bfaecd360",
-      ];
+            if (statusOption && statusOption !== "All") {
+              let callStatus;
+              if (statusOption === "Called") {
+                callStatus = callstatusenum.CALLED;
+              } else if (statusOption === "notCalled") {
+                callStatus = callstatusenum.NOT_CALLED;
+              } else if (statusOption === "vm") {
+                callStatus = callstatusenum.VOICEMAIL;
+              } else if (statusOption === "Failed") {
+                callStatus = callstatusenum.FAILED;
+              }
+              query["status"] = callStatus;
+            }
 
-      const isValidEmail = (email: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-      };
-
-      try {
-        const searchTerms = searchTerm
-          .split(",")
-          .map((term: string) => term.trim());
-        const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
-        const searchForTerm = async (term: string, searchByEmail: boolean) => {
-          const query = {
-            agentId: { $in: agentIds },
-            isDeleted: false,
-            $or: searchByEmail
-              ? [{ email: { $regex: term, $options: "i" } }]
-              : [
-                  { firstname: { $regex: term, $options: "i" } },
-                  { lastname: { $regex: term, $options: "i" } },
-                  { phone: { $regex: term, $options: "i" } },
-                  { email: { $regex: term, $options: "i" } },
-                ],
+            return await contactModel.find(query).populate("referenceToCallId");
           };
-          return await contactModel.find(query).populate("referenceToCallId");
-        };
 
-        let allResults: any[] = [];
+          let allResults: any[] = [];
+          for (const term of searchTerms) {
+            const results = await searchForTerm(term, firstTermIsEmail);
+            allResults = allResults.concat(results);
+          }
 
-        for (const term of searchTerms) {
-          const results = await searchForTerm(term, firstTermIsEmail);
-          allResults = allResults.concat(results);
+          allResults = await Promise.all(
+            allResults.map(async (contact) => {
+              const transcript = contact.referenceToCallId?.transcript;
+              const analyzedTranscript = await reviewTranscript(transcript);
+              return {
+                firstname: contact.firstname,
+                lastname: contact.lastname,
+                email: contact.email,
+                phone: contact.phone,
+                status: contact.status,
+                transcript: transcript,
+                analyzedTranscript: analyzedTranscript?.message.content,
+                call_recording_url: contact.referenceToCallId?.recordingUrl,
+              };
+            }),
+          );
+
+          if (sentimentOption) {
+            allResults = allResults.filter((contact) => {
+              switch (sentimentOption) {
+                case "Interested":
+                  return contact.analyzedTranscript === "Interested";
+                case "Incomplete Call":
+                  return contact.analyzedTranscript === "Incomplete Call";
+                case "Scheduled":
+                  return contact.analyzedTranscript === "Scheduled";
+                case "Uninterested":
+                  return contact.analyzedTranscript === "Uninterested";
+                case "Call back":
+                  return contact.analyzedTranscript === "Call back";
+                default:
+                  return true;
+              }
+            });
+          }
+
+          res.json(allResults);
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({ error: "Internal server error" });
         }
-
-        res.json(allResults);
-      } catch (error) {
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
+      },
+    );
   }
 
   batchDeleteUser() {
     this.app.post(
       "/batch-delete-users",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { contactsToDelete } = req.body;
 
@@ -1387,44 +1356,133 @@ export class Server {
     );
   }
   getNotCalledUsersAndDelete() {
-    this.app.post("/delete-uncalled", async (req: Request, res: Response) => {
-      try {
-        const { agentId } = req.body;
-        if (!agentId) {
-          throw new Error("Please provide an agent ID");
+    this.app.post(
+      "/delete-uncalled",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const { agentId } = req.body;
+          if (!agentId) {
+            throw new Error("Please provide an agent ID");
+          }
+          const result = await contactModel.updateMany(
+            { agentId, status: "not called" },
+            { isDeleted: true },
+          );
+          res.json({
+            message: "Deleted All contacts that are not called",
+            result,
+          });
+        } catch (error) {
+          console.log(error);
         }
-        const result = await contactModel.updateMany(
-          { agentId, status: "not called" },
-          { isDeleted: true },
+      },
+    );
+  }
+  loginUser() {
+    this.app.post("/user/login", async (req: Request, res: Response) => {
+      try {
+        const { username, password } = req.body;
+        if (!username || !password) {
+          return res.status(400).json({message:"Provide the login details"});
+        }
+
+        const userInDb = await userModel.findOne({ username });
+        if (!userInDb) {
+          return res.status(400).json({message:"Invalid login credentials"});
+        }
+        const verifyPassword = await argon2.verify(
+          userInDb.passwordHash,
+          password,
+        );
+        if (!verifyPassword) {
+          return res.status(400).json({message:"Incorrect password"});
+        }
+        const token = jwt.sign(
+          { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" },
         );
         res.json({
-          message: "Deleted All contacts that are not called",
-          result,
+          payload: {
+            message: "Logged in succefully",
+            token,
+            username: userInDb.username,
+            userId: userInDb._id,
+            group: userInDb.group,
+          },
         });
       } catch (error) {
         console.log(error);
+        return res.status(500).json({ message: "Error happened during login" });
       }
     });
   }
-  loginUser(){
 
-  }
-  signInUser(){
-    this.app.post("", async (req:Request, res: Response) => {
+  loginAdmin() {
+    this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
-        const { email, password, group} = req.body
-        if(!email|| !password|| !group){
-          res.send({message: "Please provide all needed details"})
+        const { username, password } = req.body;
+        if (!username || !password) {
+          return res.status(400).json({message:"Provide the login details"});
         }
-        const savedUser =  await userModel.create(
+        const userInDb = await userModel.findOne({ username });
+        if (!userInDb) {
+          return res.status(400).json({message:"Invalid login credentials"});
+        }
+        const verifyPassword = await argon2.verify(
+          userInDb.passwordHash,
+          password,
+        );
+        if (!verifyPassword) {
+          return res.status(400).json({message:"Incorrect password"});
+        }
+        if (userInDb.isAdmin === false) {
+          return res.status(401).json("Only admins can access here");
+        }
+        const token = jwt.sign(
+          { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" },
+        );
+        return res.status(200).json({
+          payload: {
+            message: "Logged in succefully",
+            token,
+            username: userInDb.username,
+            userId: userInDb._id,
+            group: userInDb.group,
+          },
+        });
+      } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: "Error happened during login" });
+      }
+    });
+  }
+  signUpUser() {
+    this.app.post("/user/signup", async (req: Request, res: Response) => {
+      try {
+        const { username, email, password, group } = req.body;
+        if (!username || !email || !password || !group) {
+          return res.status(400).json({ message: "Please provide all needed details" });
+        }
+        const savedUser = await userModel.create({
+          username,
           email,
           password,
-          group
-        )
-        res.send({ message: "User created sucessfully"})
+          group,
+        });
+        const token = jwt.sign(
+          { userId: savedUser._id, email: savedUser.email },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" },
+        );
+        return res.json({ payload: { message: "User created sucessfully", token } });
       } catch (error) {
-        console.log(error)
+        console.log(error);
+        return res.status(500).json({message:"error while signing up"});
       }
-    })
+    });
   }
 }
