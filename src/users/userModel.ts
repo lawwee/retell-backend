@@ -25,6 +25,15 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    agents:{
+        type:[
+            {
+                name: String,
+                agentId: String,
+                alias:String
+            }
+        ]
+    },
     passwordHash: {
       type: String,
     },

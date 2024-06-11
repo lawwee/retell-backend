@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
-export const isAsmin = (req: Request, res: Response, next: NextFunction) => {
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer")) {
