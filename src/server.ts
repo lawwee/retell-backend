@@ -1385,21 +1385,18 @@ export class Server {
         const { username, password } = req.body;
         if (!username || !password) {
           res.status(400).json({message:"Provide the login details"});
-          throw new Error("Provide the login details");
         }
 
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
           res.status(400).json({message:"Invalid login credentials"});
-          throw new Error("Invalid login credentials");
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          res.status(400).json({message:"Incorrect password"});
-          throw new Error("Incorrect Password");
+          res.status(400).json({message:"Incorrect password"})
         }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
@@ -1428,12 +1425,10 @@ export class Server {
         const { username, password } = req.body;
         if (!username || !password) {
           res.status(400).json({message:"Provide the login details"});
-          throw new Error("Provide the login details");
         }
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
           res.status(400).json({message:"Invalid login credentials"});
-          throw new Error("Invalid login credentials");
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
@@ -1441,11 +1436,9 @@ export class Server {
         );
         if (!verifyPassword) {
           res.status(400).json({message:"Incorrect password"});
-          throw new Error("Incorrect Password");
         }
         if (userInDb.isAdmin === false) {
           res.status(400).json({message:"Only admins can access here"});
-          throw new Error("Not an admin");
         }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
