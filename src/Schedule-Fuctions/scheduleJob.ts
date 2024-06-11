@@ -49,6 +49,7 @@ export const scheduleCronJob = async (
             // Check if processing should be stopped
             const job = await jobModel.findOne({ jobId });
             if (!job || job.shouldContinueProcessing !== true) {
+              await jobModel.findOneAndUpdate({jobId}, {callstatus:"cancelled"})
               console.log("Job processing stopped.");
               break;
             }

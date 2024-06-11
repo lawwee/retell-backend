@@ -28,6 +28,7 @@ export const searchAndRecallContacts = async (
       try {
         const job = await jobModel.findOne({ jobId });
         if (!job || job.shouldContinueProcessing !== true) {
+          await jobModel.findOneAndUpdate({jobId}, {callstatus:"cancelled"})
           console.log("Job processing stopped.");
           break;
         }

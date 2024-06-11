@@ -51,6 +51,7 @@ import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
+import { isAdmin } from "./middleware/isAdmin";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -366,6 +367,7 @@ export class Server {
     this.app.post(
       "/create-llm-phone-call",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
@@ -458,6 +460,7 @@ export class Server {
     this.app.post(
       "/users/create",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const { firstname, lastname, email, phone, agentId } = req.body;
         try {
@@ -496,6 +499,7 @@ export class Server {
   handlecontactDelete() {
     this.app.patch(
       "/users/delete",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { id } = req.body;
@@ -511,6 +515,7 @@ export class Server {
   handleContactUpdate() {
     this.app.patch(
       "/users/update",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         try {
@@ -534,6 +539,7 @@ export class Server {
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
@@ -568,6 +574,7 @@ export class Server {
     this.app.post(
       "/upload/:agentId",
       authmiddleware,
+      isAdmin,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         try {
@@ -641,7 +648,6 @@ export class Server {
       },
     );
   }
-
   getjobstatus() {
     this.app.post(
       "/schedules/status",
@@ -666,6 +672,7 @@ export class Server {
   resetAgentStatus() {
     this.app.post(
       "/users/status/reset",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
@@ -680,6 +687,7 @@ export class Server {
   schedulemycall() {
     this.app.post(
       "/schedule",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber } = req.body;
@@ -710,6 +718,7 @@ export class Server {
     this.app.post(
       "/stop-job",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         try {
           const { jobId } = req.body;
@@ -745,6 +754,7 @@ export class Server {
   stopSpecificSchedule() {
     this.app.post(
       "/cancel-schedule",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { jobId } = req.body;
@@ -896,6 +906,7 @@ export class Server {
   deleteAll() {
     this.app.patch(
       "/deleteAll",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
@@ -963,35 +974,17 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         try {
-          const agent1 = "214e92da684138edf44368d371da764c";
-          const agent2 = "0411eeeb12d17a340941e91a98a766d0";
-          const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-          const { startDate, endDate } = req.body;
+          const { startDate, endDate, agentIds } = req.body;
 
           // Validate date
           if (!startDate || !endDate) {
             throw new Error("Date is missing in the request body");
           }
 
-          // Find documents for each agent
-          const foundAgent1: Ilogs[] = await DailyStats.find({
+          const foundAgents: Ilogs[] = await DailyStats.find({
             $and: [
               { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent1 },
-            ],
-          });
-
-          const foundAgent2: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent2 },
-            ],
-          });
-
-          const foundAgent3: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent3 },
+              { agentId: { $in: agentIds } },
             ],
           });
 
@@ -1001,19 +994,7 @@ export class Server {
           let TotalNotAnsweredCalls = 0;
 
           // Calculate totals for each agent
-          foundAgent1.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          foundAgent2.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          foundAgent3.forEach((agent) => {
+          foundAgents.forEach((agent) => {
             TotalCalls += agent.totalCalls || 0;
             TotalAnsweredCalls += agent.callsAnswered || 0;
             TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
@@ -1108,8 +1089,8 @@ export class Server {
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", authmiddleware, async (req, res) => {
       try {
-        const { startDate, endDate } = req.body;
-        const result = await statsToCsv(startDate, endDate);
+        const { startDate, endDate, agentIds } = req.body;
+        const result = await statsToCsv(startDate, endDate, agentIds);
         if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
@@ -1136,19 +1117,13 @@ export class Server {
   }
   searchForvagroup() {
     this.app.post(
-      "/search-va-group",
+      "/search-logs",
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { searchTerm } = req.body;
+        const { searchTerm, agentIds } = req.body;
         if (!searchTerm) {
           return res.status(400).json({ error: "Search term is required" });
         }
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
-
         const isValidEmail = (email: string) => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(email);
@@ -1205,79 +1180,46 @@ export class Server {
           endDate,
           statusOption,
           sentimentOption,
+          agentIds,
         } = req.body;
 
         if (!searchTerm) {
           return res.status(400).json({ error: "Search term is required" });
         }
 
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
-
-        const isValidEmail = (email: string) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email);
-        };
-
         try {
-          const searchTerms = searchTerm
-            .split(",")
-            .map((term: string) => term.trim());
-          const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
-          const searchForTerm = async (
-            term: string,
-            searchByEmail: boolean,
-          ) => {
-            let query: any = {
-              agentId: { $in: agentIds },
-              isDeleted: false,
-              $or: searchByEmail
-                ? [{ email: { $regex: term, $options: "i" } }]
-                : [
-                    { firstname: { $regex: term, $options: "i" } },
-                    { lastname: { $regex: term, $options: "i" } },
-                    { phone: { $regex: term, $options: "i" } },
-                    { email: { $regex: term, $options: "i" } },
-                  ],
-            };
-            if (startDate && endDate) {
-              query["datesCalled"] = {
-                $gte: startDate,
-                $lte: endDate,
-              };
-            }
-
-            if (statusOption && statusOption !== "All") {
-              let callStatus;
-              if (statusOption === "Called") {
-                callStatus = callstatusenum.CALLED;
-              } else if (statusOption === "notCalled") {
-                callStatus = callstatusenum.NOT_CALLED;
-              } else if (statusOption === "vm") {
-                callStatus = callstatusenum.VOICEMAIL;
-              } else if (statusOption === "Failed") {
-                callStatus = callstatusenum.FAILED;
-              }
-              query["status"] = callStatus;
-            }
-
-            return await contactModel.find(query).populate("referenceToCallId");
+          let query: any = {
+            agentId: { $in: agentIds },
+            isDeleted: false,
           };
-
-          let allResults: any[] = [];
-          for (const term of searchTerms) {
-            const results = await searchForTerm(term, firstTermIsEmail);
-            allResults = allResults.concat(results);
+          if (startDate && endDate) {
+            query["datesCalled"] = {
+              $gte: startDate,
+              $lte: endDate,
+            };
           }
 
+          if (statusOption && statusOption !== "All") {
+            let callStatus;
+            if (statusOption === "Called") {
+              callStatus = callstatusenum.CALLED;
+            } else if (statusOption === "notCalled") {
+              callStatus = callstatusenum.NOT_CALLED;
+            } else if (statusOption === "vm") {
+              callStatus = callstatusenum.VOICEMAIL;
+            } else if (statusOption === "Failed") {
+              callStatus = callstatusenum.FAILED;
+            }
+            query["status"] = callStatus;
+          }
+
+          let allResults: any[] = await contactModel
+            .find(query)
+            .populate("referenceToCallId");
           allResults = await Promise.all(
             allResults.map(async (contact) => {
               const transcript = contact.referenceToCallId?.transcript;
-              const analyzedTranscript = await reviewTranscript(transcript);
+              const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript
               return {
                 firstname: contact.firstname,
                 lastname: contact.lastname,
@@ -1293,23 +1235,21 @@ export class Server {
 
           if (sentimentOption) {
             allResults = allResults.filter((contact) => {
+              const { analyzedTranscript } = contact;
               switch (sentimentOption) {
                 case "Interested":
-                  return contact.analyzedTranscript === "Interested";
                 case "Incomplete Call":
-                  return contact.analyzedTranscript === "Incomplete Call";
                 case "Scheduled":
-                  return contact.analyzedTranscript === "Scheduled";
                 case "Uninterested":
-                  return contact.analyzedTranscript === "Uninterested";
                 case "Call back":
-                  return contact.analyzedTranscript === "Call back";
+                  // Check if the analyzedTranscript contains the sentimentOption
+                  return analyzedTranscript && analyzedTranscript.includes(sentimentOption);
                 default:
                   return true;
               }
             });
           }
-
+          
           res.json(allResults);
         } catch (error) {
           console.log(error);
@@ -1358,6 +1298,7 @@ export class Server {
   getNotCalledUsersAndDelete() {
     this.app.post(
       "/delete-uncalled",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         try {
@@ -1384,19 +1325,19 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          return res.status(400).json({message:"Provide the login details"});
+          return res.status(400).json({ message: "Provide the login details" });
         }
 
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          return res.status(400).json({message:"Invalid login credentials"});
+          return res.status(400).json({ message: "Invalid login credentials" });
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          return res.status(400).json({message:"Incorrect password"});
+          return res.status(400).json({ message: "Incorrect password" });
         }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
@@ -1424,18 +1365,18 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          return res.status(400).json({message:"Provide the login details"});
+          return res.status(400).json({ message: "Provide the login details" });
         }
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          return res.status(400).json({message:"Invalid login credentials"});
+          return res.status(400).json({ message: "Invalid login credentials" });
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          return res.status(400).json({message:"Incorrect password"});
+          return res.status(400).json({ message: "Incorrect password" });
         }
         if (userInDb.isAdmin === false) {
           return res.status(401).json("Only admins can access here");
@@ -1465,7 +1406,9 @@ export class Server {
       try {
         const { username, email, password, group } = req.body;
         if (!username || !email || !password || !group) {
-          return res.status(400).json({ message: "Please provide all needed details" });
+          return res
+            .status(400)
+            .json({ message: "Please provide all needed details" });
         }
         const savedUser = await userModel.create({
           username,
@@ -1478,10 +1421,12 @@ export class Server {
           process.env.JWT_SECRET,
           { expiresIn: "1h" },
         );
-        return res.json({ payload: { message: "User created sucessfully", token } });
+        return res.json({
+          payload: { message: "User created sucessfully", token },
+        });
       } catch (error) {
         console.log(error);
-        return res.status(500).json({message:"error while signing up"});
+        return res.status(500).json({ message: "error while signing up" });
       }
     });
   }

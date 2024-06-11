@@ -17,7 +17,6 @@ const authmiddleware = async (
       return res.status(400).json({message:"Authentication token required"});
     }
     const token = authHeader.split(" ")[1];
-    console.log(token)
     try {
       const decodedToken = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload
       if (!decodedToken) {
