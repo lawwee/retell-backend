@@ -1342,7 +1342,7 @@ export class Server {
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          { expiresIn: "1d" },
         );
         res.json({
           payload: {
@@ -1384,7 +1384,7 @@ export class Server {
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          { expiresIn: "1d" },
         );
         return res.status(200).json({
           payload: {
@@ -1419,7 +1419,7 @@ export class Server {
         const token = jwt.sign(
           { userId: savedUser._id, email: savedUser.email },
           process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          { expiresIn: "6h" },
         );
         return res.json({
           payload: { message: "User created sucessfully", token },
