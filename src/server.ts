@@ -21,6 +21,7 @@ import {
   jobModel,
   EventModel,
 } from "./contacts/contact_model";
+import axios from "axios"
 import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
@@ -128,6 +129,7 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
+    this.testingSlack()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -478,6 +480,7 @@ export class Server {
       },
     );
   }
+
   handlecontactGet() {
     this.app.post(
       "/users/:agentId",
@@ -1219,7 +1222,8 @@ export class Server {
           allResults = await Promise.all(
             allResults.map(async (contact) => {
               const transcript = contact.referenceToCallId?.transcript;
-              const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript
+              const analyzedTranscript =
+                contact.referenceToCallId?.analyzedTranscript;
               return {
                 firstname: contact.firstname,
                 lastname: contact.lastname,
@@ -1243,13 +1247,16 @@ export class Server {
                 case "Uninterested":
                 case "Call back":
                   // Check if the analyzedTranscript contains the sentimentOption
-                  return analyzedTranscript && analyzedTranscript.includes(sentimentOption);
+                  return (
+                    analyzedTranscript &&
+                    analyzedTranscript.includes(sentimentOption)
+                  );
                 default:
                   return true;
               }
             });
           }
-          
+
           res.json(allResults);
         } catch (error) {
           console.log(error);
@@ -1427,6 +1434,30 @@ export class Server {
       } catch (error) {
         console.log(error);
         return res.status(500).json({ message: "error while signing up" });
+      }
+    });
+  }
+  testingSlack() {
+    this.app.post("/test", (req: Request, res: Response) => {
+      try {
+        const webhookUrl = "https://hooks.slack.com/services/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";
+
+        // Message payload
+        const payload = {
+          text: "Hello from Node.js!",
+        };
+
+        // Send the message
+        axios
+          .post(webhookUrl, payload)
+          .then((response) => {
+            console.log("Message sent successfully!");
+          })
+          .catch((error) => {
+            console.error("Failed to send message:", error);
+          });
+      } catch (error) {
+        console.log(error);
       }
     });
   }
