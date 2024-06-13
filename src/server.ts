@@ -1125,7 +1125,9 @@ export class Server {
       async (req: Request, res: Response) => {
         const { searchTerm, agentIds } = req.body;
         if (!searchTerm || !agentIds) {
-          return res.status(400).json({ error: "Search term or agent ids is required" });
+          return res
+            .status(400)
+            .json({ error: "Search term or agent ids is required" });
         }
         const isValidEmail = (email: string) => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1154,6 +1156,7 @@ export class Server {
                     { email: { $regex: term, $options: "i" } },
                   ],
             };
+            console.log(query);
             return await contactModel.find(query).populate("referenceToCallId");
           };
 
@@ -1187,75 +1190,80 @@ export class Server {
         } = req.body;
 
         if (!searchTerm || !agentId) {
-          return res.status(400).json({ error: "Search term or agent Ids is required" });
+          return res
+            .status(400)
+            .json({ error: "Search term or agent Ids is required" });
         }
 
-        console.log(searchTerm);
         try {
-          let query: any = {
-            agentId,
-            isDeleted: false,
+          const isValidEmail = (email: string) => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email.trim());
           };
-          if (startDate && endDate) {
-            query["datesCalled"] = {
-              $gte: startDate,
-              $lte: endDate,
+          const searchTerms = searchTerm
+            .split(",")
+            .map((term: string) => term.trim());
+          const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+          const searchForTerm = async (
+            term: string,
+            searchByEmail: boolean,
+          ) => {
+            const query: any = {
+              agentId,
+              isDeleted: false,
+              $or: searchByEmail
+                ? [{ email: { $regex: term, $options: "i" } }]
+                : [
+                    { firstname: { $regex: term, $options: "i" } },
+                    { lastname: { $regex: term, $options: "i" } },
+                    { phone: { $regex: term, $options: "i" } },
+                    { email: { $regex: term, $options: "i" } },
+                  ],
             };
-          }
-
-          if (statusOption && statusOption !== "All") {
-            let callStatus;
-            if (statusOption === "Called") {
-              callStatus = callstatusenum.CALLED;
-            } else if (statusOption === "notCalled") {
-              callStatus = callstatusenum.NOT_CALLED;
-            } else if (statusOption === "vm") {
-              callStatus = callstatusenum.VOICEMAIL;
-            } else if (statusOption === "Failed") {
-              callStatus = callstatusenum.FAILED;
-            }
-            query["status"] = callStatus;
-          }
-          let allResults: any[] = await contactModel
-            .find(query)
-            .populate("referenceToCallId");
-          allResults = await Promise.all(
-            allResults.map(async (contact) => {
-              const transcript = contact.referenceToCallId?.transcript;
-              const analyzedTranscript =
-                contact.referenceToCallId?.analyzedTranscript;
-              return {
-                firstname: contact.firstname,
-                lastname: contact.lastname,
-                email: contact.email,
-                phone: contact.phone,
-                status: contact.status,
-                transcript: transcript,
-                analyzedTranscript,
-                call_recording_url: contact.referenceToCallId?.recordingUrl,
+            if (startDate && endDate) {
+              query["datesCalled"] = {
+                $gte: startDate,
+                $lte: endDate,
               };
-            }),
-          );
-          if (sentimentOption) {
-            allResults = allResults.filter((contact) => {
-              const { analyzedTranscript } = contact;
-              switch (sentimentOption) {
-                case "Interested":
-                case "Incomplete Call":
-                case "Scheduled":
-                case "Uninterested":
-                case "Call back":
-                  return (
-                    analyzedTranscript &&
-                    analyzedTranscript.includes(sentimentOption)
-                  );
-                default:
-                  return true;
+            }
+            if (statusOption && statusOption !== "All") {
+              let callStatus;
+              if (statusOption === "Called") {
+                callStatus = callstatusenum.CALLED;
+              } else if (statusOption === "notCalled") {
+                callStatus = callstatusenum.NOT_CALLED;
+              } else if (statusOption === "vm") {
+                callStatus = callstatusenum.VOICEMAIL;
+              } else if (statusOption === "Failed") {
+                callStatus = callstatusenum.FAILED;
               }
-            });
+              query["status"] = callStatus;
+            }
+            return await contactModel.find(query).populate("referenceToCallId");
+          };
+
+          let allResults: any[] = [];
+
+          for (const term of searchTerms) {
+            const results = await searchForTerm(term, firstTermIsEmail);
+            allResults = allResults.concat(results);
           }
 
-          res.json(allResults);
+          if (!sentimentOption) {
+            res.json(allResults);
+          } else {
+            const filteredResults = allResults.filter((contact) => {
+              console.log(contact)
+              const analyzedTranscript =
+                contact.referenceToCallId.analyzedTranscript;
+              return (
+                analyzedTranscript &&
+                analyzedTranscript === sentimentOption
+              );
+            });
+            res.json(filteredResults);
+          }
         } catch (error) {
           console.log(error);
           res.status(500).json({ error: "Internal server error" });
