@@ -28,11 +28,8 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
     });
-
-    // Start the job
     const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
       try {
-        // Update the job status to indicate that it's in progress
         await jobModel.findOneAndUpdate(
           { jobId },
           { callstatus: jobstatus.ON_CALL },
@@ -42,15 +39,22 @@ export const scheduleCronJob = async (
           .find({ agentId, status: "not called", isDeleted: { $ne: true } })
           .limit(contactLimit)
           .sort({ createdAt: "desc" });
-
-        // Loop through contacts
         for (const contact of contacts) {
           try {
-            // Check if processing should be stopped
             const job = await jobModel.findOne({ jobId });
-            if (!job || job.shouldContinueProcessing !== true) {
-              await jobModel.findOneAndUpdate({jobId}, {callstatus:"cancelled"})
+            const currentDate = new Date();
+            const currentHour = currentDate.getHours();
+            if (
+              currentHour < 8 ||
+              currentHour >= 15 ||
+              !job ||
+              job.shouldContinueProcessing !== true
+            ) {
               console.log("Job processing stopped.");
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { callstatus: "cancelled" },
+              );
               break;
             }
             const postdata = {
@@ -67,7 +71,7 @@ export const scheduleCronJob = async (
             //   postdata.userId,
             // );
             try {
-              const callRegister = await retellClient.call.register({
+              await retellClient.call.register({
                 agent_id: agentId,
                 audio_encoding: "s16le",
                 audio_websocket_protocol: "twilio",
@@ -107,12 +111,9 @@ export const scheduleCronJob = async (
               }`,
             );
           }
-
-          // Wait for a specified time before processing the next contact
           await new Promise((resolve) => setTimeout(resolve, 8000));
         }
         console.log("Contacts processed will start recall");
-        // Call function to search and recall contacts if needed
         await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId);
       } catch (error) {
         console.error(
