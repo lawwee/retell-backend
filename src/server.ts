@@ -1183,17 +1183,17 @@ export class Server {
           endDate,
           statusOption,
           sentimentOption,
-          agentIds,
+          agentId,
         } = req.body;
 
-        if (!searchTerm || !agentIds) {
+        if (!searchTerm || !agentId) {
           return res.status(400).json({ error: "Search term or agent Ids is required" });
         }
 
         console.log(searchTerm);
         try {
           let query: any = {
-            agentId: { $in: agentIds },
+            agentId,
             isDeleted: false,
           };
           if (startDate && endDate) {
@@ -1216,8 +1216,6 @@ export class Server {
             }
             query["status"] = callStatus;
           }
-
-          console.log(query);
           let allResults: any[] = await contactModel
             .find(query)
             .populate("referenceToCallId");
