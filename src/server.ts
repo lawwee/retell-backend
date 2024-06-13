@@ -21,7 +21,7 @@ import {
   jobModel,
   EventModel,
 } from "./contacts/contact_model";
-import axios from "axios"
+import axios from "axios";
 import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
@@ -129,7 +129,7 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
-    this.testingSlack()
+    this.testingSlack();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1124,8 +1124,8 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         const { searchTerm, agentIds } = req.body;
-        if (!searchTerm) {
-          return res.status(400).json({ error: "Search term is required" });
+        if (!searchTerm || !agentIds) {
+          return res.status(400).json({ error: "Search term or agent ids is required" });
         }
         const isValidEmail = (email: string) => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1186,10 +1186,11 @@ export class Server {
           agentIds,
         } = req.body;
 
-        if (!searchTerm) {
-          return res.status(400).json({ error: "Search term is required" });
+        if (!searchTerm || !agentIds) {
+          return res.status(400).json({ error: "Search term or agent Ids is required" });
         }
 
+        console.log(searchTerm);
         try {
           let query: any = {
             agentId: { $in: agentIds },
@@ -1216,6 +1217,7 @@ export class Server {
             query["status"] = callStatus;
           }
 
+          console.log(query);
           let allResults: any[] = await contactModel
             .find(query)
             .populate("referenceToCallId");
@@ -1231,12 +1233,11 @@ export class Server {
                 phone: contact.phone,
                 status: contact.status,
                 transcript: transcript,
-                analyzedTranscript: analyzedTranscript?.message.content,
+                analyzedTranscript,
                 call_recording_url: contact.referenceToCallId?.recordingUrl,
               };
             }),
           );
-
           if (sentimentOption) {
             allResults = allResults.filter((contact) => {
               const { analyzedTranscript } = contact;
@@ -1246,7 +1247,6 @@ export class Server {
                 case "Scheduled":
                 case "Uninterested":
                 case "Call back":
-                  // Check if the analyzedTranscript contains the sentimentOption
                   return (
                     analyzedTranscript &&
                     analyzedTranscript.includes(sentimentOption)
@@ -1440,7 +1440,8 @@ export class Server {
   testingSlack() {
     this.app.post("/test", (req: Request, res: Response) => {
       try {
-        const webhookUrl = "https://hooks.slack.com/services/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";
+        const webhookUrl =
+          "https://hooks.slack.com/services/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";
 
         // Message payload
         const payload = {
