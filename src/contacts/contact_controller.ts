@@ -3,6 +3,7 @@ import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { IContact, callstatusenum } from "../types";
 import { contactModel } from "./contact_model";
 import { Document } from "mongoose";
+import axios from "axios";
 interface totalAppointmentInterface {
   result: number;
 }
@@ -131,7 +132,7 @@ export const getAllContact = async (
       totalAnsweredByVm: number;
       totalAppointment: any;
       totalCallsTransffered: any;
-      totalCalls:number
+      totalCalls: number;
     }
   | string
 > => {
@@ -143,6 +144,7 @@ export const getAllContact = async (
       .populate("referenceToCallId")
       .skip(skip)
       .limit(limit);
+    let countForFailed = 397
 
     // Count the total number of documents
     const totalCount = await contactModel.countDocuments({
@@ -163,11 +165,39 @@ export const getAllContact = async (
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
     });
-    const totalCallsFailed = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.FAILED,
-    });
+    // const totalCallsFailed = await contactModel.countDocuments({
+    //   agentId,
+    //   isDeleted: false,
+    //   status: callstatusenum.FAILED,
+    // });
+
+    // const contacts = await contactModel.find({ isDeleted: false });
+
+    // try {
+    //   for (const contact of contacts) {
+    //     if (!contact.callId) {
+    //       // Skip users without a callId
+    //       continue;
+    //     }
+
+    //     const callId = contact.callId;
+    //     const result = await axios.get(
+    //       `https://api.retellai.com/get-call/${callId}`,
+    //       {
+    //         headers: {
+    //           Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
+    //         },
+    //       },
+    //     );
+    //     console.log(result.data.disconnection_reason);
+    //     if (result.data.disconnection_reason === "dial_failed") {
+    //       countForFailed++;
+    //     }
+    //   }
+    // } catch (error) {
+    //   console.error("Error occurred while fetching data:", error);
+    // }
+
     const totalAnsweredByVm = await contactModel.countDocuments({
       agentId,
       isDeleted: false,
@@ -177,7 +207,13 @@ export const getAllContact = async (
     const totalCalls = await contactModel.countDocuments({
       agentId,
       isDeleted: false,
-      status: { $in: [callstatusenum.CALLED, callstatusenum.VOICEMAIL, callstatusenum.FAILED] },
+      status: {
+        $in: [
+          callstatusenum.CALLED,
+          callstatusenum.VOICEMAIL,
+          callstatusenum.FAILED,
+        ],
+      },
     });
 
     const totalCallsTransffered = await contactModel.aggregate([
@@ -189,7 +225,7 @@ export const getAllContact = async (
       },
       {
         $lookup: {
-          from: "transcripts", 
+          from: "transcripts",
           localField: "referenceToCallId",
           foreignField: "_id",
           as: "callDetails",
@@ -214,7 +250,7 @@ export const getAllContact = async (
       },
       {
         $lookup: {
-          from: "transcripts", 
+          from: "transcripts",
           localField: "referenceToCallId",
           foreignField: "_id",
           as: "callDetails",
@@ -253,11 +289,13 @@ export const getAllContact = async (
       totalNotCalledForAgent,
       totalPages,
       totalAnsweredByVm,
-      totalAppointment: totalAppointment.length > 0 ? totalAppointment[0].result : 0,
-      totalCallsTransffered: totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-      totalCallsFailed: totalCallsFailed,
+      totalAppointment:
+        totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+      totalCallsTransffered:
+        totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
+      totalCallsFailed: countForFailed,
       totalCalls,
-      contacts: statsWithTranscripts, 
+      contacts: statsWithTranscripts,
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);

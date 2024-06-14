@@ -1444,27 +1444,55 @@ export class Server {
     });
   }
   testingSlack() {
-    this.app.post("/test", (req: Request, res: Response) => {
+    this.app.post("/test", async (req: Request, res: Response) => {
       try {
-        const webhookUrl =
-          "https://hooks.slack.com/services/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";
+        const results = await contactModel.aggregate([
+          {
+              $match: {
+                  isDeleted: { $ne: true }
+              }
+          },
+          {
+              $group: {
+                  _id: { email: "$email", firstname: "$firstname", phone: "$phone", agentId:"$agentId" },
+                  count: { $sum: 1 },
+                  documents: { $push: "$$ROOT" }
+              }
+          },
+          {
+              $match: {
+                  count: { $gt: 1 }
+              }
+          }
+      ]);
+      // for (const duplicate of results) {
+      //   const { documents } = duplicate;
+      //   // Keep the first document and delete the rest
+      //   for (let i = 1; i < documents.length; i++) {
+      //     await contactModel.findByIdAndDelete(documents[i]._id);
+      //   }
+      // for (const duplicate of results) {
+      //   const { documents } = duplicate;
+      
+        // Check if any document has status "notCalled"
+      //   const notCalledDocs = documents.filter((doc:any) => doc.status === "not called");
+      //   const hasDuplicateWithConnectedOrNAVM = documents.some(
+      //     doc => doc.status === "call-connected" || doc.status === "called-NA-VM"
+      //   );
+      
+      //   if (hasDuplicateWithConnectedOrNAVM) {
+      //     // Delete "notCalled" documents
+      //     for (const doc of notCalledDocs) {
+      //       await contactModel.findByIdAndDelete(doc._id);
+      //     }
+      //   }
+      // }
 
-        // Message payload
-        const payload = {
-          text: "Hello from Node.js!",
-        };
-
-        // Send the message
-        axios
-          .post(webhookUrl, payload)
-          .then((response) => {
-            console.log("Message sent successfully!");
-          })
-          .catch((error) => {
-            console.error("Failed to send message:", error);
-          });
+      res.send(results)
+      console.log(results)
+      
       } catch (error) {
-        console.log(error);
+        console.log(error)
       }
     });
   }
