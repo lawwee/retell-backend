@@ -128,7 +128,7 @@ export const getAllContact = async (
       totalAnsweredCalls: number;
       totalPages: number;
       totalNotCalledForAgent: number;
-      totalCallsFailed: number;
+      totalCallsFailed: any;
       totalAnsweredByVm: number;
       totalAppointment: any;
       totalCallsTransffered: any;
@@ -144,7 +144,6 @@ export const getAllContact = async (
       .populate("referenceToCallId")
       .skip(skip)
       .limit(limit);
-    let countForFailed = 397
 
     // Count the total number of documents
     const totalCount = await contactModel.countDocuments({
@@ -171,6 +170,7 @@ export const getAllContact = async (
     //   status: callstatusenum.FAILED,
     // });
 
+    let usersToPush = 0
     // const contacts = await contactModel.find({ isDeleted: false });
 
     // try {
@@ -189,14 +189,43 @@ export const getAllContact = async (
     //         },
     //       },
     //     );
-    //     console.log(result.data.disconnection_reason);
-    //     if (result.data.disconnection_reason === "dial_failed") {
-    //       countForFailed++;
+    //     // Check if Retell returns an object and its disconnection reason is "dial_failed"
+    //     if ( result.data.disconnection_reason === "dial_failed") {
+    //       // If so, push the corresponding contact object to the array
+    //       console.log(contact)
+    //       usersToPush.push(contact);
     //     }
     //   }
     // } catch (error) {
     //   console.error("Error occurred while fetching data:", error);
     // }
+
+    // let countForFailed = 397;
+    // function getStartOfDayTimestamp() {
+    //   const date = new Date(); // Get current date and time
+    //   date.setHours(0, 0, 0, 0); // Set time to 00:00:00:000
+    //   return date.getTime(); // Get timestamp
+    // }
+
+    // // Function to get the timestamp for the end of the day
+    // function getEndOfDayTimestamp() {
+    //   const date = new Date(); // Get current date and time
+    //   date.setHours(23, 59, 59, 999); // Set time to 23:59:59:999
+    //   return date.getTime(); // Get timestamp
+    // }
+
+    // // Example usage
+    // const startOfDayTimestamp = getStartOfDayTimestamp();
+    // const endOfDayTimestamp = getEndOfDayTimestamp();
+    // const result = await axios.get(`https://api.retellai.com/list-call`, {
+    //   headers: {
+    //     Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
+    //   },
+    //   params: {
+    //     after_start_timestamp: startOfDayTimestamp,
+    //     before_end_timestamp: endOfDayTimestamp,
+    //   },
+    // });
 
     const totalAnsweredByVm = await contactModel.countDocuments({
       agentId,
@@ -293,7 +322,7 @@ export const getAllContact = async (
         totalAppointment.length > 0 ? totalAppointment[0].result : 0,
       totalCallsTransffered:
         totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-      totalCallsFailed: countForFailed,
+      totalCallsFailed: usersToPush,
       totalCalls,
       contacts: statsWithTranscripts,
     };

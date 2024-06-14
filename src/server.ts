@@ -129,7 +129,6 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
-    this.testingSlack();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1443,57 +1442,24 @@ export class Server {
       }
     });
   }
-  testingSlack() {
-    this.app.post("/test", async (req: Request, res: Response) => {
-      try {
-        const results = await contactModel.aggregate([
-          {
-              $match: {
-                  isDeleted: { $ne: true }
-              }
-          },
-          {
-              $group: {
-                  _id: { email: "$email", firstname: "$firstname", phone: "$phone", agentId:"$agentId" },
-                  count: { $sum: 1 },
-                  documents: { $push: "$$ROOT" }
-              }
-          },
-          {
-              $match: {
-                  count: { $gt: 1 }
-              }
-          }
-      ]);
-      // for (const duplicate of results) {
-      //   const { documents } = duplicate;
-      //   // Keep the first document and delete the rest
-      //   for (let i = 1; i < documents.length; i++) {
-      //     await contactModel.findByIdAndDelete(documents[i]._id);
-      //   }
-      // for (const duplicate of results) {
-      //   const { documents } = duplicate;
-      
-        // Check if any document has status "notCalled"
-      //   const notCalledDocs = documents.filter((doc:any) => doc.status === "not called");
-      //   const hasDuplicateWithConnectedOrNAVM = documents.some(
-      //     doc => doc.status === "call-connected" || doc.status === "called-NA-VM"
-      //   );
-      
-      //   if (hasDuplicateWithConnectedOrNAVM) {
-      //     // Delete "notCalled" documents
-      //     for (const doc of notCalledDocs) {
-      //       await contactModel.findByIdAndDelete(doc._id);
-      //     }
-      //   }
-      // }
 
-      res.send(results)
-      console.log(results)
-      
-      } catch (error) {
-        console.log(error)
-      }
-    });
-  }
+  async  deleteContactsByEmail(emails:any) {
+    try {
+        // Split the input string containing comma-separated emails into an array
+        const emailArray = emails.split(',');
+        console.log(emailArray)
+
+        // Use Mongoose's deleteMany function to remove documents with matching emails
+        const result = await contactModel.deleteMany({ email: { $in: emailArray } });
+
+        console.log(`${result.deletedCount} contacts deleted.`);
+        return result;
+    } catch (error) {
+        console.error("Error deleting contacts:", error);
+        throw error; // Forwarding the error for handling in upper layers
+    }
 }
+
+
+}
+
