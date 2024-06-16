@@ -816,7 +816,7 @@ export class Server {
   }
 
   getTimefromcallendly() {
-    this.app.post("/calender", async (req: Request, res: Response) => {
+    this.app.post("/check-appointments", async (req: Request, res: Response) => {
       try {
         const result = await checkAvailability();
         res.json({ result });
@@ -829,7 +829,7 @@ export class Server {
     });
   }
   getTimefromcallendly2() {
-    this.app.post("/calender2", async (req: Request, res: Response) => {
+    this.app.post("/follow-up-appintments", async (req: Request, res: Response) => {
       try {
         const result = await checkAvailability2();
         res.json({ result });
