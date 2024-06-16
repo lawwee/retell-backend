@@ -53,6 +53,7 @@ import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
 import { isAdmin } from "./middleware/isAdmin";
+import { checkAvailability2 } from "./callendly2";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -129,6 +130,7 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
+    this.getTimefromcallendly2()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -817,6 +819,19 @@ export class Server {
     this.app.post("/calender", async (req: Request, res: Response) => {
       try {
         const result = await checkAvailability();
+        res.json({ result });
+      } catch (error) {
+        console.error("Error stopping job:", error);
+        return res
+          .status(500)
+          .send(`Issue getting callendly time with error: ${error}`);
+      }
+    });
+  }
+  getTimefromcallendly2() {
+    this.app.post("/calender2", async (req: Request, res: Response) => {
+      try {
+        const result = await checkAvailability2();
         res.json({ result });
       } catch (error) {
         console.error("Error stopping job:", error);
