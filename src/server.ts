@@ -707,14 +707,14 @@ export class Server {
         const formattedDate = moment(scheduledTimePST).format(
           "YYYY-MM-DDTHH:mm:ss",
         );
-        const { jobId, scheduledTime } = await scheduleCronJob(
+        const { jobId, scheduledTime, contacts } = await scheduleCronJob(
           scheduledTimePST,
           agentId,
           limit,
           fromNumber,
           formattedDate,
         );
-        res.send({ jobId, scheduledTime });
+        res.send({ jobId, scheduledTime, contacts });
       },
     );
   }

@@ -15,7 +15,7 @@ export const searchAndRecallContacts = async (
 ) => {
   try {
     let contactStatusArray = ["called-NA-VM", "ringing"];
-    let contacts = await contactModel
+    const contacts = await contactModel
       .find({
         agentId,
         status: { $in: contactStatusArray },

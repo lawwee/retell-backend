@@ -5,6 +5,7 @@ import schedule from "node-schedule";
 import { TwilioClient } from "../twilio_api";
 import Retell from "retell-sdk";
 import { searchAndRecallContacts } from "./searchAndRecallContact";
+import moment from "moment-timezone";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -28,22 +29,23 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
     });
+    const contactLimit = parseInt(limit);
+    const contacts = await contactModel
+      .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+      .limit(contactLimit)
+      .sort({ createdAt: "desc" })
     const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
       try {
         await jobModel.findOneAndUpdate(
           { jobId },
           { callstatus: jobstatus.ON_CALL },
         );
-        const contactLimit = parseInt(limit);
-        const contacts = await contactModel
-          .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-          .limit(contactLimit)
-          .sort({ createdAt: "desc" });
         for (const contact of contacts) {
           try {
             const job = await jobModel.findOne({ jobId });
-            const currentDate = new Date();
-            const currentHour = currentDate.getHours();
+
+            const currentDate = moment().tz("America/Los_Angeles");
+            const currentHour = currentDate.hours();
             if (
               currentHour < 8 ||
               currentHour >= 15 ||
@@ -127,7 +129,7 @@ export const scheduleCronJob = async (
     console.log(
       `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
     );
-    return { jobId, scheduledTime: scheduledTimePST };
+    return { jobId, scheduledTime: scheduledTimePST, contacts };
   } catch (error) {
     console.error("Error scheduling job:", error);
     throw error;
