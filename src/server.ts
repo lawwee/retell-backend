@@ -1243,13 +1243,13 @@ export class Server {
             }
             if (statusOption && statusOption !== "All") {
               let callStatus;
-              if (statusOption === "Called") {
+              if (statusOption === "call-connected") {
                 callStatus = callstatusenum.CALLED;
-              } else if (statusOption === "notCalled") {
+              } else if (statusOption === "not called") {
                 callStatus = callstatusenum.NOT_CALLED;
-              } else if (statusOption === "vm") {
+              } else if (statusOption === "called-NA-VM") {
                 callStatus = callstatusenum.VOICEMAIL;
-              } else if (statusOption === "Failed") {
+              } else if (statusOption === "call-failed") {
                 callStatus = callstatusenum.FAILED;
               }
               query["status"] = callStatus;
