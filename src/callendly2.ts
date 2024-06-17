@@ -27,7 +27,7 @@ export async function checkAvailability2(): Promise<string[]> {
       },
     );
 
-    console.log("this is the response", response.data.collection)
+  
     const availableTimes: string[] = [];
 
     response.data.collection.forEach((schedule: any) => {

@@ -130,7 +130,7 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
-    this.getTimefromcallendly2()
+    this.getTimefromCallendly2()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -828,7 +828,7 @@ export class Server {
       }
     });
   }
-  getTimefromcallendly2() {
+  getTimefromCallendly2() {
     this.app.post("/follow-up-appintments", async (req: Request, res: Response) => {
       try {
         const result = await checkAvailability2();
