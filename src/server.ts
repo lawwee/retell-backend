@@ -775,7 +775,7 @@ export class Server {
         if (isCancelled) {
           await jobModel.findOneAndUpdate(
             { jobId },
-            { callstatus: jobstatus.CANCELLED },
+            { callstatus: jobstatus.CANCELLED, shouldContinueProcessing: false },
           );
           res.send(`Job with ID ${jobId} cancelled successfully.`);
         } else {
