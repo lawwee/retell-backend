@@ -829,7 +829,7 @@ export class Server {
     });
   }
   getTimefromCallendly2() {
-    this.app.post("/follow-up-appintments", async (req: Request, res: Response) => {
+    this.app.post("/follow-up-appointments", async (req: Request, res: Response) => {
       try {
         const result = await checkAvailability2();
         res.json({ result });
