@@ -54,6 +54,7 @@ import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
 import { isAdmin } from "./middleware/isAdmin";
 import { checkAvailability2 } from "./callendly2";
+import { transcriptEnum } from "./types";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -130,7 +131,7 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
-    this.getTimefromCallendly2()
+    this.getTimefromCallendly2();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -775,7 +776,10 @@ export class Server {
         if (isCancelled) {
           await jobModel.findOneAndUpdate(
             { jobId },
-            { callstatus: jobstatus.CANCELLED, shouldContinueProcessing: false },
+            {
+              callstatus: jobstatus.CANCELLED,
+              shouldContinueProcessing: false,
+            },
           );
           res.send(`Job with ID ${jobId} cancelled successfully.`);
         } else {
@@ -816,30 +820,36 @@ export class Server {
   }
 
   getTimefromcallendly() {
-    this.app.post("/check-appointments", async (req: Request, res: Response) => {
-      try {
-        const result = await checkAvailability();
-        res.json({ result });
-      } catch (error) {
-        console.error("Error stopping job:", error);
-        return res
-          .status(500)
-          .send(`Issue getting callendly time with error: ${error}`);
-      }
-    });
+    this.app.post(
+      "/check-appointments",
+      async (req: Request, res: Response) => {
+        try {
+          const result = await checkAvailability();
+          res.json({ result });
+        } catch (error) {
+          console.error("Error stopping job:", error);
+          return res
+            .status(500)
+            .send(`Issue getting callendly time with error: ${error}`);
+        }
+      },
+    );
   }
   getTimefromCallendly2() {
-    this.app.post("/follow-up-appointments", async (req: Request, res: Response) => {
-      try {
-        const result = await checkAvailability2();
-        res.json({ result });
-      } catch (error) {
-        console.error("Error stopping job:", error);
-        return res
-          .status(500)
-          .send(`Issue getting callendly time with error: ${error}`);
-      }
-    });
+    this.app.post(
+      "/follow-up-appointments",
+      async (req: Request, res: Response) => {
+        try {
+          const result = await checkAvailability2();
+          res.json({ result });
+        } catch (error) {
+          console.error("Error stopping job:", error);
+          return res
+            .status(500)
+            .send(`Issue getting callendly time with error: ${error}`);
+        }
+      },
+    );
   }
 
   async getTranscriptAfterCallEnded() {
@@ -1243,13 +1253,25 @@ export class Server {
             }
             if (statusOption && statusOption !== "All") {
               let callStatus;
-              if (statusOption === "call-connected") {
+              if (
+                statusOption === "call-connected" ||
+                statusOption === "Call-Connected"
+              ) {
                 callStatus = callstatusenum.CALLED;
-              } else if (statusOption === "not called") {
+              } else if (
+                statusOption === "not-called" ||
+                statusOption === "Not-Called"
+              ) {
                 callStatus = callstatusenum.NOT_CALLED;
-              } else if (statusOption === "called-NA-VM") {
+              } else if (
+                statusOption === "called-NA-VM" ||
+                statusOption === "Called-NA-VM"
+              ) {
                 callStatus = callstatusenum.VOICEMAIL;
-              } else if (statusOption === "call-failed") {
+              } else if (
+                statusOption === "call-failed" ||
+                statusOption === "Call-Failed"
+              ) {
                 callStatus = callstatusenum.FAILED;
               }
               query["status"] = callStatus;
@@ -1263,6 +1285,46 @@ export class Server {
             const results = await searchForTerm(term, firstTermIsEmail);
             allResults = allResults.concat(results);
           }
+          let sentimentStatus:
+            | "Uninterested"
+            | "Call back"
+            | "Interested"
+            | "Scheduled"
+            | "Voicemail"
+            | "Incomplete call"
+            | undefined;
+
+          if (
+            sentimentOption === "Uninterested" ||
+            sentimentOption === "uninterested"
+          ) {
+            sentimentStatus = "Uninterested";
+          } else if (
+            sentimentOption === "Interested" ||
+            sentimentOption === "interested"
+          ) {
+            sentimentStatus = "Interested";
+          } else if (
+            sentimentOption === "Scheduled" ||
+            sentimentOption === "scheduled"
+          ) {
+            sentimentStatus = "Scheduled";
+          } else if (
+            sentimentOption === "Voicemail" ||
+            sentimentOption === "voicemail"
+          ) {
+            sentimentStatus = "Voicemail";
+          } else if (
+            sentimentOption === "incomplete-call" ||
+            sentimentOption === "Incomplete-Call"
+          ) {
+            sentimentStatus = "Incomplete call";
+          } else if (
+            sentimentOption === "call-back" ||
+            sentimentOption === "Call-Back"
+          ) {
+            sentimentStatus = "Call back";
+          }
 
           if (!sentimentOption) {
             res.json(allResults);
@@ -1271,8 +1333,7 @@ export class Server {
               const analyzedTranscript =
                 contact.referenceToCallId?.analyzedTranscript;
               return (
-                analyzedTranscript &&
-                analyzedTranscript === sentimentOption
+                analyzedTranscript && analyzedTranscript === sentimentStatus
               );
             });
             res.json(filteredResults);
@@ -1457,21 +1518,22 @@ export class Server {
     });
   }
 
-  async  deleteContactsByEmail(emails:any) {
+  async deleteContactsByEmail(emails: any) {
     try {
-        // Split the input string containing comma-separated emails into an array
-        const emailArray = emails.split(',');
-        console.log(emailArray)
+      // Split the input string containing comma-separated emails into an array
+      const emailArray = emails.split(",");
+      console.log(emailArray);
 
-        // Use Mongoose's deleteMany function to remove documents with matching emails
-        const result = await contactModel.deleteMany({ email: { $in: emailArray } });
+      // Use Mongoose's deleteMany function to remove documents with matching emails
+      const result = await contactModel.deleteMany({
+        email: { $in: emailArray },
+      });
 
-        console.log(`${result.deletedCount} contacts deleted.`);
-        return result;
+      console.log(`${result.deletedCount} contacts deleted.`);
+      return result;
     } catch (error) {
-        console.error("Error deleting contacts:", error);
-        throw error; // Forwarding the error for handling in upper layers
+      console.error("Error deleting contacts:", error);
+      throw error; // Forwarding the error for handling in upper layers
     }
+  }
 }
-}
-
