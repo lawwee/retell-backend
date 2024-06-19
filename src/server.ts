@@ -1268,9 +1268,8 @@ export class Server {
             res.json(allResults);
           } else {
             const filteredResults = allResults.filter((contact) => {
-              console.log(contact)
               const analyzedTranscript =
-                contact.referenceToCallId.analyzedTranscript;
+                contact.referenceToCallId?.analyzedTranscript;
               return (
                 analyzedTranscript &&
                 analyzedTranscript === sentimentOption

@@ -171,34 +171,35 @@ export const getAllContact = async (
     // });
 
     let usersToPush = 0
-    // const contacts = await contactModel.find({ isDeleted: false });
+    let usersToPushs = 0
+    const contacts = await contactModel.find({ isDeleted: false });
 
-    // try {
-    //   for (const contact of contacts) {
-    //     if (!contact.callId) {
-    //       // Skip users without a callId
-    //       continue;
-    //     }
+    try {
+      for (const contact of contacts) {
+        if (!contact.callId) {
+          // Skip users without a callId
+          continue;
+        }
 
-    //     const callId = contact.callId;
-    //     const result = await axios.get(
-    //       `https://api.retellai.com/get-call/${callId}`,
-    //       {
-    //         headers: {
-    //           Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
-    //         },
-    //       },
-    //     );
-    //     // Check if Retell returns an object and its disconnection reason is "dial_failed"
-    //     if ( result.data.disconnection_reason === "dial_failed") {
-    //       // If so, push the corresponding contact object to the array
-    //       console.log(contact)
-    //       usersToPush.push(contact);
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error("Error occurred while fetching data:", error);
-    // }
+        const callId = contact.callId;
+        const result = await axios.get(
+          `https://api.retellai.com/get-call/${callId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
+            },
+          },
+        );
+        // Check if Retell returns an object and its disconnection reason is "dial_failed"
+        if ( result.data.disconnection_reason === "dial_failed") {
+          // If so, push the corresponding contact object to the array
+          console.log(contact)
+          usersToPushs++
+        }
+      }
+    } catch (error) {
+      console.error("Error occurred while fetching data:", error);
+    }
 
     // let countForFailed = 397;
     // function getStartOfDayTimestamp() {
@@ -322,7 +323,7 @@ export const getAllContact = async (
         totalAppointment.length > 0 ? totalAppointment[0].result : 0,
       totalCallsTransffered:
         totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-      totalCallsFailed: usersToPush,
+      totalCallsFailed: usersToPushs,
       totalCalls,
       contacts: statsWithTranscripts,
     };
