@@ -58,7 +58,7 @@
 
 import axios from "axios";
 
-export async function checkAvailability(): Promise<string[]> {
+export async function checkAvailability2(): Promise<string[]> {
   try {
     // Get the current time
     const currentTime = new Date();
