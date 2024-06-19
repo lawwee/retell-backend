@@ -1004,9 +1004,9 @@ export class Server {
           const { startDate, endDate, agentIds } = req.body;
 
           // Validate date
-          if (!startDate || !endDate) {
-            throw new Error("Date is missing in the request body");
-          }
+          // if (!startDate || !endDate) {
+          //   throw new Error("Date is missing in the request body");
+          // }
 
           const foundAgents: Ilogs[] = await DailyStats.find({
             $and: [
@@ -1014,6 +1014,7 @@ export class Server {
               { agentId: { $in: agentIds } },
             ],
           });
+          console.log(foundAgents)
 
           // Initialize variables to store aggregated stats
           let TotalCalls = 0;
@@ -1031,11 +1032,82 @@ export class Server {
           const TotalAnsweredCall =
             TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
 
+          const totalCallsTransffered = await contactModel.aggregate([
+            {
+              $match: {
+                agentId: { $in: agentIds },
+                isDeleted: { $ne: true },
+              },
+            },
+            {
+              $lookup: {
+                from: "transcripts",
+                localField: "referenceToCallId",
+                foreignField: "_id",
+                as: "callDetails",
+              },
+            },
+            {
+              $match: {
+                "callDetails.disconnectionReason": "call_transfer",
+              },
+            },
+            {
+              $count: "result",
+            },
+          ]);
+
+          const totalAppointment = await contactModel.aggregate([
+            {
+              $match: {
+                agentId: { $in: agentIds },
+                isDeleted: { $ne: true },
+              },
+            },
+            {
+              $lookup: {
+                from: "transcripts",
+                localField: "referenceToCallId",
+                foreignField: "_id",
+                as: "callDetails",
+              },
+            },
+            {
+              $match: {
+                "callDetails.analyzedTranscript": "Scheduled",
+              },
+            },
+            {
+              $count: "result",
+            },
+          ]);
+
+          const totalNotCalledForAgents = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            status: callstatusenum.NOT_CALLED,
+          });
+
+          const totalAnsweredByVm = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            status: callstatusenum.VOICEMAIL,
+          });
+      
+          const totalContactForAgents = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+          });
           // Respond with the aggregated stats and dailyStats
           res.send({
             TotalNotAnsweredCalls,
             TotalAnsweredCall,
             TotalCalls,
+            totalCallsTransffered:totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
+            totalAppointment:  totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+            totalNotCalledForAgents,
+            totalContactForAgents,
+            totalAnsweredByVm
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1285,19 +1357,44 @@ export class Server {
             const results = await searchForTerm(term, firstTermIsEmail);
             allResults = allResults.concat(results);
           }
-          let sentimentStatus: "Uninterested"| "Call back" | "Interested" | "Scheduled" | "Voicemail"| "Incomplete call" | undefined;
+          let sentimentStatus:
+            | "Uninterested"
+            | "Call back"
+            | "Interested"
+            | "Scheduled"
+            | "Voicemail"
+            | "Incomplete call"
+            | undefined;
 
-          if (sentimentOption === "Uninterested" || sentimentOption === "uninterested" ) {
+          if (
+            sentimentOption === "Uninterested" ||
+            sentimentOption === "uninterested"
+          ) {
             sentimentStatus = "Uninterested";
-          } else if (sentimentOption === "Interested" || sentimentOption === "interested") {
+          } else if (
+            sentimentOption === "Interested" ||
+            sentimentOption === "interested"
+          ) {
             sentimentStatus = "Interested";
-          } else if (sentimentOption === "Scheduled" || sentimentOption === "scheduled") {
+          } else if (
+            sentimentOption === "Scheduled" ||
+            sentimentOption === "scheduled"
+          ) {
             sentimentStatus = "Scheduled";
-          } else if (sentimentOption === "Voicemail" || sentimentOption === "voicemail") {
+          } else if (
+            sentimentOption === "Voicemail" ||
+            sentimentOption === "voicemail"
+          ) {
             sentimentStatus = "Voicemail";
-          } else if (sentimentOption === "incomplete-call" || sentimentOption === "Incomplete-Call") {
+          } else if (
+            sentimentOption === "incomplete-call" ||
+            sentimentOption === "Incomplete-Call"
+          ) {
             sentimentStatus = "Incomplete call";
-          } else if (sentimentOption === "call-back" || sentimentOption === "Call-Back") {
+          } else if (
+            sentimentOption === "call-back" ||
+            sentimentOption === "Call-Back"
+          ) {
             sentimentStatus = "Call back";
           }
 
