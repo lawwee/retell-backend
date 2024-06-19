@@ -1203,7 +1203,7 @@ export class Server {
           agentId,
         } = req.body;
 
-        if (!searchTerm || !agentId) {
+        if (!agentId) {
           return res
             .status(400)
             .json({ error: "Search term or agent Ids is required" });
