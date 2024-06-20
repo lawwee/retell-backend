@@ -33,7 +33,7 @@ export const scheduleCronJob = async (
     const contacts = await contactModel
       .find({ agentId, status: "not called", isDeleted: { $ne: true } })
       .limit(contactLimit)
-      .sort({ createdAt: "desc" })
+      .sort({ createdAt: "desc" });
     const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
       try {
         await jobModel.findOneAndUpdate(
@@ -43,15 +43,17 @@ export const scheduleCronJob = async (
         for (const contact of contacts) {
           try {
             const job = await jobModel.findOne({ jobId });
-
             const currentDate = moment().tz("America/Los_Angeles");
             const currentHour = currentDate.hours();
-            if (
-              currentHour < 8 ||
-              currentHour >= 15 ||
-              !job ||
-              job.shouldContinueProcessing !== true
-            ) {
+            if (currentHour < 8 || currentHour >= 15) {
+              console.log("Job processing stopped due to time constraints.");
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { callstatus: "cancelled" },
+              );
+              return; // Exit the job execution
+            }
+            if (!job || job.shouldContinueProcessing !== true) {
               console.log("Job processing stopped.");
               await jobModel.findOneAndUpdate(
                 { jobId },

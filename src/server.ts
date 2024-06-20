@@ -1002,8 +1002,6 @@ export class Server {
       async (req: Request, res: Response) => {
         try {
           const { startDate, endDate, agentIds } = req.body;
-
-          // Validate date
           if (!startDate || !endDate) {
             throw new Error("Date is missing in the request body");
           }
@@ -1012,6 +1010,7 @@ export class Server {
               $match: {
                 agentId: { $in: agentIds },
                 isDeleted: { $ne: true },
+                datesCalled: { $gte: startDate, $lte: endDate }
               },
             },
             {
@@ -1036,6 +1035,7 @@ export class Server {
               $match: {
                 agentId: { $in: agentIds },
                 isDeleted: { $ne: true },
+                datesCalled: { $gte: startDate, $lte: endDate }
               },
             },
             {
@@ -1058,18 +1058,18 @@ export class Server {
           const totalNotCalledForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
-             myDate: { $gte: startDate, $lte: endDate },
             status: callstatusenum.NOT_CALLED,
           });
           const totalAnsweredByVm = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
-            myDate: { $gte: startDate, $lte: endDate } ,
+            datesCalled: { $gte: startDate, $lte: endDate } ,
             status: callstatusenum.VOICEMAIL,
           });
           const TotalCalls = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
+            datesCalled: { $gte: startDate, $lte: endDate },
             status: {
               $in: [
                 callstatusenum.CALLED,
@@ -1082,6 +1082,7 @@ export class Server {
             agentId: { $in: agentIds },
             isDeleted: false,
             status: callstatusenum.CALLED,
+            datesCalled: { $gte: startDate, $lte: endDate }
           });
          let failed = 21
           const totalContactForAgents = await contactModel.countDocuments({

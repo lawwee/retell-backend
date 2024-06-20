@@ -2,6 +2,7 @@ import { contactModel, jobModel } from "../contacts/contact_model";
 import Retell from "retell-sdk";
 import { TwilioClient } from "../twilio_api";
 import { jobstatus } from "../types";
+import moment from "moment-timezone";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -27,6 +28,16 @@ export const searchAndRecallContacts = async (
     for (const contact of contacts) {
       try {
         const job = await jobModel.findOne({ jobId });
+        const currentDate = moment().tz("America/Los_Angeles");
+        const currentHour = currentDate.hours();
+        if (currentHour < 8 || currentHour >= 15) {
+          console.log("Job processing stopped due to time constraints.");
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: "cancelled" },
+          );
+          return; // Exit the job execution
+        }
         if (!job || job.shouldContinueProcessing !== true) {
           await jobModel.findOneAndUpdate({jobId}, {callstatus:"cancelled"})
           console.log("Job processing stopped.");
