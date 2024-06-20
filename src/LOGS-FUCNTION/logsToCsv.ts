@@ -13,7 +13,6 @@ export const logsToCsv = async (
   sentimentOption?: any,
 ) => {
   try {
-    
     let query: any = {
       agentId,
       isDeleted: false,
@@ -63,14 +62,30 @@ export const logsToCsv = async (
       }),
     );
 
-    let filteredContacts: any = []; 
+    let filteredContacts: any = [];
+
+    // contactsData.forEach((contact: any) => {
+    //   if (!sentimentOption || contact.analyzedTranscript === sentimentOption) {
+
+    //     if (sentimentOption === "Uninterested" && contact.status === "call-connected") {
+    //       filteredContacts.push(contact);
+    //     } else if (sentimentOption !== "Uninterested") {
+    //       filteredContacts.push(contact);
+    //     }
+    //   }
+    // });
 
     contactsData.forEach((contact: any) => {
       if (!sentimentOption || contact.analyzedTranscript === sentimentOption) {
-        
-        if (sentimentOption === "Uninterested" && contact.status === "call-connected") {
+        if (
+          sentimentOption === "Uninterested" &&
+          contact.status === "call-connected"
+        ) {
           filteredContacts.push(contact);
-        } else if (sentimentOption !== "Uninterested") {
+        } else if (
+          sentimentOption !== "Uninterested" &&
+          !(sentimentOption === "Interested" && contact.status === "called-NA-VM")
+        ) {
           filteredContacts.push(contact);
         }
       }
