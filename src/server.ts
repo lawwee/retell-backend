@@ -1004,34 +1004,9 @@ export class Server {
           const { startDate, endDate, agentIds } = req.body;
 
           // Validate date
-          // if (!startDate || !endDate) {
-          //   throw new Error("Date is missing in the request body");
-          // }
-
-          const foundAgents: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: { $in: agentIds } },
-            ],
-          });
-          console.log(foundAgents)
-
-          // Initialize variables to store aggregated stats
-          let TotalCalls = 0;
-          let TotalAnsweredCalls = 0;
-          let TotalNotAnsweredCalls = 0;
-
-          // Calculate totals for each agent
-          foundAgents.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          // Calculate TotalAnsweredCall
-          const TotalAnsweredCall =
-            TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
-
+          if (!startDate || !endDate) {
+            throw new Error("Date is missing in the request body");
+          }
           const totalCallsTransffered = await contactModel.aggregate([
             {
               $match: {
@@ -1056,7 +1031,6 @@ export class Server {
               $count: "result",
             },
           ]);
-
           const totalAppointment = await contactModel.aggregate([
             {
               $match: {
@@ -1081,33 +1055,48 @@ export class Server {
               $count: "result",
             },
           ]);
-
           const totalNotCalledForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
+             myDate: { $gte: startDate, $lte: endDate },
             status: callstatusenum.NOT_CALLED,
           });
-
           const totalAnsweredByVm = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
+            myDate: { $gte: startDate, $lte: endDate } ,
             status: callstatusenum.VOICEMAIL,
           });
-      
+          const TotalCalls = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            status: {
+              $in: [
+                callstatusenum.CALLED,
+                callstatusenum.VOICEMAIL,
+                callstatusenum.FAILED,
+              ],
+            },
+          });
+          const TotalAnsweredCall = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            status: callstatusenum.CALLED,
+          });
+         let failed = 21
           const totalContactForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
           });
-          // Respond with the aggregated stats and dailyStats
           res.send({
-            TotalNotAnsweredCalls,
             TotalAnsweredCall,
             TotalCalls,
             totalCallsTransffered:totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
             totalAppointment:  totalAppointment.length > 0 ? totalAppointment[0].result : 0,
             totalNotCalledForAgents,
+            totalAnsweredByVm,
             totalContactForAgents,
-            totalAnsweredByVm
+            totalCallFailed: failed
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);

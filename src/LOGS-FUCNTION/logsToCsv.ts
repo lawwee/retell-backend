@@ -10,7 +10,7 @@ export const logsToCsv = async (
   startDate: string,
   endDate: string,
   statusOption?: "Called" | "notCalled" | "vm" | "Failed" | "All",
-  sentimentOption?:keyof transcriptEnum,
+  sentimentOption?: any,
 ) => {
   try {
     
@@ -63,13 +63,16 @@ export const logsToCsv = async (
       }),
     );
 
-    let filteredContacts: any = []; // Initialize an empty array for filtered contacts
+    let filteredContacts: any = []; 
 
-    // Loop through each contact in contactsData
-    contactsData.forEach((contact) => {
-      // If sentimentOption is provided and the contact's analyzedTranscript matches it, include the contact
+    contactsData.forEach((contact: any) => {
       if (!sentimentOption || contact.analyzedTranscript === sentimentOption) {
-        filteredContacts.push(contact); // Add the contact to filteredContacts array
+        
+        if (sentimentOption === "Uninterested" && contact.status === "call-connected") {
+          filteredContacts.push(contact);
+        } else if (sentimentOption !== "Uninterested") {
+          filteredContacts.push(contact);
+        }
       }
     });
 
