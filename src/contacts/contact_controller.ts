@@ -4,6 +4,11 @@ import { IContact, callstatusenum } from "../types";
 import { contactModel } from "./contact_model";
 import { Document } from "mongoose";
 import axios from "axios";
+import Retell from "retell-sdk";
+
+const retell = new Retell({
+  apiKey: process.env.RETELL_API_KEY,
+});
 interface totalAppointmentInterface {
   result: number;
 }
@@ -50,10 +55,9 @@ export const getAllContact = async (
       totalAnsweredByVm: number;
       totalAppointment: any;
       totalCallsTransffered: any;
-      totalCalls: number;
+      totalCalls: number
       // usersEmailToPush: any,
       // usersIdToPush: any
-      
     }
   | string
 > => {
@@ -86,8 +90,7 @@ export const getAllContact = async (
       status: callstatusenum.NOT_CALLED,
     });
 
-
-    let failed = 21
+    let failed = 21;
     // const totalCallsFailed = await contactModel.countDocuments({
     //   agentId,
     //   isDeleted: false,
@@ -240,6 +243,17 @@ export const getAllContact = async (
       }),
     );
 
+    const callListResponse = await retell.call.list({
+      query: {
+        agent_id: "214e92da684138edf44368d371da764c",
+        after_start_timestamp: "1718866800000",
+        limit:1000000
+      },
+    });
+    const countCallFailed = callListResponse.filter(
+      (doc) => doc.disconnection_reason === "dial_failed",
+    ).length;
+
     // Return the contacts, total pages, and other counts
     return {
       totalContactForAgent,
@@ -251,7 +265,7 @@ export const getAllContact = async (
         totalAppointment.length > 0 ? totalAppointment[0].result : 0,
       totalCallsTransffered:
         totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-      totalCallsFailed: failed,
+      totalCallsFailed: countCallFailed,
       totalCalls,
       contacts: statsWithTranscripts,
     };

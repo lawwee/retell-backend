@@ -49,7 +49,7 @@ export const scheduleCronJob = async (
               console.log("Job processing stopped due to time constraints.");
               await jobModel.findOneAndUpdate(
                 { jobId },
-                { callstatus: "cancelled" },
+                { callstatus: "cancelled", shouldContinueProcessing:false },
               );
               return; // Exit the job execution
             }
@@ -57,7 +57,7 @@ export const scheduleCronJob = async (
               console.log("Job processing stopped.");
               await jobModel.findOneAndUpdate(
                 { jobId },
-                { callstatus: "cancelled" },
+                { callstatus: "cancelled", shouldContinueProcessing: false },
               );
               break;
             }

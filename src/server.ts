@@ -1084,11 +1084,20 @@ export class Server {
             status: callstatusenum.CALLED,
             datesCalled: { $gte: startDate, $lte: endDate }
           });
-         let failed = 21
           const totalContactForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
           });
+          const callListResponse = await retell.call.list({
+            query: {
+              agent_id: "214e92da684138edf44368d371da764c",
+              after_start_timestamp: "1718866800000",
+              limit:1000000
+            },
+          });
+          const countCallFailed = callListResponse.filter(
+            (doc) => doc.disconnection_reason === "dial_failed",
+          ).length;
           res.send({
             TotalAnsweredCall,
             TotalCalls,
@@ -1097,7 +1106,7 @@ export class Server {
             totalNotCalledForAgents,
             totalAnsweredByVm,
             totalContactForAgents,
-            totalCallFailed: failed
+            totalCallFailed: countCallFailed
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
