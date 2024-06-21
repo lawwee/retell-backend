@@ -1088,7 +1088,7 @@ export class Server {
             agentId: { $in: agentIds },
             isDeleted: false,
           });
-          const callListResponse = await retell.call.list({
+          const callListResponse = await this.retellClient.call.list({
             query: {
               agent_id: "214e92da684138edf44368d371da764c",
               after_start_timestamp: "1718866800000",
