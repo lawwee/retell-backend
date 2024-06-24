@@ -132,6 +132,8 @@ export class Server {
     this.loginAdmin();
     this.loginUser();
     this.getTimefromCallendly2();
+    this.returnContactsFromStats();
+    this.testingMake()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1010,7 +1012,7 @@ export class Server {
               $match: {
                 agentId: { $in: agentIds },
                 isDeleted: { $ne: true },
-                datesCalled: { $gte: startDate, $lte: endDate }
+                datesCalled: { $gte: startDate, $lte: endDate },
               },
             },
             {
@@ -1035,7 +1037,7 @@ export class Server {
               $match: {
                 agentId: { $in: agentIds },
                 isDeleted: { $ne: true },
-                datesCalled: { $gte: startDate, $lte: endDate }
+                datesCalled: { $gte: startDate, $lte: endDate },
               },
             },
             {
@@ -1063,7 +1065,7 @@ export class Server {
           const totalAnsweredByVm = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
-            datesCalled: { $gte: startDate, $lte: endDate } ,
+            datesCalled: { $gte: startDate, $lte: endDate },
             status: callstatusenum.VOICEMAIL,
           });
           const TotalCalls = await contactModel.countDocuments({
@@ -1082,7 +1084,7 @@ export class Server {
             agentId: { $in: agentIds },
             isDeleted: false,
             status: callstatusenum.CALLED,
-            datesCalled: { $gte: startDate, $lte: endDate }
+            datesCalled: { $gte: startDate, $lte: endDate },
           });
           const totalContactForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
@@ -1092,7 +1094,7 @@ export class Server {
             query: {
               agent_id: "214e92da684138edf44368d371da764c",
               after_start_timestamp: "1718866800000",
-              limit:1000000
+              limit: 1000000,
             },
           });
           const countCallFailed = callListResponse.filter(
@@ -1101,12 +1103,16 @@ export class Server {
           res.send({
             TotalAnsweredCall,
             TotalCalls,
-            totalCallsTransffered:totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-            totalAppointment:  totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+            totalCallsTransffered:
+              totalCallsTransffered.length > 0
+                ? totalCallsTransffered[0].result
+                : 0,
+            totalAppointment:
+              totalAppointment.length > 0 ? totalAppointment[0].result : 0,
             totalNotCalledForAgents,
             totalAnsweredByVm,
             totalContactForAgents,
-            totalCallFailed: countCallFailed
+            totalCallFailed: countCallFailed,
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1606,5 +1612,269 @@ export class Server {
       console.error("Error deleting contacts:", error);
       throw error; // Forwarding the error for handling in upper layers
     }
+  }
+  // returnContactsFromStats(){
+  //   this.app.post(
+  //     "/get-stats",
+  //     authmiddleware,
+  //     async (req: Request, res: Response) => {
+  //       try {
+  //         const { startDate, endDate, agentIds,options } = req.body;
+  //         if (!startDate || !endDate) {
+  //           throw new Error("Date is missing in the request body");
+  //         }
+  //          let result = {}
+  //         if(""){
+  //         const totalCallsTransffered = await contactModel.aggregate([
+  //           {
+  //             $match: {
+  //               agentId: { $in: agentIds },
+  //               isDeleted: { $ne: true },
+  //               datesCalled: { $gte: startDate, $lte: endDate }
+  //             },
+  //           },
+  //           {
+  //             $lookup: {
+  //               from: "transcripts",
+  //               localField: "referenceToCallId",
+  //               foreignField: "_id",
+  //               as: "callDetails",
+  //             },
+  //           },
+  //           {
+  //             $match: {
+  //               "callDetails.disconnectionReason": "call_transfer",
+  //             },
+  //           },
+  //         ])}
+  //         if(""){
+  //         const totalAppointment = await contactModel.aggregate([
+  //           {
+  //             $match: {
+  //               agentId: { $in: agentIds },
+  //               isDeleted: { $ne: true },
+  //               datesCalled: { $gte: startDate, $lte: endDate }
+  //             },
+  //           },
+  //           {
+  //             $lookup: {
+  //               from: "transcripts",
+  //               localField: "referenceToCallId",
+  //               foreignField: "_id",
+  //               as: "callDetails",
+  //             },
+  //           },
+  //           {
+  //             $match: {
+  //               "callDetails.analyzedTranscript": "Scheduled",
+  //             },
+  //           },
+  //         ])}
+  //         if(""){
+  //         const totalNotCalledForAgents = await contactModel.find({
+  //           agentId: { $in: agentIds },
+  //           isDeleted: false,
+  //           status: callstatusenum.NOT_CALLED,
+  //         })}
+  //         if(""){
+  //         const totalAnsweredByVm = await contactModel.find({
+  //           agentId: { $in: agentIds },
+  //           isDeleted: false,
+  //           datesCalled: { $gte: startDate, $lte: endDate } ,
+  //           status: callstatusenum.VOICEMAIL,
+  //         })}
+  //         if(""){
+  //         const TotalCalls = await contactModel.find({
+  //           agentId: { $in: agentIds },
+  //           isDeleted: false,
+  //           datesCalled: { $gte: startDate, $lte: endDate },
+  //           status: {
+  //             $in: [
+  //               callstatusenum.CALLED,
+  //               callstatusenum.VOICEMAIL,
+  //               callstatusenum.FAILED,
+  //             ],
+  //           },
+  //         })}
+  //         if(""){
+  //         const TotalAnsweredCall = await contactModel.find({
+  //           agentId: { $in: agentIds },
+  //           isDeleted: false,
+  //           status: callstatusenum.CALLED,
+  //           datesCalled: { $gte: startDate, $lte: endDate }
+  //         })}
+  //         if(""){
+  //         const totalContactForAgents = await contactModel.find({
+  //           agentId: { $in: agentIds },
+  //           isDeleted: false,
+  //         })}
+  //         if(""){
+  //         const callListResponse = await this.retellClient.call.list({
+  //           query: {
+  //             agent_id: "214e92da684138edf44368d371da764c",
+  //             after_start_timestamp: "1718866800000",
+  //             limit:1000000
+  //           },
+  //         })
+  //         const countCallFailed = callListResponse.filter(
+  //           (doc) => doc.disconnection_reason === "dial_failed",
+  //         )}
+  //         res.send({
+  //           result
+  //         });
+  //       } catch (error) {
+  //         console.error("Error fetching daily stats:", error);
+  //         res.status(500).json({ message: "Internal server error" });
+  //       }
+  //     },
+  //   );
+  // }
+
+  returnContactsFromStats() {
+    this.app.post(
+      "/users/populate",
+      authmiddleware,isAdmin,
+      async (req: Request, res: Response) => {
+        try {
+          const { agentId, options } = req.body;
+          if(!agentId){
+            return res.json({message:"Please provide agent id"})
+          }
+          let result: any = {};
+          if (options === "Transffered") {
+            const totalCallsTransferred = await contactModel.aggregate([
+              {
+                $match: {
+                  agentId,
+                  isDeleted: { $ne: true },
+                },
+              },
+              {
+                $lookup: {
+                  from: "transcripts",
+                  localField: "referenceToCallId",
+                  foreignField: "_id",
+                  as: "callDetails",
+                },
+              },
+              {
+                $match: {
+                  "callDetails.disconnectionReason": "call_transfer",
+                },
+              },
+            ]);
+            result.totalCallsTransferred = totalCallsTransferred;
+          }
+
+          if (options === "Appointment") {
+            const totalAppointment = await contactModel.aggregate([
+              {
+                $match: {
+                  agentId,
+                  isDeleted: { $ne: true },
+                },
+              },
+              {
+                $lookup: {
+                  from: "transcripts",
+                  localField: "referenceToCallId",
+                  foreignField: "_id",
+                  as: "callDetails",
+                },
+              },
+              {
+                $match: {
+                  "callDetails.analyzedTranscript": "Scheduled",
+                },
+              },
+            ]);
+            result.totalAppointment = totalAppointment;
+          }
+
+          if (options === "Not-Called") {
+            const totalNotCalledForAgents = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.NOT_CALLED,
+            });
+            result.totalNotCalledForAgents = totalNotCalledForAgents;
+          }
+
+          if (options === "VM") {
+            const totalAnsweredByVm = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              // datesCalled: { $gte: startDate, $lte: endDate },
+              status: callstatusenum.VOICEMAIL,
+            });
+            result.totalAnsweredByVm = totalAnsweredByVm;
+          }
+
+          if (options === "Total") {
+            const totalCalls = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              // datesCalled: { $gte: startDate, $lte: endDate },
+              status: {
+                $in: [
+                  callstatusenum.CALLED,
+                  callstatusenum.VOICEMAIL,
+                  callstatusenum.FAILED,
+                ],
+              },
+            });
+            result.totalCalls = totalCalls;
+          }
+
+          if (options === "Answered") {
+            const totalAnsweredCall = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.CALLED,
+              // datesCalled: { $gte: startDate, $lte: endDate },
+            });
+            result.totalAnsweredCall = totalAnsweredCall;
+          }
+
+          if (options === "Total-Contact") {
+            const totalContactForAgents = await contactModel.find({
+              agentId,
+              isDeleted: false,
+            });
+            result.totalContactForAgents = totalContactForAgents;
+          }
+
+          if (options === "Failed") {
+            const callListResponse = await this.retellClient.call.list({
+              query: {
+                agent_id: "214e92da684138edf44368d371da764c",
+                after_start_timestamp: "1718866800000",
+                limit: 1000000,
+              },
+            });
+            const countCallFailed = callListResponse.filter(
+              (doc) => doc.disconnection_reason === "dial_failed",
+            );
+            result.countCallFailed = countCallFailed;
+          }
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ error });
+        }
+      },
+    );
+  }
+  testingMake(){
+    this.app.post("/make", async (req:Request, res:Response )=> { 
+      const result = await axios.post("https://hook.eu2.make.com/mnod1p5sp4fe1u5cvekmqk807tabs28e", {
+        maxEventCount:1,
+        recipient:"golamide27@gmail.com",
+
+
+
+      })
+      console.log(result)
+      res.send("done")
+    })
   }
 }
