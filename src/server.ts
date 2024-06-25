@@ -1282,7 +1282,7 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         const {
-          searchTerm,
+          searchTerm = "",
           startDate,
           endDate,
           statusOption,
