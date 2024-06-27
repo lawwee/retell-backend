@@ -38,7 +38,9 @@ export enum DaysToBeProcessedEnum{
   TUESDAY = "Tuesday",
   WEDNESDAY = "Wednesday", 
   THURSDAY = "Thursday",
-  FRIDAY = "Friday"
+  FRIDAY = "Friday",
+  SATURDAY = "Saturday",
+  SUNDAY = "Sunday"
 }
 export enum callstatusenum {
   QUEUED = "queued",
