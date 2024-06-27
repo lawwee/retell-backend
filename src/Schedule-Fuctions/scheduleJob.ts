@@ -29,11 +29,18 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
     });
+    function getToday(){
+      const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+      const today = new Date().getDay()
+      return days[today]
+    }
+    const today = getToday()
     const contactLimit = parseInt(limit);
     const contacts = await contactModel
-      .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+      .find({ agentId, status: "not called", isDeleted: { $ne: true } , dayToBeProcessed:today})
       .limit(contactLimit)
-      .sort({ createdAt: "desc" });
+      .sort({ createdAt: "desc" })
+
     const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
       try {
         await jobModel.findOneAndUpdate(

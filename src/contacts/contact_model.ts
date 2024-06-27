@@ -1,6 +1,6 @@
-import { Schema, model, mongo } from "mongoose";
+import { Schema, model } from "mongoose";
 import mongoose from "mongoose";
-import { IContact, Ijob, callstatusenum, jobstatus } from "../types";
+import { DaysToBeProcessedEnum, IContact, Ijob, callstatusenum, jobstatus } from "../types";
 
 const ContactSchema = new Schema<IContact>(
   {
@@ -54,7 +54,12 @@ const ContactSchema = new Schema<IContact>(
       type: Boolean,
       default: false,
     },
-  },
+    dayToBeProcessed:{
+      type:String,
+      enum: Object.values(DaysToBeProcessedEnum)
+
+    }
+  }, 
   { timestamps: true },
 );
 
@@ -80,7 +85,7 @@ const jobschema = new Schema<Ijob>(
       type: String,
     },
     scheduledTime: { type: String },
-    shouldContinueProcessing: { type: Boolean, default: true },
+    shouldContinueProcessing: { type: Boolean, default: true }
   },
   { timestamps: true },
 );

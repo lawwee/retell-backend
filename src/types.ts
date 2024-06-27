@@ -30,8 +30,16 @@ export interface IContact {
   linktocallLogModel: any;
   datesCalled: string[];
   answeredByVM: boolean;
+  dayToBeProcessed: string
 }
 
+export enum DaysToBeProcessedEnum{
+  MONDAY = "Monday",
+  TUESDAY = "Tuesday",
+  WEDNESDAY = "Wednesday", 
+  THURSDAY = "Thursday",
+  FRIDAY = "Friday"
+}
 export enum callstatusenum {
   QUEUED = "queued",
   RINGING = "ringing",

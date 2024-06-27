@@ -246,7 +246,7 @@ export const getAllContact = async (
     const callListResponse = await retell.call.list({
       query: {
         agent_id: "214e92da684138edf44368d371da764c",
-        after_start_timestamp: "1718866800000",
+        after_start_timestamp: "1719356400",
         limit:1000000
       },
     });

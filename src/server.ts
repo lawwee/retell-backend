@@ -55,6 +55,10 @@ import authmiddleware from "./middleware/protect";
 import { isAdmin } from "./middleware/isAdmin";
 import { checkAvailability2 } from "./callendly2";
 import { transcriptEnum } from "./types";
+import * as fspromises from "fs/promises";
+import { google } from "googleapis";
+import { authenticate } from "@google-cloud/local-auth";
+
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -133,7 +137,7 @@ export class Server {
     this.loginUser();
     this.getTimefromCallendly2();
     this.returnContactsFromStats();
-    this.testingMake()
+    this.testingMake();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1093,7 +1097,7 @@ export class Server {
           const callListResponse = await this.retellClient.call.list({
             query: {
               agent_id: "214e92da684138edf44368d371da764c",
-              after_start_timestamp: "1718866800000",
+              after_start_timestamp: "1719356400",
               limit: 1000000,
             },
           });
@@ -1613,132 +1617,17 @@ export class Server {
       throw error; // Forwarding the error for handling in upper layers
     }
   }
-  // returnContactsFromStats(){
-  //   this.app.post(
-  //     "/get-stats",
-  //     authmiddleware,
-  //     async (req: Request, res: Response) => {
-  //       try {
-  //         const { startDate, endDate, agentIds,options } = req.body;
-  //         if (!startDate || !endDate) {
-  //           throw new Error("Date is missing in the request body");
-  //         }
-  //          let result = {}
-  //         if(""){
-  //         const totalCallsTransffered = await contactModel.aggregate([
-  //           {
-  //             $match: {
-  //               agentId: { $in: agentIds },
-  //               isDeleted: { $ne: true },
-  //               datesCalled: { $gte: startDate, $lte: endDate }
-  //             },
-  //           },
-  //           {
-  //             $lookup: {
-  //               from: "transcripts",
-  //               localField: "referenceToCallId",
-  //               foreignField: "_id",
-  //               as: "callDetails",
-  //             },
-  //           },
-  //           {
-  //             $match: {
-  //               "callDetails.disconnectionReason": "call_transfer",
-  //             },
-  //           },
-  //         ])}
-  //         if(""){
-  //         const totalAppointment = await contactModel.aggregate([
-  //           {
-  //             $match: {
-  //               agentId: { $in: agentIds },
-  //               isDeleted: { $ne: true },
-  //               datesCalled: { $gte: startDate, $lte: endDate }
-  //             },
-  //           },
-  //           {
-  //             $lookup: {
-  //               from: "transcripts",
-  //               localField: "referenceToCallId",
-  //               foreignField: "_id",
-  //               as: "callDetails",
-  //             },
-  //           },
-  //           {
-  //             $match: {
-  //               "callDetails.analyzedTranscript": "Scheduled",
-  //             },
-  //           },
-  //         ])}
-  //         if(""){
-  //         const totalNotCalledForAgents = await contactModel.find({
-  //           agentId: { $in: agentIds },
-  //           isDeleted: false,
-  //           status: callstatusenum.NOT_CALLED,
-  //         })}
-  //         if(""){
-  //         const totalAnsweredByVm = await contactModel.find({
-  //           agentId: { $in: agentIds },
-  //           isDeleted: false,
-  //           datesCalled: { $gte: startDate, $lte: endDate } ,
-  //           status: callstatusenum.VOICEMAIL,
-  //         })}
-  //         if(""){
-  //         const TotalCalls = await contactModel.find({
-  //           agentId: { $in: agentIds },
-  //           isDeleted: false,
-  //           datesCalled: { $gte: startDate, $lte: endDate },
-  //           status: {
-  //             $in: [
-  //               callstatusenum.CALLED,
-  //               callstatusenum.VOICEMAIL,
-  //               callstatusenum.FAILED,
-  //             ],
-  //           },
-  //         })}
-  //         if(""){
-  //         const TotalAnsweredCall = await contactModel.find({
-  //           agentId: { $in: agentIds },
-  //           isDeleted: false,
-  //           status: callstatusenum.CALLED,
-  //           datesCalled: { $gte: startDate, $lte: endDate }
-  //         })}
-  //         if(""){
-  //         const totalContactForAgents = await contactModel.find({
-  //           agentId: { $in: agentIds },
-  //           isDeleted: false,
-  //         })}
-  //         if(""){
-  //         const callListResponse = await this.retellClient.call.list({
-  //           query: {
-  //             agent_id: "214e92da684138edf44368d371da764c",
-  //             after_start_timestamp: "1718866800000",
-  //             limit:1000000
-  //           },
-  //         })
-  //         const countCallFailed = callListResponse.filter(
-  //           (doc) => doc.disconnection_reason === "dial_failed",
-  //         )}
-  //         res.send({
-  //           result
-  //         });
-  //       } catch (error) {
-  //         console.error("Error fetching daily stats:", error);
-  //         res.status(500).json({ message: "Internal server error" });
-  //       }
-  //     },
-  //   );
-  // }
 
   returnContactsFromStats() {
     this.app.post(
       "/users/populate",
-      authmiddleware,isAdmin,
+      authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         try {
           const { agentId, options } = req.body;
-          if(!agentId){
-            return res.json({message:"Please provide agent id"})
+          if (!agentId) {
+            return res.json({ message: "Please provide agent id" });
           }
           let result: any = {};
           if (options === "Transffered") {
@@ -1864,17 +1753,125 @@ export class Server {
       },
     );
   }
-  testingMake(){
-    this.app.post("/make", async (req:Request, res:Response )=> { 
-      const result = await axios.post("https://hook.eu2.make.com/mnod1p5sp4fe1u5cvekmqk807tabs28e", {
-        maxEventCount:1,
-        recipient:"golamide27@gmail.com",
-
-
-
-      })
-      console.log(result)
-      res.send("done")
-    })
+  testingMake() {
+    this.app.post("/make", async (req: Request, res: Response) => {
+      const result = await axios.post(
+        "https://hook.eu2.make.com/mnod1p5sp4fe1u5cvekmqk807tabs28e",
+        {
+          eventName: "",
+          startDate: "",
+          endDate: "",
+          duration: "",
+        },
+      );
+      console.log(result);
+      res.send("done");
+    });
   }
+  // testingGoogleCalender() {
+  //   this.app.post("", async (req: Request, res: Response) => {
+  //     const CLIENT_ID = "your_client_id";
+  //     const CLIENT_SECRET = "your_client_secret";
+  //     const REDIRECT_URI = "http://localhost";
+
+  //     const oAuth2Client: OAuth2Client  = new OAuth2Client(
+  //       CLIENT_ID,
+  //       CLIENT_SECRET,
+  //       REDIRECT_URI,
+  //     );
+
+  //     const ACCESS_TOKEN = "your_access_token";
+
+  //     // Set the access token for the OAuth2 client
+  //     oAuth2Client.setCredentials({ access_token: ACCESS_TOKEN });
+
+  //     const calendar = google.calendar({
+  //       version: "v3",
+  //     auth: oAuth2Client as OAuth2Client  , // Cast oAuth2Client to OAuth2Client type
+  //     });
+  //     const event = {
+  //       summary: "Sample Event",
+  //       location: "Sample Location",
+  //       description: "This is a sample event.",
+  //       start: {
+  //         dateTime: "2024-07-01T09:00:00",
+  //         timeZone: "America/Los_Angeles",
+  //       },
+  //       end: {
+  //         dateTime: "2024-07-01T17:00:00",
+  //         timeZone: "America/Los_Angeles",
+  //       },
+  //     };
+
+  //     const response = await calendar.events.insert({
+  //       calendarId: "primary", // Calendar ID (use 'primary' for the user's default calendar)
+  //       resource: event,
+  //     });
+  //   });
+  // }
+
+  // testingGoogleCalender() {
+  //   this.app.post("", async (req: Request, res: Response) => {
+  //     // If modifying these scopes, delete token.json.
+  //     const SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"];
+  //     // The file token.json stores the user's access and refresh tokens, and is
+  //     // created automatically when the authorization flow completes for the first
+  //     // time.
+  //     const TOKEN_PATH = path.join(process.cwd(), "token.json");
+  //     const CREDENTIALS_PATH = path.join(process.cwd(), "credentials.json");
+
+  //     /**
+  //      * Reads previously authorized credentials from the save file.
+  //      *
+  //      * @return {Promise<OAuth2Client|null>}
+  //      */
+  //     async function loadSavedCredentialsIfExist() {
+  //       try {
+  //         const content = await fspromises.readFile(TOKEN_PATH);
+  //         const credentials = JSON.parse(content);
+  //         return google.auth.fromJSON(credentials);
+  //       } catch (err) {
+  //         return null;
+  //       }
+  //     }
+
+  //     /**
+  //      * Serializes credentials to a file compatible with GoogleAuth.fromJSON.
+  //      *
+  //      * @param {OAuth2Client} client
+  //      * @return {Promise<void>}
+  //      */
+  //     async function saveCredentials(client) {
+  //       const content = await fspromises.readFile(CREDENTIALS_PATH);
+  //       const keys = JSON.parse(content);
+  //       const key = keys.installed || keys.web;
+  //       const payload = JSON.stringify({
+  //         type: "authorized_user",
+  //         client_id: key.client_id,
+  //         client_secret: key.client_secret,
+  //         refresh_token: client.credentials.refresh_token,
+  //       });
+  //       await fspromises.writeFile(TOKEN_PATH, payload);
+  //     }
+
+  //     /**
+  //      * Load or request or authorization to call APIs.
+  //      *
+  //      */
+  //     async function authorize() {
+  //       let client = await loadSavedCredentialsIfExist();
+  //       if (client) {
+  //         return client;
+  //       }
+  //       client = await authenticate({
+  //         scopes: SCOPES,
+  //         keyfilePath: CREDENTIALS_PATH,
+  //       });
+  //       if (client.credentials) {
+  //         await saveCredentials(client);
+  //       }
+  //       return client;
+  //     }
+  //   });
+  // }
 }
