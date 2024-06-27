@@ -593,6 +593,7 @@ export class Server {
             return res.status(400).json({ message: "No file uploaded" });
           }
           const csvFile = req.file;
+          const {Day} = req.body
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -619,7 +620,7 @@ export class Server {
                       agentId: user.agentId,
                     });
                     if (!existingUser) {
-                      const userWithAgentId = { ...user, agentId };
+                      const userWithAgentId = { ...user, dayToBeProcessed:Day,agentId };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
                     }
