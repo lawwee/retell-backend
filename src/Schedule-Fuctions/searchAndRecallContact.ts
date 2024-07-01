@@ -19,13 +19,13 @@ export const searchAndRecallContacts = async (
     let contactStatusArray = ["called-NA-VM", "ringing"];
     function getToday() {
       const days = [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
       ];
       const today = new Date().getDay();
       return days[today];
