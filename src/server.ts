@@ -593,7 +593,7 @@ export class Server {
             return res.status(400).json({ message: "No file uploaded" });
           }
           const csvFile = req.file;
-          const {Day} = req.body
+          const day = req.query.day;
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -620,7 +620,11 @@ export class Server {
                       agentId: user.agentId,
                     });
                     if (!existingUser) {
-                      const userWithAgentId = { ...user, dayToBeProcessed:Day,agentId };
+                      const userWithAgentId = {
+                        ...user,
+                        dayToBeProcessed: day,
+                        agentId,
+                      };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
                     }
@@ -1767,112 +1771,34 @@ export class Server {
       );
       console.log(result);
       res.send("done");
+    });;
+  }
+
+  testingCalendly() {
+    this.app.post("/test-calender", async (req: Request, res: Response) => {
+      // Replace with your event type and date/time
+      const eventTypeSlug = "test-event-type";
+      const dateTime = "2024-08-10T03:00:00+01:00";
+
+      // Construct the scheduling link
+      const schedulingLink = `https://calendly.com/hydradaboss06/${eventTypeSlug}/${dateTime}?month=2024-08&date=2024-08-10`;
+
+      try {
+        // Make a POST request to Calendly API to add invitees
+        const response = await axios.post('https://calendly.com/api/booking/invitees', {
+            schedulingUrl: schedulingLink,
+            inviteeData:{
+              name: 'John Doe',
+              email: 'johndoe@example.com'
+          }
+        });
+
+        console.log('Invitee added successfully:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error adding invitee:', error);
+        throw error;
+    }
     });
   }
-  // testingGoogleCalender() {
-  //   this.app.post("", async (req: Request, res: Response) => {
-  //     const CLIENT_ID = "your_client_id";
-  //     const CLIENT_SECRET = "your_client_secret";
-  //     const REDIRECT_URI = "http://localhost";
-
-  //     const oAuth2Client: OAuth2Client  = new OAuth2Client(
-  //       CLIENT_ID,
-  //       CLIENT_SECRET,
-  //       REDIRECT_URI,
-  //     );
-
-  //     const ACCESS_TOKEN = "your_access_token";
-
-  //     // Set the access token for the OAuth2 client
-  //     oAuth2Client.setCredentials({ access_token: ACCESS_TOKEN });
-
-  //     const calendar = google.calendar({
-  //       version: "v3",
-  //     auth: oAuth2Client as OAuth2Client  , // Cast oAuth2Client to OAuth2Client type
-  //     });
-  //     const event = {
-  //       summary: "Sample Event",
-  //       location: "Sample Location",
-  //       description: "This is a sample event.",
-  //       start: {
-  //         dateTime: "2024-07-01T09:00:00",
-  //         timeZone: "America/Los_Angeles",
-  //       },
-  //       end: {
-  //         dateTime: "2024-07-01T17:00:00",
-  //         timeZone: "America/Los_Angeles",
-  //       },
-  //     };
-
-  //     const response = await calendar.events.insert({
-  //       calendarId: "primary", // Calendar ID (use 'primary' for the user's default calendar)
-  //       resource: event,
-  //     });
-  //   });
-  // }
-
-  // testingGoogleCalender() {
-  //   this.app.post("", async (req: Request, res: Response) => {
-  //     // If modifying these scopes, delete token.json.
-  //     const SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"];
-  //     // The file token.json stores the user's access and refresh tokens, and is
-  //     // created automatically when the authorization flow completes for the first
-  //     // time.
-  //     const TOKEN_PATH = path.join(process.cwd(), "token.json");
-  //     const CREDENTIALS_PATH = path.join(process.cwd(), "credentials.json");
-
-  //     /**
-  //      * Reads previously authorized credentials from the save file.
-  //      *
-  //      * @return {Promise<OAuth2Client|null>}
-  //      */
-  //     async function loadSavedCredentialsIfExist() {
-  //       try {
-  //         const content = await fspromises.readFile(TOKEN_PATH);
-  //         const credentials = JSON.parse(content);
-  //         return google.auth.fromJSON(credentials);
-  //       } catch (err) {
-  //         return null;
-  //       }
-  //     }
-
-  //     /**
-  //      * Serializes credentials to a file compatible with GoogleAuth.fromJSON.
-  //      *
-  //      * @param {OAuth2Client} client
-  //      * @return {Promise<void>}
-  //      */
-  //     async function saveCredentials(client) {
-  //       const content = await fspromises.readFile(CREDENTIALS_PATH);
-  //       const keys = JSON.parse(content);
-  //       const key = keys.installed || keys.web;
-  //       const payload = JSON.stringify({
-  //         type: "authorized_user",
-  //         client_id: key.client_id,
-  //         client_secret: key.client_secret,
-  //         refresh_token: client.credentials.refresh_token,
-  //       });
-  //       await fspromises.writeFile(TOKEN_PATH, payload);
-  //     }
-
-  //     /**
-  //      * Load or request or authorization to call APIs.
-  //      *
-  //      */
-  //     async function authorize() {
-  //       let client = await loadSavedCredentialsIfExist();
-  //       if (client) {
-  //         return client;
-  //       }
-  //       client = await authenticate({
-  //         scopes: SCOPES,
-  //         keyfilePath: CREDENTIALS_PATH,
-  //       });
-  //       if (client.credentials) {
-  //         await saveCredentials(client);
-  //       }
-  //       return client;
-  //     }
-  //   });
-  // }
 }
