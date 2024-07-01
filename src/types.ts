@@ -34,13 +34,13 @@ export interface IContact {
 }
 
 export enum DaysToBeProcessedEnum{
-  MONDAY = "Monday",
-  TUESDAY = "Tuesday",
-  WEDNESDAY = "Wednesday", 
-  THURSDAY = "Thursday",
-  FRIDAY = "Friday",
-  SATURDAY = "Saturday",
-  SUNDAY = "Sunday"
+  MONDAY = "monday",
+  TUESDAY = "tuesday",
+  WEDNESDAY = "wednesday", 
+  THURSDAY = "thursday",
+  FRIDAY = "friday",
+  SATURDAY = "saturday",
+  SUNDAY = "sunday"
 }
 export enum callstatusenum {
   QUEUED = "queued",
