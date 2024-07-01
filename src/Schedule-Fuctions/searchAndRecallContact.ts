@@ -13,22 +13,30 @@ export const searchAndRecallContacts = async (
   agentId: string,
   fromNumber: string,
   jobId: string,
-  day?: string
+  day?: string,
 ) => {
   try {
     let contactStatusArray = ["called-NA-VM", "ringing"];
-    function getToday(){
-      const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
-      const today = new Date().getDay()
-      return days[today]
+    function getToday() {
+      const days = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const today = new Date().getDay();
+      return days[today];
     }
-    const today = getToday()
+    const today = getToday();
     const contacts = await contactModel
       .find({
         agentId,
         status: { $in: contactStatusArray },
         isDeleted: { $ne: true },
-        dayToBeProcessed: today
+        dayToBeProcessed: day ? day : today,
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });
@@ -42,13 +50,16 @@ export const searchAndRecallContacts = async (
           console.log("Job processing stopped due to time constraints.");
           await jobModel.findOneAndUpdate(
             { jobId },
-            { callstatus: "cancelled", shouldContinueProcessing:false },
+            { callstatus: "cancelled", shouldContinueProcessing: false },
           );
           return; // Exit the job execution
         }
-        
+
         if (!job || job.shouldContinueProcessing !== true) {
-          await jobModel.findOneAndUpdate({jobId}, {callstatus:"cancelled"})
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: "cancelled" },
+          );
           console.log("Job processing stopped.");
           break;
         }
