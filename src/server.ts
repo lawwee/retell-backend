@@ -706,7 +706,7 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber } = req.body;
+        const { hour, minute, agentId, limit, fromNumber, day } = req.body;
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
           .set({
@@ -725,6 +725,7 @@ export class Server {
           limit,
           fromNumber,
           formattedDate,
+          day
         );
         res.send({ jobId, scheduledTime, contacts });
       },

@@ -18,6 +18,7 @@ export const scheduleCronJob = async (
   limit: string,
   fromNumber: string,
   formattedDate: string,
+  day?: string
 ) => {
   const jobId = uuidv4();
   try {
@@ -37,7 +38,7 @@ export const scheduleCronJob = async (
     const today = getToday()
     const contactLimit = parseInt(limit);
     const contacts = await contactModel
-      .find({ agentId, status: "not called", isDeleted: { $ne: true } , dayToBeProcessed:today})
+      .find({ agentId, status: "not called", isDeleted: { $ne: true } , dayToBeProcessed: day ? day : today})
       .limit(contactLimit)
       .sort({ createdAt: "desc" })
 
@@ -125,7 +126,7 @@ export const scheduleCronJob = async (
           await new Promise((resolve) => setTimeout(resolve, 8000));
         }
         console.log("Contacts processed will start recall");
-        await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId);
+        await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId, day);
       } catch (error) {
         console.error(
           `Error querying contacts: ${

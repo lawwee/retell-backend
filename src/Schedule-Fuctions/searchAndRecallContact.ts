@@ -13,6 +13,7 @@ export const searchAndRecallContacts = async (
   agentId: string,
   fromNumber: string,
   jobId: string,
+  day?: string
 ) => {
   try {
     let contactStatusArray = ["called-NA-VM", "ringing"];
