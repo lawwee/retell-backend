@@ -1342,7 +1342,7 @@ export class Server {
               let callStatus;
           
               if (statusOption === "call-transferred") {
-                const totalCallsTransferred = await contactModel.aggregate([
+                const pipeline : any[]= [
                   {
                     $match: {
                       agentId,
@@ -1362,7 +1362,20 @@ export class Server {
                       "callDetails.disconnectionReason": "call_transfer",
                     },
                   }
-                ]);
+                ];
+              
+                if (startDate && endDate) {
+                  pipeline.push({
+                    $match: {
+                      datesCalled: {
+                        $gte: startDate,
+                        $lte: endDate,
+                      },
+                    },
+                  } )
+                }
+              
+                const totalCallsTransferred = await contactModel.aggregate(pipeline);
           
                 return totalCallsTransferred;
               } else {
