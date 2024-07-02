@@ -1317,10 +1317,7 @@ export class Server {
             .map((term: string) => term.trim());
           const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-          const searchForTerm = async (
-            term: string,
-            searchByEmail: boolean,
-          ) => {
+          const searchForTerm = async (term: string, searchByEmail: boolean) => {
             const query: any = {
               agentId,
               isDeleted: false,
@@ -1333,39 +1330,69 @@ export class Server {
                     { email: { $regex: term, $options: "i" } },
                   ],
             };
+          
             if (startDate && endDate) {
               query["datesCalled"] = {
                 $gte: startDate,
                 $lte: endDate,
               };
             }
+          
             if (statusOption && statusOption !== "All") {
               let callStatus;
-              if (
-                statusOption === "call-connected" ||
-                statusOption === "Call-Connected"
-              ) {
-                callStatus = callstatusenum.CALLED;
-              } else if (
-                statusOption === "not-called" ||
-                statusOption === "Not-Called"
-              ) {
-                callStatus = callstatusenum.NOT_CALLED;
-              } else if (
-                statusOption === "called-NA-VM" ||
-                statusOption === "Called-NA-VM"
-              ) {
-                callStatus = callstatusenum.VOICEMAIL;
-              } else if (
-                statusOption === "call-failed" ||
-                statusOption === "Call-Failed"
-              ) {
-                callStatus = callstatusenum.FAILED;
+          
+              if (statusOption === "call-transferred") {
+                const totalCallsTransferred = await contactModel.aggregate([
+                  {
+                    $match: {
+                      agentId,
+                      isDeleted: { $ne: true },
+                    },
+                  },
+                  {
+                    $lookup: {
+                      from: "transcripts",
+                      localField: "referenceToCallId",
+                      foreignField: "_id",
+                      as: "callDetails",
+                    },
+                  },
+                  {
+                    $match: {
+                      "callDetails.disconnectionReason": "call_transfer",
+                    },
+                  }
+                ]);
+          
+                return totalCallsTransferred;
+              } else {
+                // Handle other status options
+                switch (statusOption.toLowerCase()) {
+                  case "call-connected":
+                    callStatus = callstatusenum.CALLED;
+                    break;
+                  case "not-called":
+                    callStatus = callstatusenum.NOT_CALLED;
+                    break;
+                  case "called-na-vm":
+                    callStatus = callstatusenum.VOICEMAIL;
+                    break;
+                  case "call-failed":
+                    callStatus = callstatusenum.FAILED;
+                    break;
+                  default:
+                    // Return empty array if statusOption doesn't match any known options
+                    return [];
+                }
+          
+                query["status"] = callStatus;
               }
-              query["status"] = callStatus;
             }
+          
             return await contactModel.find(query).populate("referenceToCallId");
           };
+
+          
 
           let allResults: any[] = [];
 
