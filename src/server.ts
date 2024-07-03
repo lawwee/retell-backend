@@ -12,6 +12,7 @@ import { Retell } from "retell-sdk";
 import {
   createContact,
   deleteOneContact,
+  failedContacts,
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
@@ -138,7 +139,8 @@ export class Server {
     this.getTimefromCallendly2();
     this.returnContactsFromStats();
     this.testingMake();
-    this.testingCalendly
+    this.testingCalendly();
+    this.getFailedCalls();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1101,16 +1103,6 @@ export class Server {
             agentId: { $in: agentIds },
             isDeleted: false,
           });
-          const callListResponse = await this.retellClient.call.list({
-            query: {
-              agent_id: "214e92da684138edf44368d371da764c",
-              after_start_timestamp: "1719356400",
-              limit: 1000000,
-            },
-          });
-          const countCallFailed = callListResponse.filter(
-            (doc) => doc.disconnection_reason === "dial_failed",
-          ).length;
           res.send({
             TotalAnsweredCall,
             TotalCalls,
@@ -1122,8 +1114,7 @@ export class Server {
               totalAppointment.length > 0 ? totalAppointment[0].result : 0,
             totalNotCalledForAgents,
             totalAnsweredByVm,
-            totalContactForAgents,
-            totalCallFailed: countCallFailed,
+            totalContactForAgents
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1317,7 +1308,10 @@ export class Server {
             .map((term: string) => term.trim());
           const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-          const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          const searchForTerm = async (
+            term: string,
+            searchByEmail: boolean,
+          ) => {
             const query: any = {
               agentId,
               isDeleted: false,
@@ -1330,19 +1324,19 @@ export class Server {
                     { email: { $regex: term, $options: "i" } },
                   ],
             };
-          
+
             if (startDate && endDate) {
               query["datesCalled"] = {
                 $gte: startDate,
                 $lte: endDate,
               };
             }
-          
+
             if (statusOption && statusOption !== "All") {
               let callStatus;
-          
+
               if (statusOption === "call-transferred") {
-                const pipeline : any[]= [
+                const pipeline: any[] = [
                   {
                     $match: {
                       agentId,
@@ -1361,9 +1355,9 @@ export class Server {
                     $match: {
                       "callDetails.disconnectionReason": "call_transfer",
                     },
-                  }
+                  },
                 ];
-              
+
                 if (startDate && endDate) {
                   pipeline.push({
                     $match: {
@@ -1372,11 +1366,13 @@ export class Server {
                         $lte: endDate,
                       },
                     },
-                  } )
+                  });
                 }
-              
-                const totalCallsTransferred = await contactModel.aggregate(pipeline);
-          
+
+                const totalCallsTransferred = await contactModel.aggregate(
+                  pipeline,
+                );
+
                 return totalCallsTransferred;
               } else {
                 // Handle other status options
@@ -1397,15 +1393,13 @@ export class Server {
                     // Return empty array if statusOption doesn't match any known options
                     return [];
                 }
-          
+
                 query["status"] = callStatus;
               }
             }
-          
+
             return await contactModel.find(query).populate("referenceToCallId");
           };
-
-          
 
           let allResults: any[] = [];
 
@@ -1830,59 +1824,70 @@ export class Server {
         const response = await axios.post(
           "https://calendly.com/api/booking/invitees",
           {
-            "analytics": {
-                "invitee_landed_at": "2024-07-01T15:52:27.987Z",
-                "browser": "Chrome 126",
-                "device": "undefined Windows 10",
-                "fields_filled": 1,
-                "fields_presented": 1,
-                "booking_flow": "v3",
-                "seconds_to_convert": 45
+            analytics: {
+              invitee_landed_at: "2024-07-01T15:52:27.987Z",
+              browser: "Chrome 126",
+              device: "undefined Windows 10",
+              fields_filled: 1,
+              fields_presented: 1,
+              booking_flow: "v3",
+              seconds_to_convert: 45,
             },
-            "embed": {},
-            "event": {
-                "start_time": "2024-07-21T09:30:00+01:00",
-                "location_configuration": {
-                    "location": "",
-                    "phone_number": "",
-                    "additional_info": ""
-                },
-                "guests": {}
+            embed: {},
+            event: {
+              start_time: "2024-07-21T09:30:00+01:00",
+              location_configuration: {
+                location: "",
+                phone_number: "",
+                additional_info: "",
+              },
+              guests: {},
             },
-            "event_fields": [
-                {
-                    "id": 86536438,
-                    "name": "Please share anything that will help prepare for our meeting.",
-                    "format": "text",
-                    "required": false,
-                    "position": 0,
-                    "answer_choices": null,
-                    "include_other": false,
-                    "value": ""
-                }
+            event_fields: [
+              {
+                id: 86536438,
+                name: "Please share anything that will help prepare for our meeting.",
+                format: "text",
+                required: false,
+                position: 0,
+                answer_choices: null,
+                include_other: false,
+                value: "",
+              },
             ],
-            "invitee": {
-                "timezone": "Africa/Lagos",
-                "time_notation": "24h",
-                "full_name": "Ganiyu Olamide Idris",
-                "email": "golamide27@tike.tz"
+            invitee: {
+              timezone: "Africa/Lagos",
+              time_notation: "24h",
+              full_name: "Ganiyu Olamide Idris",
+              email: "golamide27@tike.tz",
             },
-            "payment_token": {},
-            "recaptcha_token": "03AFcWeA4zspINFzCwvHId56h0v4T4cB1kpuPxBdEQGyMXD7E3s916-TFbrQCgoJkKul1-mUqgajgrHCFzaXZ23A3tCtxq9zIZ0ute14K06_rEVmPxFFObWHoTO796QZ40QTCvwaRY--AqYK7Ww8fhvDeSfc2LLaRuh4pTXfw0UBqJevTDVyH7_qD29MoaRpIotTJwrJVIHs3UpECzl4ekSHBHyZP_nJ2jJ_IXU1sPq4v-m2qJuzD8ZDDgP8VO3tXt_xpVP9Xo8Nvl4fAhhUqVuGo0xje45xCrRfsjdOyNCAxE-0-tUNdxGsQhzxZmVHZNXSv3K4DjAvoAaPtFGhq70vKexP-Xj8zdccMO_FDtoD3oN1zFIF9oK5yjSisX81B7CoUEwlBk8R6OCTICrN7kwd_oAgSvLDHFNMvZAk6ZA-RO6flsDhzOWa5WQkAjMLCe3Ne-TbJx_8H_aJy5aO20HHM-B-Jq5bVgfGXvU3ZAYYoR6rshwcfdg6BvhdDeT7m_XK9vvm7695kaS5y5QQxHaDKo5i2fbXS-EOosBNqy0cdBUDdZtDz5Exu_Mqv5ZASma0AhNsRQZik04EdkNL9rgLIHbCS8rQGnE3X4WBT70FpmJ2Ip5uRWeE0rj8Go5M3EfliI82p37e122FPsb_pkrBJmLWGiIWwPZy4Wgp80NFCbLvSbh_A4qYDHH8MBTe1-Jya76mR0XhEQI7PwxpdZAb_r3oQStmz4qdO0EpUP21Ul_1S_r3Ww2cdki29oC0SrfTGGIfWl22pi33sGaNhcJvtvpkNtqn7WhXL-umdMLlwOMH_RVwJznQzZZm1cSvc9Xl1EnBcmKqjDT0_gHvKBGQ6jIn0IS9sL1b_2EuOx8i_Bikh_MNxx8s9TlX5VFMLWgY0U7KuCIQu98liDK-6rJ0SG9SHSrurEqje-s2dYZE-44SegpFcdzZB_0QZ4PJZWvGc-R4mXfNvP0XeS55fVAFCZeThYxdzAYPJtyMTBmHIgZi-GlD5WFZq-uQQkj3IshH7ANqCMBVehQzwEQfBxIWZDyb-rTtlpzIIrscxYa750Sm0zvL3AGg9bsURtHnRb8MnECPtOqFQjYZh-W4qqSh0uGXKHttMN1xkxCBbSMW_NpPI4V_IXe50YdEhqXbJd8XlpAJe0IkRZban2_9UFeS7mldZzUfuyQ0Y9Uxo0msRl_DcMFRD3HCLUAe6sVV1IFSB6KXLoXVkTojpz6Ct16R1tfb2riylze1G4lZhb1yFIwAty5IKSvrsmLD5E9W6kLLdCMAtBJOpVNMurA3sKKHROOLHYyPkmc5MEWGTpKgMSI5PJJUraLteh92r2KSATJftX0F3ABsbCCaHqAC6QjzZYk7m5KRS0CYsg2PtrWkRGbfWCE0eJH_DZLLjirlNdx4E457q0Hqfq-YHm1kMEoGizIN65PS62hQQrG42Fg0HJXRWU1neYCtKzqnFEKFrLPtZU7QQf4JY1quD3fTXK5R0VpF4BpRVFYUzKJXnJdRNMJrw7EsXayhcOGsmxU_ds7tJPa207_nHZt0_J8sUpDIMEtIPZOtGjYEiHaLudm9rYbrUruo2SarK0BqpFeAeekRr-pY6bUU-bFNAYTttzLQaUNsuJsqQaOO_hHZ74M0PDt7zWr8IyCugMPawxZdvF29e1k5xeoFcf_NgSI0QS6vHr_jIQzUxRxKOBdzr_x6rQBBjJFVH3XiWC-is_JAiiPTv7HNyjkWd-keM59WHWyH60y9nWd2Xtp9QkfQu71qp6YMdXeV8LGueoBht6CIxnhbrTW0zJLaUpkdx4gYHsjWP0lT4OuFO3-GOMGblSB5PqYzU-rTmqmht49eNfF0ULyr98EhCqRNpBVuzXaOM8zBavBMlKV6CpE4q3uQJ2-7mxagLGEycJ5XvEKMzDLnKIlncvps2q7RNMxNVcteGxqBhiTR0u1wPMPdyuspZmd1GZGeieDuzzz4_m5mnAxs3H0rXgnGKB",
-            "tracking": {
-                "fingerprint": "16a55c03835bdf03c0414b62df7413a9"
+            payment_token: {},
+            recaptcha_token:
+              "03AFcWeA4zspINFzCwvHId56h0v4T4cB1kpuPxBdEQGyMXD7E3s916-TFbrQCgoJkKul1-mUqgajgrHCFzaXZ23A3tCtxq9zIZ0ute14K06_rEVmPxFFObWHoTO796QZ40QTCvwaRY--AqYK7Ww8fhvDeSfc2LLaRuh4pTXfw0UBqJevTDVyH7_qD29MoaRpIotTJwrJVIHs3UpECzl4ekSHBHyZP_nJ2jJ_IXU1sPq4v-m2qJuzD8ZDDgP8VO3tXt_xpVP9Xo8Nvl4fAhhUqVuGo0xje45xCrRfsjdOyNCAxE-0-tUNdxGsQhzxZmVHZNXSv3K4DjAvoAaPtFGhq70vKexP-Xj8zdccMO_FDtoD3oN1zFIF9oK5yjSisX81B7CoUEwlBk8R6OCTICrN7kwd_oAgSvLDHFNMvZAk6ZA-RO6flsDhzOWa5WQkAjMLCe3Ne-TbJx_8H_aJy5aO20HHM-B-Jq5bVgfGXvU3ZAYYoR6rshwcfdg6BvhdDeT7m_XK9vvm7695kaS5y5QQxHaDKo5i2fbXS-EOosBNqy0cdBUDdZtDz5Exu_Mqv5ZASma0AhNsRQZik04EdkNL9rgLIHbCS8rQGnE3X4WBT70FpmJ2Ip5uRWeE0rj8Go5M3EfliI82p37e122FPsb_pkrBJmLWGiIWwPZy4Wgp80NFCbLvSbh_A4qYDHH8MBTe1-Jya76mR0XhEQI7PwxpdZAb_r3oQStmz4qdO0EpUP21Ul_1S_r3Ww2cdki29oC0SrfTGGIfWl22pi33sGaNhcJvtvpkNtqn7WhXL-umdMLlwOMH_RVwJznQzZZm1cSvc9Xl1EnBcmKqjDT0_gHvKBGQ6jIn0IS9sL1b_2EuOx8i_Bikh_MNxx8s9TlX5VFMLWgY0U7KuCIQu98liDK-6rJ0SG9SHSrurEqje-s2dYZE-44SegpFcdzZB_0QZ4PJZWvGc-R4mXfNvP0XeS55fVAFCZeThYxdzAYPJtyMTBmHIgZi-GlD5WFZq-uQQkj3IshH7ANqCMBVehQzwEQfBxIWZDyb-rTtlpzIIrscxYa750Sm0zvL3AGg9bsURtHnRb8MnECPtOqFQjYZh-W4qqSh0uGXKHttMN1xkxCBbSMW_NpPI4V_IXe50YdEhqXbJd8XlpAJe0IkRZban2_9UFeS7mldZzUfuyQ0Y9Uxo0msRl_DcMFRD3HCLUAe6sVV1IFSB6KXLoXVkTojpz6Ct16R1tfb2riylze1G4lZhb1yFIwAty5IKSvrsmLD5E9W6kLLdCMAtBJOpVNMurA3sKKHROOLHYyPkmc5MEWGTpKgMSI5PJJUraLteh92r2KSATJftX0F3ABsbCCaHqAC6QjzZYk7m5KRS0CYsg2PtrWkRGbfWCE0eJH_DZLLjirlNdx4E457q0Hqfq-YHm1kMEoGizIN65PS62hQQrG42Fg0HJXRWU1neYCtKzqnFEKFrLPtZU7QQf4JY1quD3fTXK5R0VpF4BpRVFYUzKJXnJdRNMJrw7EsXayhcOGsmxU_ds7tJPa207_nHZt0_J8sUpDIMEtIPZOtGjYEiHaLudm9rYbrUruo2SarK0BqpFeAeekRr-pY6bUU-bFNAYTttzLQaUNsuJsqQaOO_hHZ74M0PDt7zWr8IyCugMPawxZdvF29e1k5xeoFcf_NgSI0QS6vHr_jIQzUxRxKOBdzr_x6rQBBjJFVH3XiWC-is_JAiiPTv7HNyjkWd-keM59WHWyH60y9nWd2Xtp9QkfQu71qp6YMdXeV8LGueoBht6CIxnhbrTW0zJLaUpkdx4gYHsjWP0lT4OuFO3-GOMGblSB5PqYzU-rTmqmht49eNfF0ULyr98EhCqRNpBVuzXaOM8zBavBMlKV6CpE4q3uQJ2-7mxagLGEycJ5XvEKMzDLnKIlncvps2q7RNMxNVcteGxqBhiTR0u1wPMPdyuspZmd1GZGeieDuzzz4_m5mnAxs3H0rXgnGKB",
+            tracking: {
+              fingerprint: "16a55c03835bdf03c0414b62df7413a9",
             },
-            "scheduling_link_uuid": "pwm-pwm-235",
-            "locale": "en"
-        }
+            scheduling_link_uuid: "pwm-pwm-235",
+            locale: "en",
+          },
         );
 
         console.log("Invitee added successfully:", response.data);
-        res.send( response.data)
+        res.send(response.data);
       } catch (error) {
         console.error("Error adding invitee:", error);
         throw error;
       }
     });
+  }
+  getFailedCalls() {
+    this.app.get(
+      "get-failed-calls",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const result = await failedContacts();
+        res.send(result);
+      },
+    );
   }
 }

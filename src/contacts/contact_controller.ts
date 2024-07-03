@@ -51,7 +51,6 @@ export const getAllContact = async (
       totalAnsweredCalls: number;
       totalPages: number;
       totalNotCalledForAgent: number;
-      totalCallsFailed: any;
       totalAnsweredByVm: number;
       totalAppointment: any;
       totalCallsTransffered: any;
@@ -243,17 +242,6 @@ export const getAllContact = async (
       }),
     );
 
-    const callListResponse = await retell.call.list({
-      query: {
-        agent_id: "214e92da684138edf44368d371da764c",
-        after_start_timestamp: "1719356400",
-        limit:1000000
-      },
-    });
-    const countCallFailed = callListResponse.filter(
-      (doc) => doc.disconnection_reason === "dial_failed",
-    ).length;
-
     // Return the contacts, total pages, and other counts
     return {
       totalContactForAgent,
@@ -265,7 +253,6 @@ export const getAllContact = async (
         totalAppointment.length > 0 ? totalAppointment[0].result : 0,
       totalCallsTransffered:
         totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-      totalCallsFailed: countCallFailed,
       totalCalls,
       contacts: statsWithTranscripts,
     };
@@ -302,3 +289,17 @@ export const updateOneContact = async (id: string, updateFields: object) => {
     return "could not update contact";
   }
 };
+
+export const failedContacts = async () =>{
+  const callListResponse = await retell.call.list({
+    query: {
+      agent_id: "214e92da684138edf44368d371da764c",
+      after_start_timestamp: "1719356400",
+      limit:1000000
+    },
+  });
+  const countCallFailed = callListResponse.filter(
+    (doc) => doc.disconnection_reason === "dial_failed",
+  ).length;
+  return  { totalCallsFailed: countCallFailed}
+}
