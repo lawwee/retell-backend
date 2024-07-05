@@ -1,6 +1,6 @@
 // import axios from "axios";
 
-// export async function checkAvailability(): Promise<string[]> {
+// export async function checkAvailability2(): Promise<string[]> {
 //   try {
 //     // Get the current time
 //     const currentTime = new Date();
@@ -27,6 +27,7 @@
 //       },
 //     );
 
+  
 //     const availableTimes: string[] = [];
 
 //     response.data.collection.forEach((schedule: any) => {
@@ -47,7 +48,7 @@
 //       }
 //     });
 
-//     return availableTimes.slice(0,2);
+//     return availableTimes.slice(3);
 //   } catch (error) {
 //     console.log("Error fetching available times from Calendly:", error);  
 //     return []; // Return an empty array in case of error
@@ -55,10 +56,9 @@
 // }
 
 
-
 import axios from "axios";
 
-export async function checkAvailability(): Promise<string[]> {
+export async function checkAvailability2(): Promise<string[]> {
   try {
     // Get the current time
     const currentTime = new Date();
@@ -108,7 +108,7 @@ export async function checkAvailability(): Promise<string[]> {
       }
     });
 
-    return availableTimes.slice(0, 2); // Return the first two available times (excluding 6 AM)
+    return availableTimes.slice(3); // Return the first two available times (excluding 6 AM)
   } catch (error) {
     console.log("Error fetching available times from Calendly:", error);
     return []; // Return an empty array in case of error

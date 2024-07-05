@@ -5,6 +5,7 @@ import schedule from "node-schedule";
 import { TwilioClient } from "../twilio_api";
 import Retell from "retell-sdk";
 import { searchAndRecallContacts } from "./searchAndRecallContact";
+import moment from "moment-timezone";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -17,6 +18,7 @@ export const scheduleCronJob = async (
   limit: string,
   fromNumber: string,
   formattedDate: string,
+  day?: string
 ) => {
   const jobId = uuidv4();
   try {
@@ -28,28 +30,43 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
     });
+    function getToday(){
+      const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"]
+      const today = new Date().getDay()
+      return days[today]
+    }
+    const today = getToday()
+    const contactLimit = parseInt(limit);
+    const contacts = await contactModel
+      .find({ agentId, status: "not called", isDeleted: { $ne: true } })
+      .limit(contactLimit)
+      .sort({ createdAt: "desc" })
 
-    // Start the job
     const job = schedule.scheduleJob(jobId, scheduledTimePST, async () => {
       try {
-        // Update the job status to indicate that it's in progress
         await jobModel.findOneAndUpdate(
           { jobId },
           { callstatus: jobstatus.ON_CALL },
         );
-        const contactLimit = parseInt(limit);
-        const contacts = await contactModel
-          .find({ agentId, status: "not called", isDeleted: { $ne: true } })
-          .limit(contactLimit)
-          .sort({ createdAt: "desc" });
-
-        // Loop through contacts
         for (const contact of contacts) {
           try {
-            // Check if processing should be stopped
             const job = await jobModel.findOne({ jobId });
+            const currentDate = moment().tz("America/Los_Angeles");
+            const currentHour = currentDate.hours();
+            if (currentHour < 8 || currentHour >= 15) {
+              console.log("Job processing stopped due to time constraints.");
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { callstatus: "cancelled", shouldContinueProcessing:false },
+              );
+              return; // Exit the job execution
+            }
             if (!job || job.shouldContinueProcessing !== true) {
               console.log("Job processing stopped.");
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { callstatus: "cancelled", shouldContinueProcessing: false },
+              );
               break;
             }
             const postdata = {
@@ -66,7 +83,7 @@ export const scheduleCronJob = async (
             //   postdata.userId,
             // );
             try {
-              const callRegister = await retellClient.call.register({
+              await retellClient.call.register({
                 agent_id: agentId,
                 audio_encoding: "s16le",
                 audio_websocket_protocol: "twilio",
@@ -106,13 +123,10 @@ export const scheduleCronJob = async (
               }`,
             );
           }
-
-          // Wait for a specified time before processing the next contact
           await new Promise((resolve) => setTimeout(resolve, 8000));
         }
         console.log("Contacts processed will start recall");
-        // Call function to search and recall contacts if needed
-        await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId);
+        await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId, day);
       } catch (error) {
         console.error(
           `Error querying contacts: ${
@@ -125,7 +139,7 @@ export const scheduleCronJob = async (
     console.log(
       `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}\n, scheduled time: ${scheduledTimePST}`,
     );
-    return { jobId, scheduledTime: scheduledTimePST };
+    return { jobId, scheduledTime: scheduledTimePST, contacts };
   } catch (error) {
     console.error("Error scheduling job:", error);
     throw error;

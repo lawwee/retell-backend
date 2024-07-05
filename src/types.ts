@@ -28,10 +28,20 @@ export interface IContact {
   agentId: string;
   referenceToCallId: any;
   linktocallLogModel: any;
-  datesCalled: string[]
-  answeredByVM:boolean
+  datesCalled: string[];
+  answeredByVM: boolean;
+  dayToBeProcessed: string
 }
 
+export enum DaysToBeProcessedEnum{
+  MONDAY = "monday",
+  TUESDAY = "tuesday",
+  WEDNESDAY = "wednesday", 
+  THURSDAY = "thursday",
+  FRIDAY = "friday",
+  SATURDAY = "saturday",
+  SUNDAY = "sunday"
+}
 export enum callstatusenum {
   QUEUED = "queued",
   RINGING = "ringing",
@@ -42,7 +52,6 @@ export enum callstatusenum {
   VOICEMAIL = "called-NA-VM",
   CANCELED = "canceled",
   NOT_CALLED = "not called",
-
 }
 
 export interface Itranscript {
@@ -73,7 +82,6 @@ export interface Ilogs {
   callsNotAnswered: number;
   agentId: String;
 }
-
 
 // Retell -> Your Server Events
 interface PingPongRequest {
@@ -160,11 +168,10 @@ export interface FunctionCall {
 }
 
 export interface transcriptEnum {
-  Uninterested: "Uninterested",
-  Interested :"Interested",
-  Scheduled:"Scheduled",
-  Voicemail:"Voicemail",
- incomplete_call:"Incomplete call",
- call_back:"Call back"
-
+  UNINTERETED: "Uninterested";
+  INTERESTED: "Interested";
+  SCHEDULED: "Scheduled";
+  VOICEMAIL: "Voicemail";
+  INCOMPLETE_CALL: "Incomplete call";
+  CALL_BACK: "Call back";
 }

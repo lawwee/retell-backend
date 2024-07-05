@@ -2,6 +2,7 @@ import { contactModel, jobModel } from "../contacts/contact_model";
 import Retell from "retell-sdk";
 import { TwilioClient } from "../twilio_api";
 import { jobstatus } from "../types";
+import moment from "moment-timezone";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -12,14 +13,30 @@ export const searchAndRecallContacts = async (
   agentId: string,
   fromNumber: string,
   jobId: string,
+  day?: string,
 ) => {
   try {
     let contactStatusArray = ["called-NA-VM", "ringing"];
-    let contacts = await contactModel
+    function getToday() {
+      const days = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      const today = new Date().getDay();
+      return days[today];
+    }
+    const today = getToday();
+    const contacts = await contactModel
       .find({
         agentId,
         status: { $in: contactStatusArray },
         isDeleted: { $ne: true },
+        dayToBeProcessed: day ? day : today,
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });
@@ -27,7 +44,22 @@ export const searchAndRecallContacts = async (
     for (const contact of contacts) {
       try {
         const job = await jobModel.findOne({ jobId });
+        const currentDate = moment().tz("America/Los_Angeles");
+        const currentHour = currentDate.hours();
+        if (currentHour < 8 || currentHour >= 15) {
+          console.log("Job processing stopped due to time constraints.");
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: "cancelled", shouldContinueProcessing: false },
+          );
+          return; // Exit the job execution
+        }
+
         if (!job || job.shouldContinueProcessing !== true) {
+          await jobModel.findOneAndUpdate(
+            { jobId },
+            { callstatus: "cancelled" },
+          );
           console.log("Job processing stopped.");
           break;
         }

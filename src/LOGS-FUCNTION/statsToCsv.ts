@@ -4,15 +4,9 @@ import path from "path";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { callstatusenum } from "../types";
 
-export const statsToCsv = async (startDate: string, endDate: string) => {
+export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]) => {
   try {
-    const agentIds = [
-      "214e92da684138edf44368d371da764c",
-      "0411eeeb12d17a340941e91a98a766d0",
-      "86f0db493888f1da69b7d46bfaecd360",
-    ];
-
-    const dailyStats = await contactModel
+     const dailyStats = await contactModel
       .find({
         $and: [
           { agentId: { $in: agentIds } },

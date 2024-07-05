@@ -12,6 +12,7 @@ import { Retell } from "retell-sdk";
 import {
   createContact,
   deleteOneContact,
+  failedContacts,
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
@@ -21,6 +22,7 @@ import {
   jobModel,
   EventModel,
 } from "./contacts/contact_model";
+import axios from "axios";
 import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
@@ -51,6 +53,13 @@ import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
+import { isAdmin } from "./middleware/isAdmin";
+import { checkAvailability2 } from "./callendly2";
+import { transcriptEnum } from "./types";
+import * as fspromises from "fs/promises";
+import { google } from "googleapis";
+import { authenticate } from "@google-cloud/local-auth";
+
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -127,6 +136,11 @@ export class Server {
     this.signUpUser();
     this.loginAdmin();
     this.loginUser();
+    this.getTimefromCallendly2();
+    this.returnContactsFromStats();
+    this.testingMake();
+    this.testingCalendly();
+    this.getFailedCalls();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -366,6 +380,7 @@ export class Server {
     this.app.post(
       "/create-llm-phone-call",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
@@ -458,6 +473,7 @@ export class Server {
     this.app.post(
       "/users/create",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const { firstname, lastname, email, phone, agentId } = req.body;
         try {
@@ -475,6 +491,7 @@ export class Server {
       },
     );
   }
+
   handlecontactGet() {
     this.app.post(
       "/users/:agentId",
@@ -496,6 +513,7 @@ export class Server {
   handlecontactDelete() {
     this.app.patch(
       "/users/delete",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { id } = req.body;
@@ -511,6 +529,7 @@ export class Server {
   handleContactUpdate() {
     this.app.patch(
       "/users/update",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         try {
@@ -534,6 +553,7 @@ export class Server {
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
@@ -568,6 +588,7 @@ export class Server {
     this.app.post(
       "/upload/:agentId",
       authmiddleware,
+      isAdmin,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         try {
@@ -575,6 +596,7 @@ export class Server {
             return res.status(400).json({ message: "No file uploaded" });
           }
           const csvFile = req.file;
+          const day = req.query.day;
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -601,7 +623,11 @@ export class Server {
                       agentId: user.agentId,
                     });
                     if (!existingUser) {
-                      const userWithAgentId = { ...user, agentId };
+                      const userWithAgentId = {
+                        ...user,
+                        dayToBeProcessed: day,
+                        agentId,
+                      };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
                     }
@@ -641,7 +667,6 @@ export class Server {
       },
     );
   }
-
   getjobstatus() {
     this.app.post(
       "/schedules/status",
@@ -666,6 +691,7 @@ export class Server {
   resetAgentStatus() {
     this.app.post(
       "/users/status/reset",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
@@ -680,9 +706,10 @@ export class Server {
   schedulemycall() {
     this.app.post(
       "/schedule",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber } = req.body;
+        const { hour, minute, agentId, limit, fromNumber, day } = req.body;
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
           .set({
@@ -695,14 +722,15 @@ export class Server {
         const formattedDate = moment(scheduledTimePST).format(
           "YYYY-MM-DDTHH:mm:ss",
         );
-        const { jobId, scheduledTime } = await scheduleCronJob(
+        const { jobId, scheduledTime, contacts } = await scheduleCronJob(
           scheduledTimePST,
           agentId,
           limit,
           fromNumber,
           formattedDate,
+          day,
         );
-        res.send({ jobId, scheduledTime });
+        res.send({ jobId, scheduledTime, contacts });
       },
     );
   }
@@ -710,6 +738,7 @@ export class Server {
     this.app.post(
       "/stop-job",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         try {
           const { jobId } = req.body;
@@ -745,6 +774,7 @@ export class Server {
   stopSpecificSchedule() {
     this.app.post(
       "/cancel-schedule",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { jobId } = req.body;
@@ -761,7 +791,10 @@ export class Server {
         if (isCancelled) {
           await jobModel.findOneAndUpdate(
             { jobId },
-            { callstatus: jobstatus.CANCELLED },
+            {
+              callstatus: jobstatus.CANCELLED,
+              shouldContinueProcessing: false,
+            },
           );
           res.send(`Job with ID ${jobId} cancelled successfully.`);
         } else {
@@ -802,17 +835,36 @@ export class Server {
   }
 
   getTimefromcallendly() {
-    this.app.post("/calender", async (req: Request, res: Response) => {
-      try {
-        const result = await checkAvailability();
-        res.json({ result });
-      } catch (error) {
-        console.error("Error stopping job:", error);
-        return res
-          .status(500)
-          .send(`Issue getting callendly time with error: ${error}`);
-      }
-    });
+    this.app.post(
+      "/check-appointments",
+      async (req: Request, res: Response) => {
+        try {
+          const result = await checkAvailability();
+          res.json({ result });
+        } catch (error) {
+          console.error("Error stopping job:", error);
+          return res
+            .status(500)
+            .send(`Issue getting callendly time with error: ${error}`);
+        }
+      },
+    );
+  }
+  getTimefromCallendly2() {
+    this.app.post(
+      "/follow-up-appointments",
+      async (req: Request, res: Response) => {
+        try {
+          const result = await checkAvailability2();
+          res.json({ result });
+        } catch (error) {
+          console.error("Error stopping job:", error);
+          return res
+            .status(500)
+            .send(`Issue getting callendly time with error: ${error}`);
+        }
+      },
+    );
   }
 
   async getTranscriptAfterCallEnded() {
@@ -896,6 +948,7 @@ export class Server {
   deleteAll() {
     this.app.patch(
       "/deleteAll",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
@@ -963,71 +1016,105 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         try {
-          const agent1 = "214e92da684138edf44368d371da764c";
-          const agent2 = "0411eeeb12d17a340941e91a98a766d0";
-          const agent3 = "86f0db493888f1da69b7d46bfaecd360";
-          const { startDate, endDate } = req.body;
-
-          // Validate date
+          const { startDate, endDate, agentIds } = req.body;
           if (!startDate || !endDate) {
             throw new Error("Date is missing in the request body");
           }
-
-          // Find documents for each agent
-          const foundAgent1: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent1 },
-            ],
+          const totalCallsTransffered = await contactModel.aggregate([
+            {
+              $match: {
+                agentId: { $in: agentIds },
+                isDeleted: { $ne: true },
+                datesCalled: { $gte: startDate, $lte: endDate },
+              },
+            },
+            {
+              $lookup: {
+                from: "transcripts",
+                localField: "referenceToCallId",
+                foreignField: "_id",
+                as: "callDetails",
+              },
+            },
+            {
+              $match: {
+                "callDetails.disconnectionReason": "call_transfer",
+              },
+            },
+            {
+              $count: "result",
+            },
+          ]);
+          const totalAppointment = await contactModel.aggregate([
+            {
+              $match: {
+                agentId: { $in: agentIds },
+                isDeleted: { $ne: true },
+                datesCalled: { $gte: startDate, $lte: endDate },
+              },
+            },
+            {
+              $lookup: {
+                from: "transcripts",
+                localField: "referenceToCallId",
+                foreignField: "_id",
+                as: "callDetails",
+              },
+            },
+            {
+              $match: {
+                "callDetails.analyzedTranscript": "Scheduled",
+              },
+            },
+            {
+              $count: "result",
+            },
+          ]);
+          const totalNotCalledForAgents = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            status: callstatusenum.NOT_CALLED,
           });
-
-          const foundAgent2: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent2 },
-            ],
+          const totalAnsweredByVm = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            datesCalled: { $gte: startDate, $lte: endDate },
+            status: callstatusenum.VOICEMAIL,
           });
-
-          const foundAgent3: Ilogs[] = await DailyStats.find({
-            $and: [
-              { myDate: { $gte: startDate, $lte: endDate } },
-              { agentId: agent3 },
-            ],
+          const TotalCalls = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            datesCalled: { $gte: startDate, $lte: endDate },
+            status: {
+              $in: [
+                callstatusenum.CALLED,
+                callstatusenum.VOICEMAIL,
+                callstatusenum.FAILED,
+              ],
+            },
           });
-
-          // Initialize variables to store aggregated stats
-          let TotalCalls = 0;
-          let TotalAnsweredCalls = 0;
-          let TotalNotAnsweredCalls = 0;
-
-          // Calculate totals for each agent
-          foundAgent1.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+          const TotalAnsweredCall = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
+            status: callstatusenum.CALLED,
+            datesCalled: { $gte: startDate, $lte: endDate },
           });
-
-          foundAgent2.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
+          const totalContactForAgents = await contactModel.countDocuments({
+            agentId: { $in: agentIds },
+            isDeleted: false,
           });
-
-          foundAgent3.forEach((agent) => {
-            TotalCalls += agent.totalCalls || 0;
-            TotalAnsweredCalls += agent.callsAnswered || 0;
-            TotalNotAnsweredCalls += agent.callsNotAnswered || 0;
-          });
-
-          // Calculate TotalAnsweredCall
-          const TotalAnsweredCall =
-            TotalAnsweredCalls + (TotalCalls - TotalNotAnsweredCalls);
-
-          // Respond with the aggregated stats and dailyStats
           res.send({
-            TotalNotAnsweredCalls,
             TotalAnsweredCall,
             TotalCalls,
+            totalCallsTransffered:
+              totalCallsTransffered.length > 0
+                ? totalCallsTransffered[0].result
+                : 0,
+            totalAppointment:
+              totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+            totalNotCalledForAgents,
+            totalAnsweredByVm,
+            totalContactForAgents
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1108,8 +1195,8 @@ export class Server {
   peopleStatToCsv() {
     this.app.post("/get-metadata-csv", authmiddleware, async (req, res) => {
       try {
-        const { startDate, endDate } = req.body;
-        const result = await statsToCsv(startDate, endDate);
+        const { startDate, endDate, agentIds } = req.body;
+        const result = await statsToCsv(startDate, endDate, agentIds);
         if (typeof result === "string") {
           const filePath: string = result;
           if (fs.existsSync(filePath)) {
@@ -1136,19 +1223,15 @@ export class Server {
   }
   searchForvagroup() {
     this.app.post(
-      "/search-va-group",
+      "/search-logs",
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { searchTerm } = req.body;
-        if (!searchTerm) {
-          return res.status(400).json({ error: "Search term is required" });
+        const { searchTerm, agentIds } = req.body;
+        if (!searchTerm || !agentIds) {
+          return res
+            .status(400)
+            .json({ error: "Search term or agent ids is required" });
         }
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
-
         const isValidEmail = (email: string) => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(email);
@@ -1176,6 +1259,7 @@ export class Server {
                     { email: { $regex: term, $options: "i" } },
                   ],
             };
+            console.log(query);
             return await contactModel.find(query).populate("referenceToCallId");
           };
 
@@ -1200,29 +1284,25 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         const {
-          searchTerm,
+          searchTerm = "",
           startDate,
           endDate,
           statusOption,
           sentimentOption,
+          agentId,
         } = req.body;
 
-        if (!searchTerm) {
-          return res.status(400).json({ error: "Search term is required" });
+        if (!agentId) {
+          return res
+            .status(400)
+            .json({ error: "Search term or agent Ids is required" });
         }
 
-        const agentIds = [
-          "214e92da684138edf44368d371da764c",
-          "0411eeeb12d17a340941e91a98a766d0",
-          "86f0db493888f1da69b7d46bfaecd360",
-        ];
-
-        const isValidEmail = (email: string) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email);
-        };
-
         try {
+          const isValidEmail = (email: string) => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email.trim());
+          };
           const searchTerms = searchTerm
             .split(",")
             .map((term: string) => term.trim());
@@ -1232,8 +1312,8 @@ export class Server {
             term: string,
             searchByEmail: boolean,
           ) => {
-            let query: any = {
-              agentId: { $in: agentIds },
+            const query: any = {
+              agentId,
               isDeleted: false,
               $or: searchByEmail
                 ? [{ email: { $regex: term, $options: "i" } }]
@@ -1244,6 +1324,7 @@ export class Server {
                     { email: { $regex: term, $options: "i" } },
                   ],
             };
+
             if (startDate && endDate) {
               query["datesCalled"] = {
                 $gte: startDate,
@@ -1253,64 +1334,132 @@ export class Server {
 
             if (statusOption && statusOption !== "All") {
               let callStatus;
-              if (statusOption === "Called") {
-                callStatus = callstatusenum.CALLED;
-              } else if (statusOption === "notCalled") {
-                callStatus = callstatusenum.NOT_CALLED;
-              } else if (statusOption === "vm") {
-                callStatus = callstatusenum.VOICEMAIL;
-              } else if (statusOption === "Failed") {
-                callStatus = callstatusenum.FAILED;
+
+              if (statusOption === "call-transferred") {
+                const pipeline: any[] = [
+                  {
+                    $match: {
+                      agentId,
+                      isDeleted: { $ne: true },
+                    },
+                  },
+                  {
+                    $lookup: {
+                      from: "transcripts",
+                      localField: "referenceToCallId",
+                      foreignField: "_id",
+                      as: "callDetails",
+                    },
+                  },
+                  {
+                    $match: {
+                      "callDetails.disconnectionReason": "call_transfer",
+                    },
+                  },
+                ];
+
+                if (startDate && endDate) {
+                  pipeline.push({
+                    $match: {
+                      datesCalled: {
+                        $gte: startDate,
+                        $lte: endDate,
+                      },
+                    },
+                  });
+                }
+
+                const totalCallsTransferred = await contactModel.aggregate(
+                  pipeline,
+                );
+
+                return totalCallsTransferred;
+              } else {
+                // Handle other status options
+                switch (statusOption.toLowerCase()) {
+                  case "call-connected":
+                    callStatus = callstatusenum.CALLED;
+                    break;
+                  case "not-called":
+                    callStatus = callstatusenum.NOT_CALLED;
+                    break;
+                  case "called-na-vm":
+                    callStatus = callstatusenum.VOICEMAIL;
+                    break;
+                  case "call-failed":
+                    callStatus = callstatusenum.FAILED;
+                    break;
+                  default:
+                    // Return empty array if statusOption doesn't match any known options
+                    return [];
+                }
+
+                query["status"] = callStatus;
               }
-              query["status"] = callStatus;
             }
 
             return await contactModel.find(query).populate("referenceToCallId");
           };
 
           let allResults: any[] = [];
+
           for (const term of searchTerms) {
             const results = await searchForTerm(term, firstTermIsEmail);
             allResults = allResults.concat(results);
           }
+          let sentimentStatus:
+            | "Uninterested"
+            | "Call back"
+            | "Interested"
+            | "Scheduled"
+            | "Voicemail"
+            | "Incomplete call"
+            | undefined;
 
-          allResults = await Promise.all(
-            allResults.map(async (contact) => {
-              const transcript = contact.referenceToCallId?.transcript;
-              const analyzedTranscript = await reviewTranscript(transcript);
-              return {
-                firstname: contact.firstname,
-                lastname: contact.lastname,
-                email: contact.email,
-                phone: contact.phone,
-                status: contact.status,
-                transcript: transcript,
-                analyzedTranscript: analyzedTranscript?.message.content,
-                call_recording_url: contact.referenceToCallId?.recordingUrl,
-              };
-            }),
-          );
-
-          if (sentimentOption) {
-            allResults = allResults.filter((contact) => {
-              switch (sentimentOption) {
-                case "Interested":
-                  return contact.analyzedTranscript === "Interested";
-                case "Incomplete Call":
-                  return contact.analyzedTranscript === "Incomplete Call";
-                case "Scheduled":
-                  return contact.analyzedTranscript === "Scheduled";
-                case "Uninterested":
-                  return contact.analyzedTranscript === "Uninterested";
-                case "Call back":
-                  return contact.analyzedTranscript === "Call back";
-                default:
-                  return true;
-              }
-            });
+          if (
+            sentimentOption === "Uninterested" ||
+            sentimentOption === "uninterested"
+          ) {
+            sentimentStatus = "Uninterested";
+          } else if (
+            sentimentOption === "Interested" ||
+            sentimentOption === "interested"
+          ) {
+            sentimentStatus = "Interested";
+          } else if (
+            sentimentOption === "Scheduled" ||
+            sentimentOption === "scheduled"
+          ) {
+            sentimentStatus = "Scheduled";
+          } else if (
+            sentimentOption === "Voicemail" ||
+            sentimentOption === "voicemail"
+          ) {
+            sentimentStatus = "Voicemail";
+          } else if (
+            sentimentOption === "incomplete-call" ||
+            sentimentOption === "Incomplete-Call"
+          ) {
+            sentimentStatus = "Incomplete call";
+          } else if (
+            sentimentOption === "call-back" ||
+            sentimentOption === "Call-Back"
+          ) {
+            sentimentStatus = "Call back";
           }
 
-          res.json(allResults);
+          if (!sentimentOption) {
+            res.json(allResults);
+          } else {
+            const filteredResults = allResults.filter((contact) => {
+              const analyzedTranscript =
+                contact.referenceToCallId?.analyzedTranscript;
+              return (
+                analyzedTranscript && analyzedTranscript === sentimentStatus
+              );
+            });
+            res.json(filteredResults);
+          }
         } catch (error) {
           console.log(error);
           res.status(500).json({ error: "Internal server error" });
@@ -1358,6 +1507,7 @@ export class Server {
   getNotCalledUsersAndDelete() {
     this.app.post(
       "/delete-uncalled",
+      isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
         try {
@@ -1384,24 +1534,24 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          return res.status(400).json({message:"Provide the login details"});
+          return res.status(400).json({ message: "Provide the login details" });
         }
 
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          return res.status(400).json({message:"Invalid login credentials"});
+          return res.status(400).json({ message: "Invalid login credentials" });
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          return res.status(400).json({message:"Incorrect password"});
+          return res.status(400).json({ message: "Incorrect password" });
         }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          { expiresIn: "1d" },
         );
         res.json({
           payload: {
@@ -1424,18 +1574,18 @@ export class Server {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
-          return res.status(400).json({message:"Provide the login details"});
+          return res.status(400).json({ message: "Provide the login details" });
         }
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
-          return res.status(400).json({message:"Invalid login credentials"});
+          return res.status(400).json({ message: "Invalid login credentials" });
         }
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
-          return res.status(400).json({message:"Incorrect password"});
+          return res.status(400).json({ message: "Incorrect password" });
         }
         if (userInDb.isAdmin === false) {
           return res.status(401).json("Only admins can access here");
@@ -1443,7 +1593,7 @@ export class Server {
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          { expiresIn: "1d" },
         );
         return res.status(200).json({
           payload: {
@@ -1465,7 +1615,9 @@ export class Server {
       try {
         const { username, email, password, group } = req.body;
         if (!username || !email || !password || !group) {
-          return res.status(400).json({ message: "Please provide all needed details" });
+          return res
+            .status(400)
+            .json({ message: "Please provide all needed details" });
         }
         const savedUser = await userModel.create({
           username,
@@ -1476,13 +1628,266 @@ export class Server {
         const token = jwt.sign(
           { userId: savedUser._id, email: savedUser.email },
           process.env.JWT_SECRET,
-          { expiresIn: "1h" },
+          { expiresIn: "6h" },
         );
-        return res.json({ payload: { message: "User created sucessfully", token } });
+        return res.json({
+          payload: { message: "User created sucessfully", token },
+        });
       } catch (error) {
         console.log(error);
-        return res.status(500).json({message:"error while signing up"});
+        return res.status(500).json({ message: "error while signing up" });
       }
     });
+  }
+
+  async deleteContactsByEmail(emails: any) {
+    try {
+      // Split the input string containing comma-separated emails into an array
+      const emailArray = emails.split(",");
+      console.log(emailArray);
+
+      // Use Mongoose's deleteMany function to remove documents with matching emails
+      const result = await contactModel.deleteMany({
+        email: { $in: emailArray },
+      });
+
+      console.log(`${result.deletedCount} contacts deleted.`);
+      return result;
+    } catch (error) {
+      console.error("Error deleting contacts:", error);
+      throw error; // Forwarding the error for handling in upper layers
+    }
+  }
+
+  returnContactsFromStats() {
+    this.app.post(
+      "/users/populate",
+      authmiddleware,
+      isAdmin,
+      async (req: Request, res: Response) => {
+        try {
+          const { agentId, options } = req.body;
+          if (!agentId) {
+            return res.json({ message: "Please provide agent id" });
+          }
+          let result: any = {};
+          if (options === "Transffered") {
+            const totalCallsTransferred = await contactModel.aggregate([
+              {
+                $match: {
+                  agentId,
+                  isDeleted: { $ne: true },
+                },
+              },
+              {
+                $lookup: {
+                  from: "transcripts",
+                  localField: "referenceToCallId",
+                  foreignField: "_id",
+                  as: "callDetails",
+                },
+              },
+              {
+                $match: {
+                  "callDetails.disconnectionReason": "call_transfer",
+                },
+              },
+            ]);
+            result.totalCallsTransferred = totalCallsTransferred;
+          }
+
+          if (options === "Appointment") {
+            const totalAppointment = await contactModel.aggregate([
+              {
+                $match: {
+                  agentId,
+                  isDeleted: { $ne: true },
+                },
+              },
+              {
+                $lookup: {
+                  from: "transcripts",
+                  localField: "referenceToCallId",
+                  foreignField: "_id",
+                  as: "callDetails",
+                },
+              },
+              {
+                $match: {
+                  "callDetails.analyzedTranscript": "Scheduled",
+                },
+              },
+            ]);
+            result.totalAppointment = totalAppointment;
+          }
+
+          if (options === "Not-Called") {
+            const totalNotCalledForAgents = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.NOT_CALLED,
+            });
+            result.totalNotCalledForAgents = totalNotCalledForAgents;
+          }
+
+          if (options === "VM") {
+            const totalAnsweredByVm = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              // datesCalled: { $gte: startDate, $lte: endDate },
+              status: callstatusenum.VOICEMAIL,
+            });
+            result.totalAnsweredByVm = totalAnsweredByVm;
+          }
+
+          if (options === "Total") {
+            const totalCalls = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              // datesCalled: { $gte: startDate, $lte: endDate },
+              status: {
+                $in: [
+                  callstatusenum.CALLED,
+                  callstatusenum.VOICEMAIL,
+                  callstatusenum.FAILED,
+                ],
+              },
+            });
+            result.totalCalls = totalCalls;
+          }
+
+          if (options === "Answered") {
+            const totalAnsweredCall = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.CALLED,
+              // datesCalled: { $gte: startDate, $lte: endDate },
+            });
+            result.totalAnsweredCall = totalAnsweredCall;
+          }
+
+          if (options === "Total-Contact") {
+            const totalContactForAgents = await contactModel.find({
+              agentId,
+              isDeleted: false,
+            });
+            result.totalContactForAgents = totalContactForAgents;
+          }
+
+          if (options === "Failed") {
+            const callListResponse = await this.retellClient.call.list({
+              query: {
+                agent_id: "214e92da684138edf44368d371da764c",
+                after_start_timestamp: "1718866800000",
+                limit: 1000000,
+              },
+            });
+            const countCallFailed = callListResponse.filter(
+              (doc) => doc.disconnection_reason === "dial_failed",
+            );
+            result.countCallFailed = countCallFailed;
+          }
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ error });
+        }
+      },
+    );
+  }
+  testingMake() {
+    this.app.post("/make", async (req: Request, res: Response) => {
+      const result = await axios.post(
+        "https://hook.eu2.make.com/mnod1p5sp4fe1u5cvekmqk807tabs28e",
+        {
+          eventName: "",
+          startDate: "",
+          endDate: "",
+          duration: "",
+        },
+      );
+      console.log(result);
+      res.send("done");
+    });
+  }
+
+  testingCalendly() {
+    this.app.post("/test-calender", async (req: Request, res: Response) => {
+      // Replace with your event type and date/time
+      const eventTypeSlug = "test-event-type";
+      const dateTime = "2024-08-10T03:00:00+01:00";
+
+      // Construct the scheduling link
+      const schedulingLink = `https://calendly.com/hydradaboss06/${eventTypeSlug}/${dateTime}?month=2024-08&date=2024-08-10`;
+
+      try {
+        // Make a POST request to Calendly API to add invitees
+        const response = await axios.post(
+          "https://calendly.com/api/booking/invitees",
+          {
+            analytics: {
+              invitee_landed_at: "2024-07-01T15:52:27.987Z",
+              browser: "Chrome 126",
+              device: "undefined Windows 10",
+              fields_filled: 1,
+              fields_presented: 1,
+              booking_flow: "v3",
+              seconds_to_convert: 45,
+            },
+            embed: {},
+            event: {
+              start_time: "2024-07-21T09:30:00+01:00",
+              location_configuration: {
+                location: "",
+                phone_number: "",
+                additional_info: "",
+              },
+              guests: {},
+            },
+            event_fields: [
+              {
+                id: 86536438,
+                name: "Please share anything that will help prepare for our meeting.",
+                format: "text",
+                required: false,
+                position: 0,
+                answer_choices: null,
+                include_other: false,
+                value: "",
+              },
+            ],
+            invitee: {
+              timezone: "Africa/Lagos",
+              time_notation: "24h",
+              full_name: "Ganiyu Olamide Idris",
+              email: "golamide27@tike.tz",
+            },
+            payment_token: {},
+            recaptcha_token:
+              "03AFcWeA4zspINFzCwvHId56h0v4T4cB1kpuPxBdEQGyMXD7E3s916-TFbrQCgoJkKul1-mUqgajgrHCFzaXZ23A3tCtxq9zIZ0ute14K06_rEVmPxFFObWHoTO796QZ40QTCvwaRY--AqYK7Ww8fhvDeSfc2LLaRuh4pTXfw0UBqJevTDVyH7_qD29MoaRpIotTJwrJVIHs3UpECzl4ekSHBHyZP_nJ2jJ_IXU1sPq4v-m2qJuzD8ZDDgP8VO3tXt_xpVP9Xo8Nvl4fAhhUqVuGo0xje45xCrRfsjdOyNCAxE-0-tUNdxGsQhzxZmVHZNXSv3K4DjAvoAaPtFGhq70vKexP-Xj8zdccMO_FDtoD3oN1zFIF9oK5yjSisX81B7CoUEwlBk8R6OCTICrN7kwd_oAgSvLDHFNMvZAk6ZA-RO6flsDhzOWa5WQkAjMLCe3Ne-TbJx_8H_aJy5aO20HHM-B-Jq5bVgfGXvU3ZAYYoR6rshwcfdg6BvhdDeT7m_XK9vvm7695kaS5y5QQxHaDKo5i2fbXS-EOosBNqy0cdBUDdZtDz5Exu_Mqv5ZASma0AhNsRQZik04EdkNL9rgLIHbCS8rQGnE3X4WBT70FpmJ2Ip5uRWeE0rj8Go5M3EfliI82p37e122FPsb_pkrBJmLWGiIWwPZy4Wgp80NFCbLvSbh_A4qYDHH8MBTe1-Jya76mR0XhEQI7PwxpdZAb_r3oQStmz4qdO0EpUP21Ul_1S_r3Ww2cdki29oC0SrfTGGIfWl22pi33sGaNhcJvtvpkNtqn7WhXL-umdMLlwOMH_RVwJznQzZZm1cSvc9Xl1EnBcmKqjDT0_gHvKBGQ6jIn0IS9sL1b_2EuOx8i_Bikh_MNxx8s9TlX5VFMLWgY0U7KuCIQu98liDK-6rJ0SG9SHSrurEqje-s2dYZE-44SegpFcdzZB_0QZ4PJZWvGc-R4mXfNvP0XeS55fVAFCZeThYxdzAYPJtyMTBmHIgZi-GlD5WFZq-uQQkj3IshH7ANqCMBVehQzwEQfBxIWZDyb-rTtlpzIIrscxYa750Sm0zvL3AGg9bsURtHnRb8MnECPtOqFQjYZh-W4qqSh0uGXKHttMN1xkxCBbSMW_NpPI4V_IXe50YdEhqXbJd8XlpAJe0IkRZban2_9UFeS7mldZzUfuyQ0Y9Uxo0msRl_DcMFRD3HCLUAe6sVV1IFSB6KXLoXVkTojpz6Ct16R1tfb2riylze1G4lZhb1yFIwAty5IKSvrsmLD5E9W6kLLdCMAtBJOpVNMurA3sKKHROOLHYyPkmc5MEWGTpKgMSI5PJJUraLteh92r2KSATJftX0F3ABsbCCaHqAC6QjzZYk7m5KRS0CYsg2PtrWkRGbfWCE0eJH_DZLLjirlNdx4E457q0Hqfq-YHm1kMEoGizIN65PS62hQQrG42Fg0HJXRWU1neYCtKzqnFEKFrLPtZU7QQf4JY1quD3fTXK5R0VpF4BpRVFYUzKJXnJdRNMJrw7EsXayhcOGsmxU_ds7tJPa207_nHZt0_J8sUpDIMEtIPZOtGjYEiHaLudm9rYbrUruo2SarK0BqpFeAeekRr-pY6bUU-bFNAYTttzLQaUNsuJsqQaOO_hHZ74M0PDt7zWr8IyCugMPawxZdvF29e1k5xeoFcf_NgSI0QS6vHr_jIQzUxRxKOBdzr_x6rQBBjJFVH3XiWC-is_JAiiPTv7HNyjkWd-keM59WHWyH60y9nWd2Xtp9QkfQu71qp6YMdXeV8LGueoBht6CIxnhbrTW0zJLaUpkdx4gYHsjWP0lT4OuFO3-GOMGblSB5PqYzU-rTmqmht49eNfF0ULyr98EhCqRNpBVuzXaOM8zBavBMlKV6CpE4q3uQJ2-7mxagLGEycJ5XvEKMzDLnKIlncvps2q7RNMxNVcteGxqBhiTR0u1wPMPdyuspZmd1GZGeieDuzzz4_m5mnAxs3H0rXgnGKB",
+            tracking: {
+              fingerprint: "16a55c03835bdf03c0414b62df7413a9",
+            },
+            scheduling_link_uuid: "pwm-pwm-235",
+            locale: "en",
+          },
+        );
+
+        console.log("Invitee added successfully:", response.data);
+        res.send(response.data);
+      } catch (error) {
+        console.error("Error adding invitee:", error);
+        throw error;
+      }
+    });
+  }
+  getFailedCalls() {
+    this.app.get(
+      "get-failed-calls",
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        const result = await failedContacts();
+        res.send(result);
+      },
+    );
   }
 }
