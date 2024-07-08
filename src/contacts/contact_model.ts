@@ -58,6 +58,9 @@ const ContactSchema = new Schema<IContact>(
       type:String,
       enum: Object.values(DaysToBeProcessedEnum)
 
+    },
+    tag:{
+      type: String
     }
   }, 
   { timestamps: true },

@@ -26,7 +26,7 @@ import axios from "axios";
 import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
-import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
+import { CustomLlmRequest, CustomLlmResponse, DaysToBeProcessedEnum, Ilogs } from "./types";
 import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
@@ -475,7 +475,7 @@ export class Server {
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
-        const { firstname, lastname, email, phone, agentId } = req.body;
+        const { firstname, lastname, email, phone, agentId, tag,dayToBeProcessed } = req.body;
         try {
           const result = await createContact(
             firstname,
@@ -483,6 +483,8 @@ export class Server {
             email,
             phone,
             agentId,
+            tag,
+            dayToBeProcessed
           );
           res.json({ result });
         } catch (error) {
@@ -597,6 +599,7 @@ export class Server {
           }
           const csvFile = req.file;
           const day = req.query.day;
+          const tag = req.query.tag
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -627,6 +630,7 @@ export class Server {
                         ...user,
                         dayToBeProcessed: day,
                         agentId,
+                        tag
                       };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
@@ -1661,12 +1665,13 @@ export class Server {
 
   returnContactsFromStats() {
     this.app.post(
-      "/users/populate",
+      "/user/populate",
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
         try {
           const { agentId, options } = req.body;
+          console.log("here")
           if (!agentId) {
             return res.json({ message: "Please provide agent id" });
           }
@@ -1684,12 +1689,12 @@ export class Server {
                   from: "transcripts",
                   localField: "referenceToCallId",
                   foreignField: "_id",
-                  as: "callDetails",
+                  as: "referenceToCallId",
                 },
               },
               {
                 $match: {
-                  "callDetails.disconnectionReason": "call_transfer",
+                  "referenceToCallId.disconnectionReason": "call_transfer",
                 },
               },
             ]);
