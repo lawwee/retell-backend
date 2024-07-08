@@ -13,7 +13,7 @@ export const searchAndRecallContacts = async (
   agentId: string,
   fromNumber: string,
   jobId: string,
-  day?: string,
+  tag: string,
 ) => {
   try {
     let contactStatusArray = ["called-NA-VM", "ringing"];
@@ -36,7 +36,7 @@ export const searchAndRecallContacts = async (
         agentId,
         status: { $in: contactStatusArray },
         isDeleted: { $ne: true },
-        dayToBeProcessed: day ? day : today,
+        tag:tag
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });

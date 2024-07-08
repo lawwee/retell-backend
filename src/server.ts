@@ -26,7 +26,12 @@ import axios from "axios";
 import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
-import { CustomLlmRequest, CustomLlmResponse, DaysToBeProcessedEnum, Ilogs } from "./types";
+import {
+  CustomLlmRequest,
+  CustomLlmResponse,
+  DaysToBeProcessedEnum,
+  Ilogs,
+} from "./types";
 import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
@@ -475,7 +480,15 @@ export class Server {
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
-        const { firstname, lastname, email, phone, agentId, tag,dayToBeProcessed } = req.body;
+        const {
+          firstname,
+          lastname,
+          email,
+          phone,
+          agentId,
+          tag,
+          dayToBeProcessed,
+        } = req.body;
         try {
           const result = await createContact(
             firstname,
@@ -484,7 +497,7 @@ export class Server {
             phone,
             agentId,
             tag,
-            dayToBeProcessed
+            dayToBeProcessed,
           );
           res.json({ result });
         } catch (error) {
@@ -599,7 +612,7 @@ export class Server {
           }
           const csvFile = req.file;
           const day = req.query.day;
-          const tag = req.query.tag
+          const tag = req.query.tag;
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -630,7 +643,7 @@ export class Server {
                         ...user,
                         dayToBeProcessed: day,
                         agentId,
-                        tag:tag
+                        tag: tag,
                       };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
@@ -713,7 +726,7 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber, day } = req.body;
+        const { hour, minute, agentId, limit, fromNumber, tag } = req.body;
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
           .set({
@@ -726,13 +739,16 @@ export class Server {
         const formattedDate = moment(scheduledTimePST).format(
           "YYYY-MM-DDTHH:mm:ss",
         );
+        if(!tag){
+          return res.send("Please provide a tag")
+        }
         const { jobId, scheduledTime, contacts } = await scheduleCronJob(
           scheduledTimePST,
           agentId,
           limit,
           fromNumber,
           formattedDate,
-          day,
+          tag,
         );
         res.send({ jobId, scheduledTime, contacts });
       },
@@ -1118,7 +1134,7 @@ export class Server {
               totalAppointment.length > 0 ? totalAppointment[0].result : 0,
             totalNotCalledForAgents,
             totalAnsweredByVm,
-            totalContactForAgents
+            totalContactForAgents,
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1671,7 +1687,7 @@ export class Server {
       async (req: Request, res: Response) => {
         try {
           const { agentId, options } = req.body;
-          console.log("here")
+          console.log("here");
           if (!agentId) {
             return res.json({ message: "Please provide agent id" });
           }
