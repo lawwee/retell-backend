@@ -38,7 +38,7 @@ export const scheduleCronJob = async (
     const today = getToday()
     const contactLimit = parseInt(limit);
     const contacts = await contactModel
-      .find({ agentId, status: "not called", isDeleted: { $ne: true } , tag: tag})
+      .find({ agentId, status: "not called", isDeleted: { $ne: true } , tag: tag ? tag : ""})
       .limit(contactLimit)
       .sort({ createdAt: "desc" })
 
