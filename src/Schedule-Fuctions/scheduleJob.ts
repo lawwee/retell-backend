@@ -18,7 +18,7 @@ export const scheduleCronJob = async (
   limit: string,
   fromNumber: string,
   formattedDate: string,
-  tag: string
+  tag?: string
 ) => {
   const jobId = uuidv4();
   try {
