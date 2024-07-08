@@ -630,7 +630,7 @@ export class Server {
                         ...user,
                         dayToBeProcessed: day,
                         agentId,
-                        tag
+                        tag:tag
                       };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
