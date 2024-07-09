@@ -613,6 +613,7 @@ export class Server {
           const csvFile = req.file;
           const day = req.query.day;
           const tag = req.query.tag;
+          const lowerCaseTag = typeof tag === 'string' ? tag.toLowerCase() : '';
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -643,7 +644,7 @@ export class Server {
                         ...user,
                         dayToBeProcessed: day,
                         agentId,
-                        tag: tag,
+                        tag: lowerCaseTag,
                       };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
@@ -727,6 +728,7 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber, tag } = req.body;
+       
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
           .set({
@@ -742,13 +744,15 @@ export class Server {
         if(!tag){
           return res.send("Please provide a tag")
         }
+
+        const lowerCaseTag = tag.toLowerCase();
         const { jobId, scheduledTime, contacts } = await scheduleCronJob(
           scheduledTimePST,
           agentId,
           limit,
           fromNumber,
           formattedDate,
-          tag,
+          lowerCaseTag,
         );
         res.send({ jobId, scheduledTime, contacts });
       },
