@@ -111,6 +111,7 @@ export class Server {
     });
 
     // this.testReetellWebsocket()
+    this.getFullStat()
     this.handleRetellLlmWebSocket();
     this.handleContactSaving();
     this.handlecontactDelete();
@@ -613,7 +614,7 @@ export class Server {
           const csvFile = req.file;
           const day = req.query.day;
           const tag = req.query.tag;
-          const lowerCaseTag = typeof tag === 'string' ? tag.toLowerCase() : '';
+          const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -728,7 +729,7 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber, tag } = req.body;
-       
+
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
           .set({
@@ -741,8 +742,8 @@ export class Server {
         const formattedDate = moment(scheduledTimePST).format(
           "YYYY-MM-DDTHH:mm:ss",
         );
-        if(!tag){
-          return res.send("Please provide a tag")
+        if (!tag) {
+          return res.send("Please provide a tag");
         }
 
         const lowerCaseTag = tag.toLowerCase();
@@ -1914,5 +1915,123 @@ export class Server {
         res.send(result);
       },
     );
+  }
+  getFullStat() {
+    this.app.post("/get-full-stat", async (req: Request, res: Response) => {
+      const { agentId } = req.body;
+      const foundContacts = await contactModel.find({
+        status: { $ne: "not called" },
+        isDeleted: false,
+      });
+      const totalCount = await contactModel.countDocuments({
+        agentId,
+        isDeleted: { $ne: true },
+      });
+      const totalContactForAgent = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+      });
+      const totalAnsweredCalls = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: callstatusenum.CALLED,
+      });
+      const totalNotCalledForAgent = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: callstatusenum.NOT_CALLED,
+      });
+      const totalAnsweredByVm = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: callstatusenum.VOICEMAIL,
+      });
+      const totalCalls = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: {
+          $in: [
+            callstatusenum.CALLED,
+            callstatusenum.VOICEMAIL,
+            callstatusenum.FAILED,
+          ],
+        },
+      });
+      const totalCallsTransffered = await contactModel.aggregate([
+        {
+          $match: {
+            agentId,
+            isDeleted: { $ne: true },
+          },
+        },
+        {
+          $lookup: {
+            from: "transcripts",
+            localField: "referenceToCallId",
+            foreignField: "_id",
+            as: "callDetails",
+          },
+        },
+        {
+          $match: {
+            "callDetails.disconnectionReason": "call_transfer",
+          },
+        },
+        {
+          $count: "result",
+        },
+      ]);
+      const totalAppointment = await contactModel.aggregate([
+        {
+          $match: {
+            agentId,
+            isDeleted: { $ne: true },
+          },
+        },
+        {
+          $lookup: {
+            from: "transcripts",
+            localField: "referenceToCallId",
+            foreignField: "_id",
+            as: "callDetails",
+          },
+        },
+        {
+          $match: {
+            "callDetails.analyzedTranscript": "Scheduled",
+          },
+        },
+        {
+          $count: "result",
+        },
+      ]);
+      const statsWithTranscripts = await Promise.all(
+        foundContacts.map(async (stat) => {
+          const transcript = stat.referenceToCallId?.transcript;
+          const analyzedTranscript = stat.referenceToCallId?.analyzedTranscript;
+          return {
+            ...stat.toObject(),
+            originalTranscript: transcript,
+            analyzedTranscript,
+          };
+        }),
+      );
+      const data =  {
+        totalContactForAgent,
+        totalAnsweredCalls,
+        totalNotCalledForAgent,
+        totalAnsweredByVm,
+        totalAppointment:
+          totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+        totalCallsTransffered:
+          totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
+        totalCalls,
+        contacts: statsWithTranscripts,
+      };
+      res.setHeader('Content-Disposition', 'attachment; filename=contacts.txt');
+      res.setHeader('Content-Type', 'text/plain');
+      
+      res.send(data)
+    });
   }
 }
