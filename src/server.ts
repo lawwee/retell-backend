@@ -26,7 +26,12 @@ import axios from "axios";
 import argon2 from "argon2";
 import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
-import { CustomLlmRequest, CustomLlmResponse, Ilogs } from "./types";
+import {
+  CustomLlmRequest,
+  CustomLlmResponse,
+  DaysToBeProcessedEnum,
+  Ilogs,
+} from "./types";
 import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
 import * as Papa from "papaparse";
 import fs from "fs";
@@ -106,7 +111,9 @@ export class Server {
     });
 
     // this.testReetellWebsocket()
+    this.getFullStat()
     this.handleRetellLlmWebSocket();
+    this.getAllDbTags()
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
@@ -475,7 +482,17 @@ export class Server {
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
-        const { firstname, lastname, email, phone, agentId } = req.body;
+        const {
+          firstname,
+          lastname,
+          email,
+          phone,
+          agentId,
+          tag,
+          dayToBeProcessed,
+        } = req.body;
+
+        const lowerCaseTags = typeof tag === "string" ? tag.toLowerCase() : "";
         try {
           const result = await createContact(
             firstname,
@@ -483,6 +500,8 @@ export class Server {
             email,
             phone,
             agentId,
+            lowerCaseTags,
+            dayToBeProcessed,
           );
           res.json({ result });
         } catch (error) {
@@ -597,6 +616,8 @@ export class Server {
           }
           const csvFile = req.file;
           const day = req.query.day;
+          const tag = req.query.tag;
+          const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
           Papa.parse(csvData, {
             header: true,
@@ -627,6 +648,7 @@ export class Server {
                         ...user,
                         dayToBeProcessed: day,
                         agentId,
+                        tag: lowerCaseTag,
                       };
                       successfulUsers.push(userWithAgentId);
                       uploadedNumber++;
@@ -709,7 +731,8 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber, day } = req.body;
+        const { hour, minute, agentId, limit, fromNumber, tag } = req.body;
+
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
           .set({
@@ -722,13 +745,18 @@ export class Server {
         const formattedDate = moment(scheduledTimePST).format(
           "YYYY-MM-DDTHH:mm:ss",
         );
+        if (!tag) {
+          return res.send("Please provide a tag");
+        }
+
+        const lowerCaseTag = tag.toLowerCase();
         const { jobId, scheduledTime, contacts } = await scheduleCronJob(
           scheduledTimePST,
           agentId,
           limit,
           fromNumber,
           formattedDate,
-          day,
+          lowerCaseTag,
         );
         res.send({ jobId, scheduledTime, contacts });
       },
@@ -1114,7 +1142,7 @@ export class Server {
               totalAppointment.length > 0 ? totalAppointment[0].result : 0,
             totalNotCalledForAgents,
             totalAnsweredByVm,
-            totalContactForAgents
+            totalContactForAgents,
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1290,6 +1318,7 @@ export class Server {
           statusOption,
           sentimentOption,
           agentId,
+          tag
         } = req.body;
 
         if (!agentId) {
@@ -1330,6 +1359,9 @@ export class Server {
                 $gte: startDate,
                 $lte: endDate,
               };
+            }
+            if(tag){
+              query["tag"] = tag
             }
 
             if (statusOption && statusOption !== "All") {
@@ -1661,12 +1693,13 @@ export class Server {
 
   returnContactsFromStats() {
     this.app.post(
-      "/users/populate",
+      "/user/populate",
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
         try {
           const { agentId, options } = req.body;
+          console.log("here");
           if (!agentId) {
             return res.json({ message: "Please provide agent id" });
           }
@@ -1684,12 +1717,12 @@ export class Server {
                   from: "transcripts",
                   localField: "referenceToCallId",
                   foreignField: "_id",
-                  as: "callDetails",
+                  as: "referenceToCallId",
                 },
               },
               {
                 $match: {
-                  "callDetails.disconnectionReason": "call_transfer",
+                  "referenceToCallId.disconnectionReason": "call_transfer",
                 },
               },
             ]);
@@ -1889,5 +1922,131 @@ export class Server {
         res.send(result);
       },
     );
+  }
+  getFullStat() {
+    this.app.post("/get-daily-report", authmiddleware,
+      isAdmin,async (req: Request, res: Response) => {
+      const { agentId } = req.body;
+      const foundContacts = await contactModel.find({
+        status: { $ne: "not called" },
+        isDeleted: false,
+      });
+      const totalCount = await contactModel.countDocuments({
+        agentId,
+        isDeleted: { $ne: true },
+      });
+      const totalContactForAgent = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+      });
+      const totalAnsweredCalls = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: callstatusenum.CALLED,
+      });
+      const totalNotCalledForAgent = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: callstatusenum.NOT_CALLED,
+      });
+      const totalAnsweredByVm = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: callstatusenum.VOICEMAIL,
+      });
+      const totalCalls = await contactModel.countDocuments({
+        agentId,
+        isDeleted: false,
+        status: {
+          $in: [
+            callstatusenum.CALLED,
+            callstatusenum.VOICEMAIL,
+            callstatusenum.FAILED,
+          ],
+        },
+      });
+      const totalCallsTransffered = await contactModel.aggregate([
+        {
+          $match: {
+            agentId,
+            isDeleted: { $ne: true },
+          },
+        },
+        {
+          $lookup: {
+            from: "transcripts",
+            localField: "referenceToCallId",
+            foreignField: "_id",
+            as: "callDetails",
+          },
+        },
+        {
+          $match: {
+            "callDetails.disconnectionReason": "call_transfer",
+          },
+        },
+        {
+          $count: "result",
+        },
+      ]);
+      const totalAppointment = await contactModel.aggregate([
+        {
+          $match: {
+            agentId,
+            isDeleted: { $ne: true },
+          },
+        },
+        {
+          $lookup: {
+            from: "transcripts",
+            localField: "referenceToCallId",
+            foreignField: "_id",
+            as: "callDetails",
+          },
+        },
+        {
+          $match: {
+            "callDetails.analyzedTranscript": "Scheduled",
+          },
+        },
+        {
+          $count: "result",
+        },
+      ]);
+      const statsWithTranscripts = await Promise.all(
+        foundContacts.map(async (stat) => {
+          const transcript = stat.referenceToCallId?.transcript;
+          const analyzedTranscript = stat.referenceToCallId?.analyzedTranscript;
+          return {
+            ...stat.toObject(),
+            originalTranscript: transcript,
+            analyzedTranscript,
+          };
+        }),
+      );
+      const data =  {
+        totalContactForAgent,
+        totalAnsweredCalls,
+        totalNotCalledForAgent,
+        totalAnsweredByVm,
+        totalAppointment:
+          totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+        totalCallsTransffered:
+          totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
+        totalCalls,
+        contacts: statsWithTranscripts,
+      };
+      res.setHeader('Content-Disposition', 'attachment; filename=contacts.txt');
+      res.setHeader('Content-Type', 'text/plain');
+
+      res.send(data)
+    });
+  }
+  getAllDbTags(){
+    this.app.get("/get-tags",authmiddleware,
+      isAdmin, async(req: Request, res: Response)=>{
+      const foundTags = await contactModel.distinct("tag")
+      res.send(foundTags)
+    })
   }
 }

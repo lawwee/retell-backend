@@ -31,6 +31,7 @@ export interface IContact {
   datesCalled: string[];
   answeredByVM: boolean;
   dayToBeProcessed: string
+  tag: string
 }
 
 export enum DaysToBeProcessedEnum{
@@ -40,7 +41,9 @@ export enum DaysToBeProcessedEnum{
   THURSDAY = "thursday",
   FRIDAY = "friday",
   SATURDAY = "saturday",
-  SUNDAY = "sunday"
+  SUNDAY = "sunday",
+  Quickbase_List_1 ="“Quickbase_List_1”"
+
 }
 export enum callstatusenum {
   QUEUED = "queued",

@@ -8,28 +8,29 @@ import Retell from "retell-sdk";
 
 const retell = new Retell({
   apiKey: process.env.RETELL_API_KEY,
-});
-interface totalAppointmentInterface {
-  result: number;
-}
-
+})
 export const createContact = async (
   firstname: string,
   lastname: string,
   email: string,
   phone: string,
   agentId: string,
+  lowerCaseTags: string,
+  dayToBeProcessed?: string
 ): Promise<IContact | string> => {
   try {
     if (!firstname || !email || !phone) {
       return "Missing required fields";
     }
+    
     const createdContact = await contactModel.create({
       firstname,
       lastname,
       email,
       phone,
       agentId,
+      tags: lowerCaseTags,
+      dayToBeProcessed
     });
     return createdContact;
   } catch (error) {
@@ -88,76 +89,6 @@ export const getAllContact = async (
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
     });
-
-    let failed = 21;
-    // const totalCallsFailed = await contactModel.countDocuments({
-    //   agentId,
-    //   isDeleted: false,
-    //   status: callstatusenum.FAILED,
-    // });
-
-    // let usersEmailToPush = []
-    // let usersIdToPush = []
-    // let usersToPushs = 0
-    // const contacts = await contactModel.find({ isDeleted: false, agentId:"214e92da684138edf44368d371da764c" });
-
-    // try {
-    //   for (const contact of contacts) {
-    //     if (!contact.callId) {
-    //       // Skip users without a callId
-    //       continue;
-    //     }
-
-    //     const callId = contact.callId;
-    //     const result = await axios.get(
-    //       `https://api.retellai.com/get-call/${callId}`,
-    //       {
-    //         headers: {
-    //           Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
-    //         },
-    //       },
-    //     );
-    //     // Check if Retell returns an object and its disconnection reason is "dial_failed"
-    //     if ( result.data.disconnection_reason === "dial_failed") {
-    //       // If so, push the corresponding contact object to the array
-    //       console.log(contact.email)
-    //       console.log(contact._id)
-    //       usersEmailToPush.push(contact.email)
-    //       usersIdToPush.push(contact._id)
-    //       usersToPushs++
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error("Error occurred while fetching data:", error);
-    // }
-
-    // let countForFailed = 397;
-    // function getStartOfDayTimestamp() {
-    //   const date = new Date(); // Get current date and time
-    //   date.setHours(0, 0, 0, 0); // Set time to 00:00:00:000
-    //   return date.getTime(); // Get timestamp
-    // }
-
-    // // Function to get the timestamp for the end of the day
-    // function getEndOfDayTimestamp() {
-    //   const date = new Date(); // Get current date and time
-    //   date.setHours(23, 59, 59, 999); // Set time to 23:59:59:999
-    //   return date.getTime(); // Get timestamp
-    // }
-
-    // // Example usage
-    // const startOfDayTimestamp = getStartOfDayTimestamp();
-    // const endOfDayTimestamp = getEndOfDayTimestamp();
-    // const result = await axios.get(`https://api.retellai.com/list-call`, {
-    //   headers: {
-    //     Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
-    //   },
-    //   params: {
-    //     after_start_timestamp: startOfDayTimestamp,
-    //     before_end_timestamp: endOfDayTimestamp,
-    //   },
-    // });
-
     const totalAnsweredByVm = await contactModel.countDocuments({
       agentId,
       isDeleted: false,

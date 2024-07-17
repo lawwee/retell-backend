@@ -26,6 +26,7 @@ export const logsToCsv = async (
         callStatus = callstatusenum.NOT_CALLED;
       } else if (statusOption === "vm") {
         callStatus = callstatusenum.VOICEMAIL;
+        
       } else if (statusOption === "Failed") {
         callStatus = callstatusenum.FAILED;
       }
