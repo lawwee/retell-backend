@@ -113,6 +113,7 @@ export class Server {
     // this.testReetellWebsocket()
     this.getFullStat()
     this.handleRetellLlmWebSocket();
+    this.getAllDbTags()
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
@@ -1923,7 +1924,7 @@ export class Server {
     );
   }
   getFullStat() {
-    this.app.post("/get-full-stat", async (req: Request, res: Response) => {
+    this.app.post("/get-daily-report", async (req: Request, res: Response) => {
       const { agentId } = req.body;
       const foundContacts = await contactModel.find({
         status: { $ne: "not called" },
@@ -2039,5 +2040,11 @@ export class Server {
 
       res.send(data)
     });
+  }
+  getAllDbTags(){
+    this.app.get("/get-tags", async(req: Request, res: Response)=>{
+      const foundTags = await contactModel.distinct("tag")
+      res.send(foundTags)
+    })
   }
 }
