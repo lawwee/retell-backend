@@ -1924,7 +1924,8 @@ export class Server {
     );
   }
   getFullStat() {
-    this.app.post("/get-daily-report", async (req: Request, res: Response) => {
+    this.app.post("/get-daily-report", authmiddleware,
+      isAdmin,async (req: Request, res: Response) => {
       const { agentId } = req.body;
       const foundContacts = await contactModel.find({
         status: { $ne: "not called" },
@@ -2042,7 +2043,8 @@ export class Server {
     });
   }
   getAllDbTags(){
-    this.app.get("/get-tags", async(req: Request, res: Response)=>{
+    this.app.get("/get-tags",authmiddleware,
+      isAdmin, async(req: Request, res: Response)=>{
       const foundTags = await contactModel.distinct("tag")
       res.send(foundTags)
     })
