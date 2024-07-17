@@ -490,6 +490,8 @@ export class Server {
           tag,
           dayToBeProcessed,
         } = req.body;
+
+        const lowerCaseTags = typeof tag === "string" ? tag.toLowerCase() : "";
         try {
           const result = await createContact(
             firstname,
@@ -497,7 +499,7 @@ export class Server {
             email,
             phone,
             agentId,
-            tag,
+            lowerCaseTags,
             dayToBeProcessed,
           );
           res.json({ result });
@@ -1315,6 +1317,7 @@ export class Server {
           statusOption,
           sentimentOption,
           agentId,
+          tag
         } = req.body;
 
         if (!agentId) {
@@ -1355,6 +1358,9 @@ export class Server {
                 $gte: startDate,
                 $lte: endDate,
               };
+            }
+            if(tag){
+              query["tag"] = tag
             }
 
             if (statusOption && statusOption !== "All") {
@@ -2030,7 +2036,7 @@ export class Server {
       };
       res.setHeader('Content-Disposition', 'attachment; filename=contacts.txt');
       res.setHeader('Content-Type', 'text/plain');
-      
+
       res.send(data)
     });
   }

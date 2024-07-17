@@ -15,7 +15,7 @@ export const createContact = async (
   email: string,
   phone: string,
   agentId: string,
-  tag?: string,
+  lowerCaseTags: string,
   dayToBeProcessed?: string
 ): Promise<IContact | string> => {
   try {
@@ -29,7 +29,7 @@ export const createContact = async (
       email,
       phone,
       agentId,
-      tag,
+      tags: lowerCaseTags,
       dayToBeProcessed
     });
     return createdContact;
