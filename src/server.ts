@@ -111,9 +111,9 @@ export class Server {
     });
 
     // this.testReetellWebsocket()
-    this.getFullStat()
+    this.getFullStat();
     this.handleRetellLlmWebSocket();
-    this.getAllDbTags()
+    this.getAllDbTags();
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
@@ -1318,7 +1318,7 @@ export class Server {
           statusOption,
           sentimentOption,
           agentId,
-          tag
+          tag,
         } = req.body;
 
         if (!agentId) {
@@ -1354,14 +1354,19 @@ export class Server {
                   ],
             };
 
-            if (startDate && endDate) {
+            if (startDate) {
               query["datesCalled"] = {
                 $gte: startDate,
+              };
+            }
+
+            if (endDate) {
+              query["datesCalled"] = {
                 $lte: endDate,
               };
             }
-            if(tag){
-              query["tag"] = tag
+            if (tag) {
+              query["tag"] = tag;
             }
 
             if (statusOption && statusOption !== "All") {
@@ -1924,129 +1929,143 @@ export class Server {
     );
   }
   getFullStat() {
-    this.app.post("/get-daily-report", authmiddleware,
-      isAdmin,async (req: Request, res: Response) => {
-      const { agentId } = req.body;
-      const foundContacts = await contactModel.find({
-        status: { $ne: "not called" },
-        isDeleted: false,
-      });
-      const totalCount = await contactModel.countDocuments({
-        agentId,
-        isDeleted: { $ne: true },
-      });
-      const totalContactForAgent = await contactModel.countDocuments({
-        agentId,
-        isDeleted: false,
-      });
-      const totalAnsweredCalls = await contactModel.countDocuments({
-        agentId,
-        isDeleted: false,
-        status: callstatusenum.CALLED,
-      });
-      const totalNotCalledForAgent = await contactModel.countDocuments({
-        agentId,
-        isDeleted: false,
-        status: callstatusenum.NOT_CALLED,
-      });
-      const totalAnsweredByVm = await contactModel.countDocuments({
-        agentId,
-        isDeleted: false,
-        status: callstatusenum.VOICEMAIL,
-      });
-      const totalCalls = await contactModel.countDocuments({
-        agentId,
-        isDeleted: false,
-        status: {
-          $in: [
-            callstatusenum.CALLED,
-            callstatusenum.VOICEMAIL,
-            callstatusenum.FAILED,
-          ],
-        },
-      });
-      const totalCallsTransffered = await contactModel.aggregate([
-        {
-          $match: {
-            agentId,
-            isDeleted: { $ne: true },
+    this.app.post(
+      "/get-daily-report",
+      authmiddleware,
+      isAdmin,
+      async (req: Request, res: Response) => {
+        const { agentId } = req.body;
+        const foundContacts = await contactModel.find({
+          status: { $ne: "not called" },
+          isDeleted: false,
+        });
+        const totalCount = await contactModel.countDocuments({
+          agentId,
+          isDeleted: { $ne: true },
+        });
+        const totalContactForAgent = await contactModel.countDocuments({
+          agentId,
+          isDeleted: false,
+        });
+        const totalAnsweredCalls = await contactModel.countDocuments({
+          agentId,
+          isDeleted: false,
+          status: callstatusenum.CALLED,
+        });
+        const totalNotCalledForAgent = await contactModel.countDocuments({
+          agentId,
+          isDeleted: false,
+          status: callstatusenum.NOT_CALLED,
+        });
+        const totalAnsweredByVm = await contactModel.countDocuments({
+          agentId,
+          isDeleted: false,
+          status: callstatusenum.VOICEMAIL,
+        });
+        const totalCalls = await contactModel.countDocuments({
+          agentId,
+          isDeleted: false,
+          status: {
+            $in: [
+              callstatusenum.CALLED,
+              callstatusenum.VOICEMAIL,
+              callstatusenum.FAILED,
+            ],
           },
-        },
-        {
-          $lookup: {
-            from: "transcripts",
-            localField: "referenceToCallId",
-            foreignField: "_id",
-            as: "callDetails",
+        });
+        const totalCallsTransffered = await contactModel.aggregate([
+          {
+            $match: {
+              agentId,
+              isDeleted: { $ne: true },
+            },
           },
-        },
-        {
-          $match: {
-            "callDetails.disconnectionReason": "call_transfer",
+          {
+            $lookup: {
+              from: "transcripts",
+              localField: "referenceToCallId",
+              foreignField: "_id",
+              as: "callDetails",
+            },
           },
-        },
-        {
-          $count: "result",
-        },
-      ]);
-      const totalAppointment = await contactModel.aggregate([
-        {
-          $match: {
-            agentId,
-            isDeleted: { $ne: true },
+          {
+            $match: {
+              "callDetails.disconnectionReason": "call_transfer",
+            },
           },
-        },
-        {
-          $lookup: {
-            from: "transcripts",
-            localField: "referenceToCallId",
-            foreignField: "_id",
-            as: "callDetails",
+          {
+            $count: "result",
           },
-        },
-        {
-          $match: {
-            "callDetails.analyzedTranscript": "Scheduled",
+        ]);
+        const totalAppointment = await contactModel.aggregate([
+          {
+            $match: {
+              agentId,
+              isDeleted: { $ne: true },
+            },
           },
-        },
-        {
-          $count: "result",
-        },
-      ]);
-      const statsWithTranscripts = await Promise.all(
-        foundContacts.map(async (stat) => {
-          const transcript = stat.referenceToCallId?.transcript;
-          const analyzedTranscript = stat.referenceToCallId?.analyzedTranscript;
-          return {
-            ...stat.toObject(),
-            originalTranscript: transcript,
-            analyzedTranscript,
-          };
-        }),
-      );
-      const data =  {
-        totalContactForAgent,
-        totalAnsweredCalls,
-        totalNotCalledForAgent,
-        totalAnsweredByVm,
-        totalAppointment:
-          totalAppointment.length > 0 ? totalAppointment[0].result : 0,
-        totalCallsTransffered:
-          totalCallsTransffered.length > 0 ? totalCallsTransffered[0].result : 0,
-        totalCalls,
-        contacts: statsWithTranscripts,
-      };
-      res.setHeader('Content-Disposition', 'attachment; filename=contacts.txt');
-      res.setHeader('Content-Type', 'text/plain');
+          {
+            $lookup: {
+              from: "transcripts",
+              localField: "referenceToCallId",
+              foreignField: "_id",
+              as: "callDetails",
+            },
+          },
+          {
+            $match: {
+              "callDetails.analyzedTranscript": "Scheduled",
+            },
+          },
+          {
+            $count: "result",
+          },
+        ]);
+        const statsWithTranscripts = await Promise.all(
+          foundContacts.map(async (stat) => {
+            const transcript = stat.referenceToCallId?.transcript;
+            const analyzedTranscript =
+              stat.referenceToCallId?.analyzedTranscript;
+            return {
+              ...stat.toObject(),
+              originalTranscript: transcript,
+              analyzedTranscript,
+            };
+          }),
+        );
+        const data = {
+          totalContactForAgent,
+          totalAnsweredCalls,
+          totalNotCalledForAgent,
+          totalAnsweredByVm,
+          totalAppointment:
+            totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+          totalCallsTransffered:
+            totalCallsTransffered.length > 0
+              ? totalCallsTransffered[0].result
+              : 0,
+          totalCalls,
+          contacts: statsWithTranscripts,
+        };
+        res.setHeader(
+          "Content-Disposition",
+          "attachment; filename=contacts.txt",
+        );
+        res.setHeader("Content-Type", "text/plain");
 
-      res.send(data)
-    });
+        res.send(data);
+      },
+    );
   }
-  getAllDbTags(){
-    this.app.get("/get-tags",authmiddleware,
-      isAdmin, async(req: Request, res: Response)=>{
-      const foundTags = await contactModel.distinct("tag")
-      res.send(foundTags)
-    })
+  getAllDbTags() {
+    this.app.get(
+      "/get-tags",
+      authmiddleware,
+      isAdmin,
+      async (req: Request, res: Response) => {
+        const foundTags = await contactModel.distinct("tag");
+        res.send(foundTags);
+      },
+    );
   }
 }
