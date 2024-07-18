@@ -1309,8 +1309,6 @@ export class Server {
   searchForUser() {
     this.app.post(
       "/search",
-      authmiddleware,
-      isAdmin,
       async (req: Request, res: Response) => {
         const {
           searchTerm = "",
@@ -1355,13 +1353,21 @@ export class Server {
                   ],
             };
 
+            const formatDateToDB = (dateString: any) => {
+              const date = new Date(dateString);
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
+              const day = String(date.getUTCDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            };
+            
             if (startDate || endDate) {
               query["datesCalled"] = {};
               if (startDate) {
-                query["datesCalled"]["$gte"] = startDate
+                query["datesCalled"]["$gte"] = formatDateToDB(startDate);
               }
               if (endDate) {
-                query["datesCalled"]["$lte"] = endDate
+                query["datesCalled"]["$lte"] = formatDateToDB(endDate);
               }
             }
             
