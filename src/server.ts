@@ -1310,6 +1310,7 @@ export class Server {
     this.app.post(
       "/search",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const {
           searchTerm = "",
@@ -1354,17 +1355,16 @@ export class Server {
                   ],
             };
 
-            if (startDate) {
-              query["datesCalled"] = {
-                $gte: startDate,
-              };
+            if (startDate || endDate) {
+              query["datesCalled"] = {};
+              if (startDate) {
+                query["datesCalled"]["$gte"] = startDate
+              }
+              if (endDate) {
+                query["datesCalled"]["$lte"] = endDate
+              }
             }
-
-            if (endDate) {
-              query["datesCalled"] = {
-                $lte: endDate,
-              };
-            }
+            
             if (tag) {
               query["tag"] = tag;
             }
