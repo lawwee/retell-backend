@@ -515,7 +515,7 @@ export class Server {
   handlecontactGet() {
     this.app.post(
       "/users/:agentId",
-      authmiddleware,
+      
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const { page, limit, dateOption } = req.body;
@@ -523,8 +523,16 @@ export class Server {
         const newLimit = parseInt(limit);
 
         // Validate dateOption
-        if (!Object.values(DateOption).includes(dateOption)) {
-          return res.status(400).json({ error: "Invalid date option" });
+        let validDateOption: DateOption;
+
+        // Validate dateOption
+        if (dateOption) {
+          if (!Object.values(DateOption).includes(dateOption)) {
+            return res.status(400).json({ error: "Invalid date option" });
+          }
+          validDateOption = dateOption as DateOption;
+        } else {
+          validDateOption = DateOption.Yesterday;
         }
 
         try {
@@ -532,7 +540,7 @@ export class Server {
             agentId,
             newPage,
             newLimit,
-            dateOption as DateOption,
+            validDateOption 
           );
           res.json({ result });
         } catch (error) {
