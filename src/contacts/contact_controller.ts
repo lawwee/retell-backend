@@ -70,7 +70,6 @@ export const getAllContact = async (
     const now = new Date();
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
-    console.log(today)
 
     switch (dateOption) {
       case DateOption.Today:
