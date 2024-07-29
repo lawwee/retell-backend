@@ -1,7 +1,7 @@
 import { populate } from "dotenv";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { DateOption, IContact, callstatusenum } from "../types";
-import { contactModel } from "./contact_model";
+import { contactModel, jobModel } from "./contact_model";
 import { Document } from "mongoose";
 import axios from "axios";
 import Retell from "retell-sdk";
@@ -71,9 +71,15 @@ export const getAllContact = async (
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
 
+    console.log(dateOption)
     switch (dateOption) {
       case DateOption.Today:
-        dateFilter = { datesCalled: today };
+        const recentJob = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
+        if (!recentJob) {
+          return "No jobs found for today's filter.";
+        }
+        console.log(recentJob.jobId)
+        dateFilter = { jobProcessedWithId: recentJob.jobId };
         break;
       case DateOption.Yesterday:
         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
@@ -81,10 +87,18 @@ export const getAllContact = async (
         dateFilter = { datesCalled: yesterday };
         break;
       case DateOption.ThisWeek:
-        const zonedLastWeek = toZonedTime(subDays(now, 5), timeZone);
-        const lastWeek = format(zonedLastWeek, "yyyy-MM-dd", { timeZone });
-        dateFilter = { datesCalled: { $gte: lastWeek } };
+        const pastDays = [];
+        for (let i = 1; pastDays.length < 5; i++) {
+          const day = subDays(now, i);
+          const dayOfWeek = day.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Exclude weekends
+            pastDays.push(format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }));
+          }
+        }
+        console.log(pastDays)
+        dateFilter = { datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today } };
         break;
+
       case DateOption.ThisMonth:
         const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
         const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
@@ -96,7 +110,13 @@ export const getAllContact = async (
         dateFilter = {}; // No date filter
         break;
       default:
-        dateFilter = { datesCalled: today }; // Default to today
+
+      const recentJob1 = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
+      if (!recentJob1) {
+        return "No jobs found for today's filter.";
+      }
+      console.log(recentJob1.jobId)
+      dateFilter = { jobProcessedWithId: recentJob1.jobId };
         break;
     }
 

@@ -30,12 +30,6 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
     });
-    function getToday(){
-      const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"]
-      const today = new Date().getDay()
-      return days[today]
-    }
-    const today = getToday()
     const contactLimit = parseInt(limit);
     const contacts = await contactModel
       .find({ agentId, status: "not called", isDeleted: { $ne: true } , tag: lowerCaseTag ? lowerCaseTag : ""})
@@ -102,6 +96,7 @@ export const scheduleCronJob = async (
               });
               await contactModel.findByIdAndUpdate(contact._id, {
                 callId: registerCallResponse2.call_id,
+                $push:{jobProcessedWithId: jobId}
               });
             } catch (error) {
               console.log("This is the error:", error);

@@ -32,6 +32,7 @@ export interface IContact {
   answeredByVM: boolean;
   dayToBeProcessed: string
   tag: string
+  jobProcessedWithId: string[]
 }
 
 export enum DaysToBeProcessedEnum{
