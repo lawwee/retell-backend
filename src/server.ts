@@ -515,6 +515,7 @@ export class Server {
   handlecontactGet() {
     this.app.post(
       "/users/:agentId",
+      authmiddleware,
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const { page, limit, dateOption } = req.body;
@@ -531,7 +532,7 @@ export class Server {
           }
           validDateOption = dateOption as DateOption;
         } else {
-          validDateOption = DateOption.Today;
+          validDateOption = DateOption.LAST_SCHEDULE;
         }
 
         try {

@@ -188,4 +188,5 @@ export enum DateOption {
   ThisWeek = 'week',
   ThisMonth = 'month',
   Total = 'total',
+  LAST_SCHEDULE = "last-schedule"
 }
