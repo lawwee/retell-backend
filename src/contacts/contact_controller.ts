@@ -74,12 +74,7 @@ export const getAllContact = async (
 
     switch (dateOption) {
       case DateOption.Today:
-        const recentJob = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
-        if (!recentJob) {
-          return "No jobs found for today's filter.";
-        }
-        const dateToCheck = recentJob.scheduledTime.split('T')[0];
-        dateFilter = { datesCalled: dateToCheck };
+        dateFilter = { datesCalled: today };
         break;
       case DateOption.Yesterday:
         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
@@ -110,18 +105,20 @@ export const getAllContact = async (
         dateFilter = {}; // No date filter
         break;
       case DateOption.LAST_SCHEDULE:
-        const recentJob2 = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
-        if (!recentJob2) {
+        const recentJob = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
+        if (!recentJob) {
           return "No jobs found for today's filter.";
         }
-        dateFilter = {jobProcessedWithId : recentJob2.jobId };
+        const dateToCheck = recentJob.scheduledTime.split('T')[0];
+        dateFilter = { datesCalled: dateToCheck };
         break;
       default:
-      const recentJob1 = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
-      if (!recentJob1) {
-        return "No jobs found for today's filter.";
-      }
-      dateFilter = { jobProcessedWithId: recentJob1.jobId };
+        const recentJob1 = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
+        if (!recentJob1) {
+          return "No jobs found for today's filter.";
+        }
+        const dateToCheck1 = recentJob1.scheduledTime.split('T')[0];
+        dateFilter = { datesCalled: dateToCheck };
         break;
     }
 
