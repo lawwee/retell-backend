@@ -544,6 +544,12 @@ export class Server {
         if (!agentId || !fromNumber || !toNumber || !userId) {
           return res.json({ status: "error", message: "Invalid request" });
         }
+        function formatPhoneNumber(phoneNumber: any) {
+          // Remove any existing "+" and non-numeric characters
+          const digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+          return `+1${digitsOnly}`;
+        }
+        const newToNumber = formatPhoneNumber(toNumber);
         try {
           await this.twilioClient.RegisterPhoneAgent(
             fromNumber,
@@ -552,7 +558,7 @@ export class Server {
           );
           const result = await this.twilioClient.CreatePhoneCall(
             fromNumber,
-            toNumber,
+            newToNumber,
             agentId,
             userId,
           );
@@ -1057,11 +1063,10 @@ export class Server {
       call_analysis,
     } = payload.data;
     const analyzedTranscript = await reviewTranscript(transcript);
-    const isCallFailed =
-      disconnection_reason === "dial_failed" || "dial_no_answer";
+    const isCallFailed = disconnection_reason === "dial_failed";
     const isCallTransferred = disconnection_reason === "call_transfer";
     const isMachine = disconnection_reason === "machine_detected";
-
+    const isDialNoAnswer = disconnection_reason === "dial_no_answer";
     const updateData = {
       callId: call_id,
       recordingUrl: recording_url,
@@ -1090,6 +1095,8 @@ export class Server {
       callStatus = callstatusenum.TRANSFERRED;
     } else if (analyzedTranscript.message.content === "Scheduled") {
       callStatus = callstatusenum.SCHEDULED;
+    } else if (isDialNoAnswer) {
+      callStatus = "dial_no_answer";
     } else {
       callStatus = callstatusenum.CALLED;
     }

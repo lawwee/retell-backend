@@ -69,6 +69,22 @@ export const scheduleCronJob = async (
               userId: contact._id.toString(),
               agentId,
             };
+
+            function formatPhoneNumber(phoneNumber:any) {
+              // Remove any existing "+" and non-numeric characters
+              const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+              return `+1${digitsOnly}`
+          }
+          
+          // const originalPhoneNumber1 = "(805) 0930-093";
+          // const originalPhoneNumber2 = "+(805) 0930-093";
+          
+          // const formattedPhoneNumber1 = formatPhoneNumber(originalPhoneNumber1);
+          // const formattedPhoneNumber2 = formatPhoneNumber(originalPhoneNumber2);
+          
+          // console.log(formattedPhoneNumber1); // Output: +8050930093
+          // console.log(formattedPhoneNumber2); // Output: +8050930093
+          
             // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
             // await twilioClient.CreatePhoneCall(
             //   postdata.fromNumber,
@@ -82,14 +98,14 @@ export const scheduleCronJob = async (
                 sample_rate: 24000,
                 end_call_after_silence_ms: 15000,
               });
+              const newToNumber = formatPhoneNumber(postdata.toNumber)
               const registerCallResponse2 = await retellClient.call.create({
                 from_number: fromNumber,
-                to_number: postdata.toNumber,
+                to_number: newToNumber,
                 override_agent_id: agentId,
                 drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {
                   firstname: contact.firstname,
-
                   email: contact.email,
                 },
               });
