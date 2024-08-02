@@ -536,8 +536,7 @@ export class Server {
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
-      isAdmin,
-      authmiddleware,
+     
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agentId;
@@ -550,6 +549,7 @@ export class Server {
           return `+1${digitsOnly}`;
         }
         const newToNumber = formatPhoneNumber(toNumber);
+        console.log(newToNumber)
         try {
           await this.twilioClient.RegisterPhoneAgent(
             fromNumber,
@@ -1120,8 +1120,8 @@ export class Server {
         status: callStatus,
         $push: { datesCalled: todayString },
         referenceToCallId: results._id,
-        linktocallLogModel: statsResults.upsertedId
-          ? statsResults.upsertedId._id
+        linktocallLogModel: statsResults
+          ? statsResults._id
           : null,
       },
     );

@@ -133,7 +133,7 @@ export const scheduleCronJob = async (
               }`,
             );
           }
-          await new Promise((resolve) => setTimeout(resolve, 8000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
         console.log("Contacts processed will start recall");
         await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId, lowerCaseTag);
