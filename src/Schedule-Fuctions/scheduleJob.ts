@@ -72,8 +72,6 @@ export const scheduleCronJob = async (
             // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
             // await twilioClient.CreatePhoneCall(
             //   postdata.fromNumber,
-            //   postdata.toNumber,
-            //   postdata.agentId,
             //   postdata.userId,
             // );
             try {
@@ -91,6 +89,7 @@ export const scheduleCronJob = async (
                 drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {
                   firstname: contact.firstname,
+
                   email: contact.email,
                 },
               });

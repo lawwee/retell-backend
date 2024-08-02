@@ -46,7 +46,7 @@ export const getAllContact = async (
   agentId: string,
   page: number,
   limit: number,
-  dateOption: DateOption = DateOption.LAST_SCHEDULE
+  dateOption: DateOption = DateOption.LAST_SCHEDULE,
 ): Promise<
   | {
       contacts: ContactDocument[];
@@ -71,7 +71,6 @@ export const getAllContact = async (
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
 
-
     switch (dateOption) {
       case DateOption.Today:
         dateFilter = { datesCalled: today };
@@ -86,12 +85,17 @@ export const getAllContact = async (
         for (let i = 1; pastDays.length < 5; i++) {
           const day = subDays(now, i);
           const dayOfWeek = day.getDay();
-          if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Exclude weekends
-            pastDays.push(format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }));
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            // Exclude weekends
+            pastDays.push(
+              format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
+            );
           }
         }
-        console.log(pastDays)
-        dateFilter = { datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today } };
+        console.log(pastDays);
+        dateFilter = {
+          datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
+        };
         break;
 
       case DateOption.ThisMonth:
@@ -105,25 +109,31 @@ export const getAllContact = async (
         dateFilter = {}; // No date filter
         break;
       case DateOption.LAST_SCHEDULE:
-        const recentJob = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
+        const recentJob = await jobModel
+          .findOne({})
+          .sort({ createdAt: -1 })
+          .lean();
         if (!recentJob) {
           return "No jobs found for today's filter.";
         }
-        const dateToCheck = recentJob.scheduledTime.split('T')[0];
-        dateFilter = { datesCalled: dateToCheck };
+        const dateToCheck = recentJob.scheduledTime.split("T")[0];
+        dateFilter = { datesCalled: { $gte: dateToCheck } };
         break;
       default:
-        const recentJob1 = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
+        const recentJob1 = await jobModel
+          .findOne({})
+          .sort({ createdAt: -1 })
+          .lean();
         if (!recentJob1) {
           return "No jobs found for today's filter.";
         }
-        const dateToCheck1 = recentJob1.scheduledTime.split('T')[0];
-        dateFilter = { datesCalled: dateToCheck };
+        const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+        dateFilter = { datesCalled: { $gte: dateToCheck1 } };
         break;
     }
 
     const foundContacts = await contactModel
-      .find({ agentId, isDeleted: { $ne: true }, ...dateFilter })
+      .find({ agentId, isDeleted: false, ...dateFilter })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
       .skip(skip)
