@@ -73,7 +73,7 @@ export const scheduleCronJob = async (
             function formatPhoneNumber(phoneNumber:any) {
               // Remove any existing "+" and non-numeric characters
               const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
-              return `+1${digitsOnly}`
+              return `+${digitsOnly}`
           }
           
           // const originalPhoneNumber1 = "(805) 0930-093";
