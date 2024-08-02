@@ -1119,10 +1119,7 @@ export class Server {
       {
         status: callStatus,
         $push: { datesCalled: todayString },
-        referenceToCallId: results._id,
-        linktocallLogModel: statsResults.upsertedId
-          ? statsResults.upsertedId._id
-          : null,
+
       },
     );
   }
