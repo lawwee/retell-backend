@@ -30,12 +30,6 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
     });
-    function getToday(){
-      const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"]
-      const today = new Date().getDay()
-      return days[today]
-    }
-    const today = getToday()
     const contactLimit = parseInt(limit);
     const contacts = await contactModel
       .find({ agentId, status: "not called", isDeleted: { $ne: true } , tag: lowerCaseTag ? lowerCaseTag : ""})
@@ -75,11 +69,25 @@ export const scheduleCronJob = async (
               userId: contact._id.toString(),
               agentId,
             };
+
+            function formatPhoneNumber(phoneNumber:any) {
+              // Remove any existing "+" and non-numeric characters
+              const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+              return `+${digitsOnly}`
+          }
+          
+          // const originalPhoneNumber1 = "(805) 0930-093";
+          // const originalPhoneNumber2 = "+(805) 0930-093";
+          
+          // const formattedPhoneNumber1 = formatPhoneNumber(originalPhoneNumber1);
+          // const formattedPhoneNumber2 = formatPhoneNumber(originalPhoneNumber2);
+          
+          // console.log(formattedPhoneNumber1); // Output: +8050930093
+          // console.log(formattedPhoneNumber2); // Output: +8050930093
+          
             // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
             // await twilioClient.CreatePhoneCall(
             //   postdata.fromNumber,
-            //   postdata.toNumber,
-            //   postdata.agentId,
             //   postdata.userId,
             // );
             try {
@@ -90,9 +98,10 @@ export const scheduleCronJob = async (
                 sample_rate: 24000,
                 end_call_after_silence_ms: 15000,
               });
+              const newToNumber = formatPhoneNumber(postdata.toNumber)
               const registerCallResponse2 = await retellClient.call.create({
                 from_number: fromNumber,
-                to_number: postdata.toNumber,
+                to_number: newToNumber,
                 override_agent_id: agentId,
                 drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {
@@ -102,6 +111,7 @@ export const scheduleCronJob = async (
               });
               await contactModel.findByIdAndUpdate(contact._id, {
                 callId: registerCallResponse2.call_id,
+                $push:{jobProcessedWithId: jobId}
               });
             } catch (error) {
               console.log("This is the error:", error);
@@ -123,7 +133,7 @@ export const scheduleCronJob = async (
               }`,
             );
           }
-          await new Promise((resolve) => setTimeout(resolve, 8000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
         console.log("Contacts processed will start recall");
         await searchAndRecallContacts(contactLimit, agentId, fromNumber, jobId, lowerCaseTag);

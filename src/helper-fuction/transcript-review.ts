@@ -13,7 +13,7 @@ const client = new OpenAI({
           {"role": "user", "content": `Please categorize the following interactions into the categories: Uninterested, Interested, Scheduled, Voicemail, Incomplete call, Call back. Just go straight to the point and respond with only the option, if an empty string is giving or nothing is passed as the transcript return "No Analyzed Transcript available" Transcript: ${transcript}`}
         ],
         // model: "gpt-4-turbo-preview",
-        model:"gpt-4o",
+        model:"gpt-4o-mini",
       });
   
       return completion.choices[0];

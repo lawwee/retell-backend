@@ -32,6 +32,7 @@ export interface IContact {
   answeredByVM: boolean;
   dayToBeProcessed: string
   tag: string
+  jobProcessedWithId: string[]
 }
 
 export enum DaysToBeProcessedEnum{
@@ -55,6 +56,8 @@ export enum callstatusenum {
   VOICEMAIL = "called-NA-VM",
   CANCELED = "canceled",
   NOT_CALLED = "not called",
+  TRANSFERRED = "call-transferred",
+  SCHEDULED = "scheduled"
 }
 
 export interface Itranscript {
@@ -177,4 +180,13 @@ export interface transcriptEnum {
   VOICEMAIL: "Voicemail";
   INCOMPLETE_CALL: "Incomplete call";
   CALL_BACK: "Call back";
+}
+
+export enum DateOption {
+  Today = 'today',
+  Yesterday = 'yesterday',
+  ThisWeek = 'week',
+  ThisMonth = 'month',
+  Total = 'total',
+  LAST_SCHEDULE = "last-schedule"
 }

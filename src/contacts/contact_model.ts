@@ -61,6 +61,8 @@ const ContactSchema = new Schema<IContact>(
     },
     tag:{
       type: String
+    }, jobProcessedWithId:{
+      type: [String]
     }
   }, 
   { timestamps: true },

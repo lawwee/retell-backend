@@ -16,21 +16,7 @@ export const searchAndRecallContacts = async (
   lowerCaseTag?: string,
 ) => {
   try {
-    let contactStatusArray = ["called-NA-VM", "ringing"];
-    function getToday() {
-      const days = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-      ];
-      const today = new Date().getDay();
-      return days[today];
-    }
-    const today = getToday();
+    let contactStatusArray = ["called-NA-VM", "ringing", "on call"];
     const contacts = await contactModel
       .find({
         agentId,
@@ -69,6 +55,12 @@ export const searchAndRecallContacts = async (
           userId: contact._id.toString(),
           agentId,
         };
+        function formatPhoneNumber(phoneNumber:any) {
+          // Remove any existing "+" and non-numeric characters
+          const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+          return `+1${digitsOnly}`
+      }
+      const newToNumber = formatPhoneNumber(postdata.toNumber)
         // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
         // await twilioClient.CreatePhoneCall(
         //   postdata.fromNumber,
@@ -86,7 +78,7 @@ export const searchAndRecallContacts = async (
           });
           const registerCallResponse2 = await retellClient.call.create({
             from_number: fromNumber,
-            to_number: postdata.toNumber,
+            to_number: newToNumber,
             override_agent_id: agentId,
             drop_call_if_machine_detected: true,
             retell_llm_dynamic_variables: {
