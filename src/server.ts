@@ -65,6 +65,7 @@ import { transcriptEnum } from "./types";
 import * as fspromises from "fs/promises";
 import { google } from "googleapis";
 import { authenticate } from "@google-cloud/local-auth";
+import mongoose from "mongoose";
 
 connectDb();
 const smee = new SmeeClient({
@@ -579,28 +580,33 @@ export class Server {
       },
     );
   }
+
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
-      authmiddleware,
-      isAdmin,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
         try {
           if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
           }
+
           const csvFile = req.file;
           const day = req.query.day;
           const tag = req.query.tag;
           const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
+
           Papa.parse(csvData, {
             header: true,
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
               const agentId = req.params.agentId;
               let uploadedNumber = 0;
+              let duplicateCount = 0;
               const failedUsers: {
                 email?: string;
                 firstname?: string;
@@ -612,61 +618,83 @@ export class Server {
                 phone: string;
               }[] = [];
 
-              for (const user of jsonArrayObj) {
-                function formatPhoneNumber(phoneNumber: string) {
-                  let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+              function formatPhoneNumber(phoneNumber: string) {
+                let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
-                  if (phoneNumber.startsWith("+1")) {
-                    return `+${digitsOnly}`;
-                  }
-                  return `+1${digitsOnly}`;
+                if (phoneNumber.startsWith("+1")) {
+                  return `+${digitsOnly}`;
                 }
+                return `+1${digitsOnly}`;
+              }
+
+              // Extract emails and agentId for batch checking
+              const emailsAndAgentIds = jsonArrayObj.map((user) => ({
+                email: user.email,
+                agentId: agentId,
+              }));
+
+              // Check existing users in batch
+              const existingUsers = await contactModel
+                .find({
+                  $or: emailsAndAgentIds,
+                })
+                .select("email agentId")
+                .session(session);
+
+              const existingUsersSet = new Set(
+                existingUsers.map((user) => `${user.email}-${user.agentId}`),
+              );
+
+              for (const user of jsonArrayObj) {
                 if (user.firstname && user.phone && user.email) {
-                  try {
-                    const existingUser = await contactModel.findOne({
-                      email: user.email,
-                      agentId: user.agentId,
-                    });
-                    if (!existingUser) {
-                      const userWithAgentId = {
-                        ...user,
-                        phone: formatPhoneNumber(user.phone),
-                        dayToBeProcessed: day,
-                        agentId,
-                        tag: lowerCaseTag,
-                      };
-                      successfulUsers.push(userWithAgentId);
-                      uploadedNumber++;
-                    }
-                  } catch (error) {
-                    failedUsers.push({
-                      email: user.email,
-                      firstname: user.firstname,
-                      phone: user.phone,
-                    });
+                  const userKey = `${user.email}-${agentId}`;
+                  if (!existingUsersSet.has(userKey)) {
+                    const userWithAgentId = {
+                      ...user,
+                      phone: formatPhoneNumber(user.phone),
+                      dayToBeProcessed: day,
+                      agentId,
+                      tag: lowerCaseTag,
+                    };
+                    successfulUsers.push(userWithAgentId);
+                    uploadedNumber++;
+                  } else {
+                    duplicateCount++;
                   }
                 } else {
                   failedUsers.push({
-                    email: user.email,
-                    firstname: user.firstname,
-                    phone: user.phone,
+                    email: user.email || undefined,
+                    firstname: user.firstname || undefined,
+                    phone: user.phone || undefined,
                   });
                 }
               }
-              await contactModel.insertMany(successfulUsers);
+
+              if (successfulUsers.length > 0) {
+                await contactModel.insertMany(successfulUsers, { session });
+              }
+
+              await session.commitTransaction();
+              session.endSession();
 
               res.status(200).json({
-                message: `Upload successful, contacts uploaded: ${uploadedNumber}`,
-                failedUsers: failedUsers,
+                message: `Upload successful, contacts uploaded: ${uploadedNumber}, duplicates found: ${duplicateCount}`,
+                failedUsers: failedUsers.filter(
+                  (user) => user.email || user.firstname || user.phone,
+                ), // Remove empty objects
               });
             },
-            error: (err: Error) => {
+            error: async (err: Error) => {
               console.error("Error parsing CSV:", err);
+              await session.abortTransaction();
+              session.endSession();
               res.status(500).json({ message: "Failed to parse CSV data" });
             },
           });
         } catch (err) {
           console.error("Error:", err);
+          await session.abortTransaction();
+          session.endSession();
           res
             .status(500)
             .json({ message: "Failed to upload CSV data to database" });
@@ -674,6 +702,7 @@ export class Server {
       },
     );
   }
+
   getjobstatus() {
     this.app.post(
       "/schedules/status",
