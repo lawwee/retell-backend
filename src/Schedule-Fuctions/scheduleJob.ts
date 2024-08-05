@@ -22,7 +22,7 @@ export const scheduleCronJob = async (
 ) => {
   const jobId = uuidv4();
   try {
-    // Create a new job entry in the database
+
     await jobModel.create({
       callstatus: jobstatus.QUEUED,
       jobId,
@@ -70,20 +70,18 @@ export const scheduleCronJob = async (
               agentId,
             };
 
-            function formatPhoneNumber(phoneNumber:any) {
-              // Remove any existing "+" and non-numeric characters
-              const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
-              return `+${digitsOnly}`
+            function formatPhoneNumber(phoneNumber: string) {
+
+              let digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+              
+             
+              if (phoneNumber.startsWith('+1')) {
+                  return `+${digitsOnly}`
+              }
+              
+              return `+1${digitsOnly}`
           }
-          
-          // const originalPhoneNumber1 = "(805) 0930-093";
-          // const originalPhoneNumber2 = "+(805) 0930-093";
-          
-          // const formattedPhoneNumber1 = formatPhoneNumber(originalPhoneNumber1);
-          // const formattedPhoneNumber2 = formatPhoneNumber(originalPhoneNumber2);
-          
-          // console.log(formattedPhoneNumber1); // Output: +8050930093
-          // console.log(formattedPhoneNumber2); // Output: +8050930093
+        
           
             // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
             // await twilioClient.CreatePhoneCall(

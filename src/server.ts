@@ -536,20 +536,26 @@ export class Server {
   createPhoneCall() {
     this.app.post(
       "/create-phone-call/:agentId",
-     
+
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId } = req.body;
         const agentId = req.params.agentId;
         if (!agentId || !fromNumber || !toNumber || !userId) {
           return res.json({ status: "error", message: "Invalid request" });
         }
-        function formatPhoneNumber(phoneNumber: any) {
+        function formatPhoneNumber(phoneNumber: string) {
           // Remove any existing "+" and non-numeric characters
-          const digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+          let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+
+          // Check if the phone number starts with "1" (after the "+" is removed)
+          if (phoneNumber.startsWith("+1")) {
+            return `+${digitsOnly}`;
+          }
+
+          // Add "+1" prefix if it doesn't already start with "1"
           return `+1${digitsOnly}`;
         }
         const newToNumber = formatPhoneNumber(toNumber);
-        console.log(newToNumber)
         try {
           await this.twilioClient.RegisterPhoneAgent(
             fromNumber,
@@ -607,6 +613,14 @@ export class Server {
               }[] = [];
 
               for (const user of jsonArrayObj) {
+                function formatPhoneNumber(phoneNumber: string) {
+                  let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+
+                  if (phoneNumber.startsWith("+1")) {
+                    return `+${digitsOnly}`;
+                  }
+                  return `+1${digitsOnly}`;
+                }
                 if (user.firstname && user.phone && user.email) {
                   try {
                     const existingUser = await contactModel.findOne({
@@ -616,6 +630,7 @@ export class Server {
                     if (!existingUser) {
                       const userWithAgentId = {
                         ...user,
+                        phone: formatPhoneNumber(user.phone),
                         dayToBeProcessed: day,
                         agentId,
                         tag: lowerCaseTag,
@@ -1119,7 +1134,6 @@ export class Server {
       {
         status: callStatus,
         $push: { datesCalled: todayString },
-
       },
     );
   }

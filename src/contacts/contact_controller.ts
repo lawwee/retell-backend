@@ -23,12 +23,20 @@ export const createContact = async (
     if (!firstname || !email || !phone) {
       return "Missing required fields";
     }
+    function formatPhoneNumber(phoneNumber: string) {
+      let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
+      if (phoneNumber.startsWith("+1")) {
+        return `+${digitsOnly}`;
+      }
+
+      return `+1${digitsOnly}`;
+    }
     const createdContact = await contactModel.create({
       firstname,
       lastname,
       email,
-      phone,
+      phone: formatPhoneNumber(phone),
       agentId,
       tags: lowerCaseTags,
       dayToBeProcessed,

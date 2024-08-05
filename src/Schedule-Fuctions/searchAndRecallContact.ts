@@ -55,9 +55,16 @@ export const searchAndRecallContacts = async (
           userId: contact._id.toString(),
           agentId,
         };
-        function formatPhoneNumber(phoneNumber:any) {
-          // Remove any existing "+" and non-numeric characters
-          const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+        function formatPhoneNumber(phoneNumber: string) {
+
+          let digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+          
+
+          if (phoneNumber.startsWith('+1')) {
+              return `+${digitsOnly}`
+          }
+          
+       
           return `+1${digitsOnly}`
       }
       const newToNumber = formatPhoneNumber(postdata.toNumber)
