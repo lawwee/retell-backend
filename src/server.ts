@@ -12,7 +12,6 @@ import { Retell } from "retell-sdk";
 import {
   createContact,
   deleteOneContact,
-  failedContacts,
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
@@ -149,7 +148,8 @@ export class Server {
     this.returnContactsFromStats();
     this.testingMake();
     this.testingCalendly();
-    this.getFailedCalls();
+    this.script()
+
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1109,7 +1109,7 @@ export class Server {
     const analyzedTranscript = await reviewTranscript(transcript);
     const isCallFailed = disconnection_reason === "dial_failed";
     const isCallTransferred = disconnection_reason === "call_transfer";
-    const isMachine = disconnection_reason === "machine_detected";
+    const isMachine = call_analysis && call_analysis.in_voicemail == true
     const isDialNoAnswer = disconnection_reason === "dial_no_answer";
     const updateData = {
       callId: call_id,
@@ -1124,11 +1124,7 @@ export class Server {
       }),
     };
 
-    const results = await EventModel.findOneAndUpdate(
-      { callId: call_id },
-      updateData,
-      { upsert: true },
-    );
+    const results = await EventModel.create(updateData);
 
     let callStatus;
     if (isMachine) {
@@ -1163,6 +1159,10 @@ export class Server {
       {
         status: callStatus,
         $push: { datesCalled: todayString },
+        referenceToCallId: results._id,
+        linktocallLogModel: statsResults.upsertedId
+          ? statsResults.upsertedId._id
+          : null,
       },
     );
   }
@@ -2110,16 +2110,6 @@ export class Server {
       }
     });
   }
-  getFailedCalls() {
-    this.app.get(
-      "get-failed-calls",
-      authmiddleware,
-      async (req: Request, res: Response) => {
-        const result = await failedContacts();
-        res.send(result);
-      },
-    );
-  }
   getFullStat() {
     this.app.post(
       "/get-daily-report",
@@ -2259,5 +2249,46 @@ export class Server {
         res.send(foundTags);
       },
     );
+  }
+
+  script() {
+    this.app.get("/script", async (req: Request, res: Response) => {
+      try {
+        // Retrieve all documents from the contactModel
+        const contacts = await contactModel.find({isDeleted:false, datesCalled:"2024-08-05"});
+
+        // Loop through each contact
+        for (const contact of contacts) {
+          const { callId } = contact;
+
+
+        if (typeof callId !== 'string') {
+          console.log(`Invalid callId for contact ${contact._id}`);
+          continue;
+        }
+          // Find the corresponding transcript document
+          const transcript = await EventModel.findOne({callId});
+
+          if (transcript.analyzedTranscript === "Voicemail") {
+            await contactModel.updateOne(
+              { _id: contact._id },
+              { $set: { status:callstatusenum.VOICEMAIL  } },
+            );
+            console.log(
+              `Updated contact ${contact._id} with transcript ${transcript._id}`,
+            );
+          } else {
+            console.log(
+              transcript.analyzedTranscript
+            );
+          }
+        }
+
+        console.log("Update complete.");
+        res.send("complete")
+      } catch (error) {
+        console.error("Error updating references:", error);
+      }
+    });
   }
 }
