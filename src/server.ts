@@ -456,10 +456,12 @@ export class Server {
       },
     );
   }
+  
   handlecontactGet() {
     this.app.post(
       "/users/:agentId",
-
+      authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const { page, limit, dateOption } = req.body;
