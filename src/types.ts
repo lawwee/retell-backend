@@ -82,11 +82,13 @@ export interface Ijob {
 }
 
 export interface Ilogs {
-  myDate: String;
+  day: String;
   totalCalls: number;
-  callsAnswered: number;
-  callsNotAnswered: number;
+  totalTransffered: number;
+  totalAnsweredByVm: number;
   agentId: String;
+  totalFailed:number
+  totalAppointment:Number
 }
 
 // Retell -> Your Server Events
