@@ -4,7 +4,6 @@ import { contactModel } from "./contacts/contact_model";
 import expressWs from "express-ws";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import { callstatusenum } from "./types";
-import { DailyStats } from "./contacts/call_log";
 import { RegisterCallResponse } from "retell-sdk/resources";
 import Retell from "retell-sdk";
 
@@ -129,16 +128,16 @@ export class TwilioClient {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayString = today.toISOString().split("T")[0];
-            const result = await DailyStats.updateOne(
-              { myDate: todayString, agentId: agentId },
-              { $inc: { callsNotAnswered : 1 } },
-              { upsert: true }
-          );
-            await contactModel.findByIdAndUpdate(userId, {
-              status: callstatusenum.VOICEMAIL,
-              linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
-              answeredByVM: true,
-            });
+          //   const result = await DailyStats.updateOne(
+          //     { myDate: todayString, agentId: agentId },
+          //     { $inc: { callsNotAnswered : 1 } },
+          //     { upsert: true }
+          // );
+          //   await contactModel.findByIdAndUpdate(userId, {
+          //     status: callstatusenum.VOICEMAIL,
+          //     linktocallLogModel: result.upsertedId ? result.upsertedId._id : null,
+          //     answeredByVM: true,
+          //   });
             return;
           } else if (AnsweredBy) {
             return;

@@ -8,7 +8,7 @@ import {
   ResponseRequiredRequest,
   Utterance,
 } from "../types";
-import { checkAvailability } from "../callendly";
+// import { checkAvailability } from "../callendly";
 
 let beginSentence: string;
 let agentPrompt: string;
@@ -273,11 +273,11 @@ export class testDemoLlmClient {
 
         if (funcCall.funcName === "check_avail") {
           funcCall.arguments = JSON.parse(funcArguments);
-          const availableTimes = await checkAvailability();
+        
           const res: CustomLlmResponse = {
             response_type: "response",
             response_id: request.response_id,
-            content:  `The available times for a Zoom call with our sales manager are: ${availableTimes.join(", ")}. Which time works best for you?`, 
+            content:  `The available times for a Zoom call with our sales manager are Which time works best for you?`, 
             content_complete: false,
             end_call: false,
           };
