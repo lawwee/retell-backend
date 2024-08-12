@@ -1,26 +1,18 @@
-import {Schema, model} from "mongoose";
+import { Schema, model } from "mongoose";
 import { Ilogs } from "../types";
-const dailyStatsSchema = new Schema<Ilogs>({
-  myDate: {
-    type: String,
-    required: true,
+const dailyStatsSchema = new Schema<Ilogs>(
+  {
+    day: { type: String },
+    totalCalls:{type: Number},
+    totalTransffered:{type: Number},
+    totalAnsweredByVm:{type: Number},
+    totalFailed: {type:Number},
+    totalAppointment:{type: Number},
+    agentId:{type:String}
+
   },
-  totalCalls: {
-    type: Number,
-    default: 0,
-  },
-  callsAnswered: {
-    type: Number,
-    default: 0,
-  },
-  callsNotAnswered: {
-    type: Number,
-    default: 0,
-  },
-  agentId: {
-    type: String
-  },
-}, {timestamps: true});
+  { timestamps: true },
+);
 
 // Create model for daily call statistics
-export const DailyStats = model("DailyStats", dailyStatsSchema);
+export const DailyStatsModel = model("DailyStats", dailyStatsSchema);

@@ -23,12 +23,20 @@ export const createContact = async (
     if (!firstname || !email || !phone) {
       return "Missing required fields";
     }
+    function formatPhoneNumber(phoneNumber: string) {
+      let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
+      if (phoneNumber.startsWith("+1")) {
+        return `+${digitsOnly}`;
+      }
+
+      return `+1${digitsOnly}`;
+    }
     const createdContact = await contactModel.create({
       firstname,
       lastname,
       email,
-      phone,
+      phone: formatPhoneNumber(phone),
       agentId,
       tags: lowerCaseTags,
       dayToBeProcessed,
@@ -58,6 +66,7 @@ export const getAllContact = async (
       totalAppointment: any;
       totalCallsTransffered: any;
       totalCalls: number;
+      totalFailedCalls: number
     }
   | string
 > => {
@@ -142,12 +151,11 @@ export const getAllContact = async (
     const totalCount = await contactModel.countDocuments({
       agentId,
       isDeleted: { $ne: true },
-      ...dateFilter,
+
     });
     const totalContactForAgent = await contactModel.countDocuments({
       agentId,
       isDeleted: false,
-      ...dateFilter,
     });
     const totalAnsweredCalls = await contactModel.countDocuments({
       agentId,
@@ -159,7 +167,6 @@ export const getAllContact = async (
       agentId,
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
-      ...dateFilter,
     });
     const totalAnsweredByVm = await contactModel.countDocuments({
       agentId,
@@ -171,6 +178,12 @@ export const getAllContact = async (
       agentId,
       isDeleted: false,
       status: callstatusenum.TRANSFERRED,
+      ...dateFilter,
+    });
+    const totalFailedCalls = await contactModel.countDocuments({
+      agentId,
+      isDeleted: false,
+      status: callstatusenum.FAILED,
       ...dateFilter,
     });
     const totalAppointment = await contactModel.countDocuments({
@@ -217,6 +230,7 @@ export const getAllContact = async (
       totalAppointment,
       totalCallsTransffered,
       totalCalls,
+      totalFailedCalls,
       contacts: statsWithTranscripts,
     };
   } catch (error) {
@@ -253,16 +267,3 @@ export const updateOneContact = async (id: string, updateFields: object) => {
   }
 };
 
-export const failedContacts = async () => {
-  const callListResponse = await retell.call.list({
-    query: {
-      agent_id: "214e92da684138edf44368d371da764c",
-      after_start_timestamp: "1719356400",
-      limit: 1000000,
-    },
-  });
-  const countCallFailed = callListResponse.filter(
-    (doc) => doc.disconnection_reason === "dial_failed",
-  ).length;
-  return { totalCallsFailed: countCallFailed };
-};
