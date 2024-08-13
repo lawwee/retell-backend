@@ -136,6 +136,7 @@ export class Server {
     this.returnContactsFromStats();
     this.testingMake();
     this.testingCalendly();
+    this.syncStatWithMake()
     // this.script()
 
     this.retellClient = new Retell({
@@ -445,43 +446,38 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.post(
-      "/users/:agentId",
-      authmiddleware,
-      isAdmin,
-      async (req: Request, res: Response) => {
-        const agentId = req.params.agentId;
-        const { page, limit, dateOption } = req.body;
-        const newPage = parseInt(page);
-        const newLimit = parseInt(limit);
+    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
+      const agentId = req.params.agentId;
+      const { page, limit, dateOption } = req.body;
+      const newPage = parseInt(page);
+      const newLimit = parseInt(limit);
 
-        // Validate dateOption
-        let validDateOption: DateOption;
+      // Validate dateOption
+      let validDateOption: DateOption;
 
-        // Validate dateOption
-        if (dateOption) {
-          if (!Object.values(DateOption).includes(dateOption)) {
-            return res.status(400).json({ error: "Invalid date option" });
-          }
-          validDateOption = dateOption as DateOption;
-        } else {
-          validDateOption = DateOption.LAST_SCHEDULE;
+      // Validate dateOption
+      if (dateOption) {
+        if (!Object.values(DateOption).includes(dateOption)) {
+          return res.status(400).json({ error: "Invalid date option" });
         }
+        validDateOption = dateOption as DateOption;
+      } else {
+        validDateOption = DateOption.LAST_SCHEDULE;
+      }
 
-        try {
-          const result = await getAllContact(
-            agentId,
-            newPage,
-            newLimit,
-            validDateOption,
-          );
-          res.json({ result });
-        } catch (error) {
-          console.log(error);
-          res.status(500).json({ error: "Internal Server Error" });
-        }
-      },
-    );
+      try {
+        const result = await getAllContact(
+          agentId,
+          newPage,
+          newLimit,
+          validDateOption,
+        );
+        res.json({ result });
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
   }
   handlecontactDelete() {
     this.app.patch(
@@ -963,7 +959,7 @@ export class Server {
     const statsResults = await DailyStatsModel.findOneAndUpdate(
       { day: todayString, agentId: agent_id },
       statsUpdate,
-      { upsert: true, returnOriginal: false } 
+      { upsert: true, returnOriginal: false },
     );
 
     const linkToCallLogModelId = statsResults ? statsResults._id : null;
@@ -973,7 +969,7 @@ export class Server {
         status: callStatus,
         $push: { datesCalled: todayString },
         referenceToCallId: results._id,
-       linktocallLogModel: linkToCallLogModelId
+        linktocallLogModel: linkToCallLogModelId,
       },
     );
   }
@@ -2101,4 +2097,22 @@ export class Server {
   //     }
   //   });
   // }
+
+  syncStatWithMake() {
+    this.app.get("/api/make", async (req: Request, res: Response) => {
+      const foundContacts: IContact[] = await contactModel.find({
+        isDeleted: false,
+      });
+
+      const mappedContacts = foundContacts.map((contact) => ({
+        firstname: contact.firstname,
+        lastname: contact.lastname ?? "", 
+        fullName:`${contact.firstname} ${contact.lastname}`,
+        phone: contact.phone,
+        email: contact.email,
+      }));
+
+      res.json(mappedContacts);
+    });
+  }
 }

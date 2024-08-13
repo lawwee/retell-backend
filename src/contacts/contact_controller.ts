@@ -101,7 +101,6 @@ export const getAllContact = async (
             );
           }
         }
-        console.log(pastDays);
         dateFilter = {
           datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
         };
@@ -115,7 +114,7 @@ export const getAllContact = async (
         dateFilter = { datesCalled: { $gte: startOfMonthDate } };
         break;
       case DateOption.Total:
-        dateFilter = {}; // No date filter
+        dateFilter = {}; 
         break;
       case DateOption.LAST_SCHEDULE:
         const recentJob = await jobModel
