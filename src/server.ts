@@ -2110,9 +2110,8 @@ export class Server {
         fullName:`${contact.firstname} ${contact.lastname}`,
         phone: contact.phone,
         email: contact.email,
+        company: "TVAG"
       }));
-
-      console.log(mappedContacts)
       res.json(mappedContacts);
     });
   }
