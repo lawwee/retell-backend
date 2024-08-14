@@ -2112,6 +2112,7 @@ export class Server {
         email: contact.email,
       }));
 
+      console.log(mappedContacts)
       res.json(mappedContacts);
     });
   }
