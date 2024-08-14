@@ -2099,7 +2099,7 @@ export class Server {
   // }
 
   syncStatWithMake() {
-    this.app.get("/api/make", async (req: Request, res: Response) => {
+    this.app.post("/api/make", async (req: Request, res: Response) => {
       const foundContacts: IContact[] = await contactModel.find({
         isDeleted: false,
       });
