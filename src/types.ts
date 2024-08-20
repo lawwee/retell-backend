@@ -57,7 +57,8 @@ export enum callstatusenum {
   CANCELED = "canceled",
   NOT_CALLED = "not called",
   TRANSFERRED = "call-transferred",
-  SCHEDULED = "scheduled"
+  SCHEDULED = "scheduled",
+  NO_ANSWER = "dial_no_answer"
 }
 
 export interface Itranscript {

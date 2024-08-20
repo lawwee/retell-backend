@@ -57,6 +57,12 @@ import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
 import { isAdmin } from "./middleware/isAdmin";
 import mongoose from "mongoose";
+import {
+  checkAvailability,
+  generateZoomAccessToken,
+  getUserId,
+  scheduleMeeting,
+} from "./helper-fuction/zoom";
 
 connectDb();
 const smee = new SmeeClient({
@@ -136,7 +142,8 @@ export class Server {
     this.returnContactsFromStats();
     this.testingMake();
     this.testingCalendly();
-    this.syncStatWithMake()
+    this.syncStatWithMake();
+    this.testingZoom();
     // this.script()
 
     this.retellClient = new Retell({
@@ -381,7 +388,6 @@ export class Server {
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
-        console.log(fromNumber, toNumber, userId, agentId);
         try {
           const callRegister = await this.retellClient.call.register({
             agent_id: agentId,
@@ -930,13 +936,12 @@ export class Server {
     };
 
     const results = await EventModel.create(updateData);
-
     let callStatus;
-    let statsUpdate: any = {
-      $inc: {
-        totalCalls: 1,
-      },
-    };
+    let statsUpdate: any = {};
+
+    if (payload.event === "call_ended") {
+      statsUpdate.$inc = { totalCalls: 1 };
+    }
 
     if (isMachine) {
       statsUpdate.$inc.totalAnsweredByVm = 1;
@@ -951,7 +956,7 @@ export class Server {
       statsUpdate.$inc.totalAppointment = 1;
       callStatus = callstatusenum.SCHEDULED;
     } else if (isDialNoAnswer) {
-      callStatus = "dial_no_answer";
+      callStatus = callstatusenum.NO_ANSWER;
     } else {
       callStatus = callstatusenum.CALLED;
     }
@@ -993,7 +998,6 @@ export class Server {
   logsToCsv() {
     this.app.post(
       "/call-logs-csv",
-      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const {
@@ -2106,13 +2110,139 @@ export class Server {
 
       const mappedContacts = foundContacts.map((contact) => ({
         firstname: contact.firstname,
-        lastname: contact.lastname ?? "", 
-        fullName:`${contact.firstname} ${contact.lastname}`,
+        lastname: contact.lastname ?? "",
+        fullName: `${contact.firstname} ${contact.lastname}`,
         phone: contact.phone,
         email: contact.email,
-        company: "TVAG"
+        company: "TVAG",
       }));
       res.json(mappedContacts);
+    });
+  }
+
+  testingZoom() {
+    this.app.post("/test/zoom", async (req: Request, res: Response) => {
+      const clientId = "xcs_GJfBR3iKt6GypIfDSw";
+      const clientSecret = "g9UW5Rnp3XjrsLXW0cg9iR8TQ5bGe4W7";
+      const accountId = "RVzzvlOpSXKsc4vgq3Ck5Q";
+      const userEmail = "hydradaboss06@gmail.com";
+      try {
+        await generateZoomAccessToken(clientId, clientSecret, accountId);
+
+        // Get user ID
+        // const userId = await getUserId(userEmail, clientId, clientSecret, accountId);
+        const userId = "4GMJPQS_R4GSJGE-0YMGfA";
+        const { availabilityId, start_time, invitee } = req.body;
+
+        // Check availability for a 60-minute meeting between specified times
+        const availableTimes = await checkAvailability(
+          clientId,
+          clientSecret,
+          accountId,
+          availabilityId,
+        );
+        console.log("Available times:", availableTimes);
+
+        // Schedule a meeting at the first available slot
+        const scheduledMeeting = await scheduleMeeting(
+          clientId,
+          clientSecret,
+          accountId,
+          userId,
+          start_time,
+          60,
+          "Important Meeting",
+          "Discuss important matters",
+          invitee,
+        );
+        console.log("Meeting scheduled:", scheduledMeeting);
+      } catch (error) {
+        console.error("An error occurred:", error);
+      }
+    });
+  }
+
+  updateSentimentMetadata() {
+    this.app.post("", async (req: Request, res: Response) => {
+      try {
+        const { id, ...fieldsToUpdate } = req.body;
+
+        // Ensure the ID is provided
+        if (!id) {
+          return res
+            .status(400)
+            .json({ error: "Invalid input: 'id' is required." });
+        }
+
+        // Check if there are any fields to update
+        if (Object.keys(fieldsToUpdate).length === 0) {
+          return res
+            .status(400)
+            .json({ error: "No fields provided for update." });
+        }
+
+        // Update the specified fields in the document with the given ID
+        const updatedEvent = await contactModel.findByIdAndUpdate(
+          id,
+          { $set: fieldsToUpdate }, // Dynamically set the fields to update
+          { new: true }, // Return the updated document
+        );
+
+        if (!updatedEvent) {
+          return res.status(404).json({ error: "Event not found." });
+        }
+
+        // Return the updated document
+        res.json(updatedEvent);
+      } catch (error) {
+        console.error("Error updating event:", error);
+        res.status(500).json({ error: "Internal server error." });
+      }
+    });
+  }
+
+  updateUserTag() {
+    this.app.post("/update-fields", async (req: Request, res: Response) => {
+      try {
+        const { id: ids, ...fieldsToUpdate } = req.body;
+
+        // Ensure the IDs array is provided
+        if (!Array.isArray(ids) || ids.length === 0) {
+          return res
+            .status(400)
+            .json({ error: "Invalid input: 'id' must be a non-empty array." });
+        }
+
+        // Check if there are any fields to update
+        if (Object.keys(fieldsToUpdate).length === 0) {
+          return res
+            .status(400)
+            .json({ error: "No fields provided for update." });
+        }
+
+        // Update the specified fields in all documents that match the IDs
+        const result = await EventModel.updateMany(
+          { _id: { $in: ids } }, // Match documents where _id is in the array of IDs
+          { $set: fieldsToUpdate }, // Dynamically set the fields to update
+          { new: true }, // Return the updated documents
+        );
+
+        // Check if any documents were updated
+        if (result.matchedCount === 0) {
+          return res
+            .status(404)
+            .json({ error: "No events found with the provided IDs." });
+        }
+
+        // Return the update result
+        res.json({
+          message: "Events updated successfully",
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (error) {
+        console.error("Error updating events:", error);
+        res.status(500).json({ error: "Internal server error." });
+      }
     });
   }
 }

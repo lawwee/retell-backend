@@ -49,6 +49,7 @@ const ContactSchema = new Schema<IContact>(
     },
     datesCalled: {
       type: [String],
+      default:[]
     },
     answeredByVM: {
       type: Boolean,
@@ -62,7 +63,8 @@ const ContactSchema = new Schema<IContact>(
     tag:{
       type: String
     }, jobProcessedWithId:{
-      type: [String]
+      type: [String],
+      default:[]
     }
   }, 
   { timestamps: true },

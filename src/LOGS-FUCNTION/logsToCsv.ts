@@ -49,7 +49,7 @@ export const logsToCsv = async (
     const contactsData = await Promise.all(
       foundContacts.map(async (contact) => {
         const transcript = contact.referenceToCallId?.transcript;
-        const analyzedTranscript = await reviewTranscript(transcript);
+        const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
         return {
           firstname: contact.firstname,
           lastname: contact.lastname,
@@ -57,7 +57,7 @@ export const logsToCsv = async (
           phone: contact.phone,
           status: contact.status,
           transcript: transcript,
-          analyzedTranscript: analyzedTranscript?.message.content,
+          analyzedTranscript: analyzedTranscript,
           call_recording_url: contact.referenceToCallId?.recordingUrl,
         };
       }),

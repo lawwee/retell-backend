@@ -120,7 +120,7 @@ export const searchAndRecallContacts = async (
     }
     await jobModel.findOneAndUpdate(
       { jobId },
-      { callstatus: jobstatus.CALLED },
+      { callstatus: jobstatus.CALLED, shouldContinueProcessing: false },
     );
     console.log("Recalled contacts finished processing");
   } catch (error) {
