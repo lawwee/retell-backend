@@ -2,7 +2,7 @@ import { contactModel, jobModel } from "../contacts/contact_model";
 import { v4 as uuidv4 } from "uuid";
 import { jobstatus } from "../types";
 import schedule from "node-schedule";
-import { TwilioClient } from "../twilio_api";
+// import { TwilioClient } from "../twilio_api";
 import Retell from "retell-sdk";
 import { searchAndRecallContacts } from "./searchAndRecallContact";
 import moment from "moment-timezone";
@@ -10,7 +10,7 @@ import moment from "moment-timezone";
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
 });
-const twilioClient = new TwilioClient(retellClient);
+// const twilioClient = new TwilioClient(retellClient);
 
 // // export const scheduleCronJob = async (
 // //   scheduledTimePST: Date,
@@ -238,20 +238,22 @@ export const scheduleCronJob = async (
             };
 
             try {
-              await retellClient.call.register({
+              const newToNumber = formatPhoneNumber(postdata.toNumber);
+              await retellClient.call.registerPhoneCall({
                 agent_id: agentId,
-                audio_encoding: "s16le",
-                audio_websocket_protocol: "twilio",
-                sample_rate: 24000,
-                end_call_after_silence_ms: 15000,
+                from_number: fromNumber,
+                to_number: newToNumber,
+                retell_llm_dynamic_variables: {
+                  firstname: contact.firstname,
+                  email: contact.email,
+                },
+               
               });
 
-              const newToNumber = formatPhoneNumber(postdata.toNumber);
-              const registerCallResponse2 = await retellClient.call.create({
+               const registerCallResponse2 = await retellClient.call.createPhoneCall({
                 from_number: fromNumber,
                 to_number: newToNumber,
                 override_agent_id: agentId,
-                drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {
                   firstname: contact.firstname,
                   email: contact.email,

@@ -23,7 +23,7 @@ import {
 } from "./contacts/contact_model";
 import axios from "axios";
 import argon2 from "argon2";
-import { TwilioClient } from "./twilio_api";
+// import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
 import {
   CustomLlmRequest,
@@ -77,7 +77,7 @@ export class Server {
   public app: expressWs.Application;
   private httpServer: HTTPServer;
   private retellClient: Retell;
-  private twilioClient: TwilioClient;
+  // private twilioClient: TwilioClient;
   private client: OpenAI;
   storage = multer.diskStorage({
     destination: "public/",
@@ -114,7 +114,7 @@ export class Server {
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
-    this.createPhoneCall();
+    // this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
     this.schedulemycall();
@@ -150,8 +150,8 @@ export class Server {
       apiKey: process.env.RETELL_API_KEY,
     });
 
-    this.twilioClient = new TwilioClient(this.retellClient);
-    this.twilioClient.ListenTwilioVoiceWebhook(this.app);
+    // this.twilioClient = new TwilioClient(this.retellClient);
+    // this.twilioClient.ListenTwilioVoiceWebhook(this.app);
   }
   listen(port: number): void {
     this.app.listen(port);
@@ -389,18 +389,18 @@ export class Server {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
         try {
-          const callRegister = await this.retellClient.call.register({
-            agent_id: agentId,
-            audio_encoding: "s16le",
-            audio_websocket_protocol: "twilio",
-            sample_rate: 24000,
-            end_call_after_silence_ms: 15000,
+          const callRegister = await this.retellClient.call.registerPhoneCall({
+            agent_id:agentId,
+            from_number: fromNumber,
+            to_number: toNumber,
+            retell_llm_dynamic_variables: {
+              firstname: result.firstname,
+              email: result.email}
           });
-          const registerCallResponse2 = await this.retellClient.call.create({
+          const registerCallResponse2 = await this.retellClient.call.createPhoneCall({
             from_number: fromNumber,
             to_number: toNumber,
             override_agent_id: agentId,
-            drop_call_if_machine_detected: true,
             retell_llm_dynamic_variables: {
               firstname: result.firstname,
               email: result.email,
@@ -525,53 +525,53 @@ export class Server {
       },
     );
   }
-  createPhoneCall() {
-    this.app.post(
-      "/create-phone-call/:agentId",
-      authmiddleware,
-      isAdmin,
-      async (req: Request, res: Response) => {
-        const { fromNumber, toNumber, userId } = req.body;
-        const agentId = req.params.agentId;
-        if (!agentId || !fromNumber || !toNumber || !userId) {
-          return res.json({ status: "error", message: "Invalid request" });
-        }
-        function formatPhoneNumber(phoneNumber: string) {
-          // Remove any existing "+" and non-numeric characters
-          let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+  // createPhoneCall() {
+  //   this.app.post(
+  //     "/create-phone-call/:agentId",
+  //     authmiddleware,
+  //     isAdmin,
+  //     async (req: Request, res: Response) => {
+  //       const { fromNumber, toNumber, userId } = req.body;
+  //       const agentId = req.params.agentId;
+  //       if (!agentId || !fromNumber || !toNumber || !userId) {
+  //         return res.json({ status: "error", message: "Invalid request" });
+  //       }
+  //       function formatPhoneNumber(phoneNumber: string) {
+  //         // Remove any existing "+" and non-numeric characters
+  //         let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
-          // Check if the phone number starts with "1" (after the "+" is removed)
-          if (phoneNumber.startsWith("+1")) {
-            return `+${digitsOnly}`;
-          }
+  //         // Check if the phone number starts with "1" (after the "+" is removed)
+  //         if (phoneNumber.startsWith("+1")) {
+  //           return `+${digitsOnly}`;
+  //         }
 
-          // Add "+1" prefix if it doesn't already start with "1"
-          return `+1${digitsOnly}`;
-        }
-        const newToNumber = formatPhoneNumber(toNumber);
-        try {
-          await this.twilioClient.RegisterPhoneAgent(
-            fromNumber,
-            agentId,
-            userId,
-          );
-          const result = await this.twilioClient.CreatePhoneCall(
-            fromNumber,
-            newToNumber,
-            agentId,
-            userId,
-          );
-          res.json({ result });
-        } catch (error) {
-          console.log(error);
-          res.json({
-            status: "error",
-            message: "Error while creating phone call",
-          });
-        }
-      },
-    );
-  }
+  //         // Add "+1" prefix if it doesn't already start with "1"
+  //         return `+1${digitsOnly}`;
+  //       }
+  //       const newToNumber = formatPhoneNumber(toNumber);
+  //       try {
+  //         await this.twilioClient.RegisterPhoneAgent(
+  //           fromNumber,
+  //           agentId,
+  //           userId,
+  //         );
+  //         const result = await this.twilioClient.CreatePhoneCall(
+  //           fromNumber,
+  //           newToNumber,
+  //           agentId,
+  //           userId,
+  //         );
+  //         res.json({ result });
+  //       } catch (error) {
+  //         console.log(error);
+  //         res.json({
+  //           status: "error",
+  //           message: "Error while creating phone call",
+  //         });
+  //       }
+  //     },
+  //   );
+  // }
 
   uploadcsvToDb() {
     this.app.post(
@@ -1816,16 +1816,11 @@ export class Server {
           }
 
           if (options === "Failed") {
-            const callListResponse = await this.retellClient.call.list({
-              query: {
-                agent_id: "214e92da684138edf44368d371da764c",
-                after_start_timestamp: "1718866800000",
-                limit: 1000000,
-              },
+            const countCallFailed = await contactModel.find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.FAILED
             });
-            const countCallFailed = callListResponse.filter(
-              (doc) => doc.disconnection_reason === "dial_failed",
-            );
             result.countCallFailed = countCallFailed;
           }
           res.send(result);
