@@ -917,11 +917,13 @@ export class Server {
       disconnection_reason,
       call_analysis,
     } = payload.data;
+  
     const analyzedTranscript = await reviewTranscript(transcript);
     const isCallFailed = disconnection_reason === "dial_failed";
     const isCallTransferred = disconnection_reason === "call_transfer";
     const isMachine = call_analysis && call_analysis.in_voicemail == true;
     const isDialNoAnswer = disconnection_reason === "dial_no_answer";
+  
     const updateData = {
       callId: call_id,
       recordingUrl: recording_url,
@@ -934,15 +936,15 @@ export class Server {
         agentSemtiment: call_analysis.agent_sentiment,
       }),
     };
-
+  
     const results = await EventModel.create(updateData);
     let callStatus;
-    let statsUpdate: any = {};
-
+    let statsUpdate: any = { $inc: {} };
+  
     if (payload.event === "call_ended") {
-      statsUpdate.$inc = { totalCalls: 1 };
+      statsUpdate.$inc.totalCalls = 1;
     }
-
+  
     if (isMachine) {
       statsUpdate.$inc.totalAnsweredByVm = 1;
       callStatus = callstatusenum.VOICEMAIL;
@@ -960,13 +962,13 @@ export class Server {
     } else {
       callStatus = callstatusenum.CALLED;
     }
-
+  
     const statsResults = await DailyStatsModel.findOneAndUpdate(
       { day: todayString, agentId: agent_id },
       statsUpdate,
       { upsert: true, returnOriginal: false },
     );
-
+  
     const linkToCallLogModelId = statsResults ? statsResults._id : null;
     await contactModel.findOneAndUpdate(
       { callId: call_id },
@@ -978,6 +980,7 @@ export class Server {
       },
     );
   }
+  
 
   deleteAll() {
     this.app.patch(
