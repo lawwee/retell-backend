@@ -92,7 +92,7 @@ const dayNames: Record<string, string> = {
   fri: 'Friday',
   sat: 'Saturday'
 };
-// Function to handle Axios errors
+
 function handleAxiosError(error: unknown): void {
   if (axios.isAxiosError(error)) {
     console.error("Error:", error.response?.data || error.message);
@@ -139,7 +139,7 @@ export async function checkAvailability(
     throw error;
   }
 }
-// Function to schedule a meeting
+
 export async function scheduleMeeting(
   clientId: string,
   clientSecret: string,

@@ -390,22 +390,24 @@ export class Server {
         const result = await contactModel.findById(userId);
         try {
           const callRegister = await this.retellClient.call.registerPhoneCall({
-            agent_id:agentId,
+            agent_id: agentId,
             from_number: fromNumber,
             to_number: toNumber,
-            retell_llm_dynamic_variables: {
-              user_firstname: result.firstname,
-              user_email: result.email}
-          });
-          const registerCallResponse2 = await this.retellClient.call.createPhoneCall({
-            from_number: fromNumber,
-            to_number: toNumber,
-            override_agent_id: agentId,
             retell_llm_dynamic_variables: {
               user_firstname: result.firstname,
               user_email: result.email,
             },
           });
+          const registerCallResponse2 =
+            await this.retellClient.call.createPhoneCall({
+              from_number: fromNumber,
+              to_number: toNumber,
+              override_agent_id: agentId,
+              retell_llm_dynamic_variables: {
+                user_firstname: result.firstname,
+                user_email: result.email,
+              },
+            });
           await contactModel.findByIdAndUpdate(userId, {
             callId: registerCallResponse2.call_id,
           });
@@ -917,13 +919,13 @@ export class Server {
       disconnection_reason,
       call_analysis,
     } = payload.data;
-  
+
     const analyzedTranscript = await reviewTranscript(transcript);
     const isCallFailed = disconnection_reason === "dial_failed";
     const isCallTransferred = disconnection_reason === "call_transfer";
     const isMachine = call_analysis && call_analysis.in_voicemail == true;
     const isDialNoAnswer = disconnection_reason === "dial_no_answer";
-  
+
     const updateData = {
       callId: call_id,
       recordingUrl: recording_url,
@@ -936,15 +938,15 @@ export class Server {
         agentSemtiment: call_analysis.agent_sentiment,
       }),
     };
-  
+
     const results = await EventModel.create(updateData);
     let callStatus;
     let statsUpdate: any = { $inc: {} };
-  
+
     if (payload.event === "call_ended") {
       statsUpdate.$inc.totalCalls = 1;
     }
-  
+
     if (isMachine) {
       statsUpdate.$inc.totalAnsweredByVm = 1;
       callStatus = callstatusenum.VOICEMAIL;
@@ -962,13 +964,13 @@ export class Server {
     } else {
       callStatus = callstatusenum.CALLED;
     }
-  
+
     const statsResults = await DailyStatsModel.findOneAndUpdate(
       { day: todayString, agentId: agent_id },
       statsUpdate,
       { upsert: true, returnOriginal: false },
     );
-  
+
     const linkToCallLogModelId = statsResults ? statsResults._id : null;
     await contactModel.findOneAndUpdate(
       { callId: call_id },
@@ -980,7 +982,6 @@ export class Server {
       },
     );
   }
-  
 
   deleteAll() {
     this.app.patch(
@@ -999,51 +1000,48 @@ export class Server {
   }
 
   logsToCsv() {
-    this.app.post(
-      "/call-logs-csv",
-      async (req: Request, res: Response) => {
-        try {
-          const {
-            agentId,
-            startDate,
-            endDate,
-            limit,
-            statusOption,
-            sentimentOption,
-          } = req.body;
-          const newlimit = parseInt(limit);
-          const result = await logsToCsv(
-            agentId,
-            newlimit,
-            startDate,
-            endDate,
-            statusOption,
-            sentimentOption,
-          );
-          if (typeof result === "string") {
-            const filePath: string = result;
-            if (fs.existsSync(filePath)) {
-              res.setHeader(
-                "Content-Disposition",
-                "attachment; filename=logs.csv",
-              );
-              res.setHeader("Content-Type", "text/csv");
-              const fileStream = fs.createReadStream(filePath);
-              fileStream.pipe(res);
-            } else {
-              console.error("CSV file does not exist");
-              res.status(404).send("CSV file not found");
-            }
+    this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
+      try {
+        const {
+          agentId,
+          startDate,
+          endDate,
+          limit,
+          statusOption,
+          sentimentOption,
+        } = req.body;
+        const newlimit = parseInt(limit);
+        const result = await logsToCsv(
+          agentId,
+          newlimit,
+          startDate,
+          endDate,
+          statusOption,
+          sentimentOption,
+        );
+        if (typeof result === "string") {
+          const filePath: string = result;
+          if (fs.existsSync(filePath)) {
+            res.setHeader(
+              "Content-Disposition",
+              "attachment; filename=logs.csv",
+            );
+            res.setHeader("Content-Type", "text/csv");
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
           } else {
-            console.error(`Error retrieving contacts: ${result}`);
-            res.status(500).send(`Error retrieving contacts: ${result}`);
+            console.error("CSV file does not exist");
+            res.status(404).send("CSV file not found");
           }
-        } catch (error) {
-          console.error(`Error retrieving contacts: ${error}`);
-          res.status(500).send(`Error retrieving contacts: ${error}`);
+        } else {
+          console.error(`Error retrieving contacts: ${result}`);
+          res.status(500).send(`Error retrieving contacts: ${result}`);
         }
-      },
-    );
+      } catch (error) {
+        console.error(`Error retrieving contacts: ${error}`);
+        res.status(500).send(`Error retrieving contacts: ${error}`);
+      }
+    });
   }
 
   statsForAgent() {
@@ -1822,7 +1820,7 @@ export class Server {
             const countCallFailed = await contactModel.find({
               agentId,
               isDeleted: false,
-              status: callstatusenum.FAILED
+              status: callstatusenum.FAILED,
             });
             result.countCallFailed = countCallFailed;
           }
@@ -2124,24 +2122,27 @@ export class Server {
       const clientSecret = process.env.ZOOM_CLIENT_SECRET;
       const accountId = process.env.ZOOM_ACC_ID;
       const userEmail = "hydradaboss06@gmail.com";
+      const userId = process.env.ZOOM_USER_ID;
+      const { availabilityId, start_time, invitee } = req.body;
       try {
         await generateZoomAccessToken(clientId, clientSecret, accountId);
 
-        // Get user ID
-        // const userId = await getUserId(userEmail, clientId, clientSecret, accountId);
-        const userId = process.env.ZOOM_USER_ID;
-        const { availabilityId, start_time, invitee } = req.body;
+        const userId = await getUserId(
+          userEmail,
+          clientId,
+          clientSecret,
+          accountId,
+        );
+        console.log("userID is : ",userId)
 
-        // Check availability for a 60-minute meeting between specified times
         const availableTimes = await checkAvailability(
           clientId,
           clientSecret,
           accountId,
           availabilityId,
         );
-        console.log("Available times:", availableTimes);
-
-        // Schedule a meeting at the first available slot
+        console.log("Availablle times are : ", availableTimes);
+        
         const scheduledMeeting = await scheduleMeeting(
           clientId,
           clientSecret,
@@ -2154,6 +2155,7 @@ export class Server {
           invitee,
         );
         console.log("Meeting scheduled:", scheduledMeeting);
+        res.send("done")
       } catch (error) {
         console.error("An error occurred:", error);
       }
@@ -2161,7 +2163,7 @@ export class Server {
   }
 
   updateSentimentMetadata() {
-    this.app.post("", async (req: Request, res: Response) => {
+    this.app.post("/update/metadata", async (req: Request, res: Response) => {
       try {
         const { id, ...fieldsToUpdate } = req.body;
 
@@ -2178,19 +2180,15 @@ export class Server {
             .status(400)
             .json({ error: "No fields provided for update." });
         }
-
-        // Update the specified fields in the document with the given ID
         const updatedEvent = await contactModel.findByIdAndUpdate(
           id,
-          { $set: fieldsToUpdate }, // Dynamically set the fields to update
-          { new: true }, // Return the updated document
+          { $set: fieldsToUpdate },
+          { new: true },
         );
 
         if (!updatedEvent) {
           return res.status(404).json({ error: "Event not found." });
         }
-
-        // Return the updated document
         res.json(updatedEvent);
       } catch (error) {
         console.error("Error updating event:", error);
@@ -2204,7 +2202,6 @@ export class Server {
       try {
         const { id: ids, ...fieldsToUpdate } = req.body;
 
-        // Ensure the IDs array is provided
         if (!Array.isArray(ids) || ids.length === 0) {
           return res
             .status(400)
@@ -2218,21 +2215,18 @@ export class Server {
             .json({ error: "No fields provided for update." });
         }
 
-        // Update the specified fields in all documents that match the IDs
         const result = await EventModel.updateMany(
-          { _id: { $in: ids } }, // Match documents where _id is in the array of IDs
-          { $set: fieldsToUpdate }, // Dynamically set the fields to update
-          { new: true }, // Return the updated documents
+          { _id: { $in: ids } },
+          { $set: fieldsToUpdate },
+          { new: true },
         );
 
-        // Check if any documents were updated
         if (result.matchedCount === 0) {
           return res
             .status(404)
             .json({ error: "No events found with the provided IDs." });
         }
 
-        // Return the update result
         res.json({
           message: "Events updated successfully",
           modifiedCount: result.modifiedCount,
