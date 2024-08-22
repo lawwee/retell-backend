@@ -244,21 +244,21 @@ export const scheduleCronJob = async (
                 from_number: fromNumber,
                 to_number: newToNumber,
                 retell_llm_dynamic_variables: {
-                  firstname: contact.firstname,
-                  email: contact.email,
+                  user_firstname: contact.firstname,
+                  user_email: contact.email,
                 },
-               
               });
 
-               const registerCallResponse2 = await retellClient.call.createPhoneCall({
-                from_number: fromNumber,
-                to_number: newToNumber,
-                override_agent_id: agentId,
-                retell_llm_dynamic_variables: {
-                  firstname: contact.firstname,
-                  email: contact.email,
-                },
-              });
+              const registerCallResponse2 =
+                await retellClient.call.createPhoneCall({
+                  from_number: fromNumber,
+                  to_number: newToNumber,
+                  override_agent_id: agentId,
+                  retell_llm_dynamic_variables: {
+                    user_firstname: contact.firstname,
+                    user_email: contact.email,
+                  },
+                });
 
               await contactModel.findByIdAndUpdate(contact._id, {
                 callId: registerCallResponse2.call_id,
@@ -307,10 +307,6 @@ export const scheduleCronJob = async (
     throw error;
   }
 };
-
-
-
-
 
 // export const scheduleCronJob = async (
 //   scheduledTimePST: Date,

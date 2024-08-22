@@ -1,7 +1,7 @@
 import { contactModel, jobModel } from "../contacts/contact_model";
 import Retell from "retell-sdk";
 // import { TwilioClient } from "../twilio_api";
-import { jobstatus } from "../types";
+import { callstatusenum, jobstatus } from "../types";
 import moment from "moment-timezone";
 
 const retellClient = new Retell({
@@ -16,13 +16,18 @@ export const searchAndRecallContacts = async (
   lowerCaseTag?: string,
 ) => {
   try {
-    let contactStatusArray = ["called-NA-VM", "ringing", "on call"];
+    let contactStatusArray = [
+      "called-NA-VM",
+      "ringing",
+      "on call",
+      callstatusenum.FAILED,
+    ];
     const contacts = await contactModel
       .find({
         agentId,
         status: { $in: contactStatusArray },
         isDeleted: { $ne: true },
-        tag:lowerCaseTag ? lowerCaseTag : ""
+        tag: lowerCaseTag ? lowerCaseTag : "",
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });
@@ -56,18 +61,15 @@ export const searchAndRecallContacts = async (
           agentId,
         };
         function formatPhoneNumber(phoneNumber: string) {
+          let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
-          let digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
-          
-
-          if (phoneNumber.startsWith('+1')) {
-              return `+${digitsOnly}`
+          if (phoneNumber.startsWith("+1")) {
+            return `+${digitsOnly}`;
           }
-          
-       
-          return `+1${digitsOnly}`
-      }
-      const newToNumber = formatPhoneNumber(postdata.toNumber)
+
+          return `+1${digitsOnly}`;
+        }
+        const newToNumber = formatPhoneNumber(postdata.toNumber);
         // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
         // await twilioClient.CreatePhoneCall(
         //   postdata.fromNumber,
@@ -81,19 +83,21 @@ export const searchAndRecallContacts = async (
             from_number: fromNumber,
             to_number: newToNumber,
             retell_llm_dynamic_variables: {
-              firstname: contact.firstname,
-              email: contact.email,
+              user_firstname: contact.firstname,
+              user_email: contact.email,
             },
           });
-          const registerCallResponse2 = await retellClient.call.createPhoneCall({
-            from_number: fromNumber,
-            to_number: newToNumber,
-            override_agent_id: agentId,
-            retell_llm_dynamic_variables: {
-              firstname: contact.firstname,
-              email: contact.email,
+          const registerCallResponse2 = await retellClient.call.createPhoneCall(
+            {
+              from_number: fromNumber,
+              to_number: newToNumber,
+              override_agent_id: agentId,
+              retell_llm_dynamic_variables: {
+                user_firstname: contact.firstname,
+                user_email: contact.email,
+              },
             },
-          });
+          );
           await contactModel.findByIdAndUpdate(contact._id, {
             callId: registerCallResponse2.call_id,
           });

@@ -394,16 +394,16 @@ export class Server {
             from_number: fromNumber,
             to_number: toNumber,
             retell_llm_dynamic_variables: {
-              firstname: result.firstname,
-              email: result.email}
+              user_firstname: result.firstname,
+              user_email: result.email}
           });
           const registerCallResponse2 = await this.retellClient.call.createPhoneCall({
             from_number: fromNumber,
             to_number: toNumber,
             override_agent_id: agentId,
             retell_llm_dynamic_variables: {
-              firstname: result.firstname,
-              email: result.email,
+              user_firstname: result.firstname,
+              user_email: result.email,
             },
           });
           await contactModel.findByIdAndUpdate(userId, {
