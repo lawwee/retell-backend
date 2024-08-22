@@ -164,7 +164,11 @@ export async function scheduleMeeting(
     duration: duration,
     timezone: 'UTC',
     agenda: agenda,
-    meeting_invitees:[{email:invitee}]
+    settings: {
+      meeting_invitees: [{ email: invitee }], // Moving it to 'settings'
+      approval_type: 1, // Automatically approve participants
+      registration_type: 1, // Require registration if needed
+    },
 
   };
 
@@ -174,7 +178,7 @@ export async function scheduleMeeting(
       meetingDetails,
       { headers }
     );
-    return response.data;
+    return response.data.settings.meeting_invitees;
   } catch (error) {
     handleAxiosError(error);
     throw error;

@@ -1,0 +1,36 @@
+firstname,lastname,email,phone,status,transcript,call_recording_url,analyzedTranscript
+Najma,Rahaman,najma@cs2kservices.com,+19099013023,called-NA-VM,"User: Hello. And thanks for calling Techdocs. Formerly referred to as Computer Solutions.
+Agent: Hi there! Is this Najma?
+User: California. We're excited to announce our new name and happy to reassure you that we're still the same business that you've known and loved for the past 27 years.
+User: You've reached us during our lunch hour.
+User: leave us your name and some details about how we may help you, and a representative will call you back lunch. If this is an urgent request, please send a text to our main number 909 901-3023, and an on call receptionist will respond ASAP.
+User: For more information about our wide range of services, current in stock items, and promotions, or to schedule appointments and much more, please visit our website www.tech docsonline.com,
+User: you.
+Agent: My apologies, have a great day.
+",https://dxc03zgurdly9.cloudfront.net/call_a3cfc5c638613753d21cfeefc7f/recording.wav,Voicemail
+Sanjeev,Malhotra,malhotra@studiosm2.com,+14153361533,called-NA-VM,"User: Call has been forwarded to voice mail.
+User: person you're trying to reach is not available.
+Agent: My 
+User: the tone, please record your message.
+User: When you have finished recording, you may hang up,
+Agent: My apologies, it seems the person I'm trying to reach isn't available. I'll try back another time. Thank you!
+Agent: Hi, is this {{firstname}}?
+",https://dxc03zgurdly9.cloudfront.net/call_35203129ea08d0eb97a8de49ac4/recording.wav,Voicemail
+Reinaldo,Borges,rborges@borgesarchitects.com,+13053225956,called-NA-VM,"User: Has been forwarded to voice mail. The person you're trying to reach is not available.
+Agent: My 
+User: the tone, please record your message.
+User: When you have finished recording, you may hang up,
+Agent: It seems like I’ve reached voicemail. If you could connect me to {{firstname}} or let them know I called, that would be great! Thank you!
+Agent: Hi there! Just checking in to see if you’re still available. If you could connect me to {{firstname}}, that would be awesome! Thank you!
+",https://dxc03zgurdly9.cloudfront.net/call_1328fe0aa633a288a2410d91b70/recording.wav,Voicemail
+David,Putman,david@asurcity.com,+18064164096,called-NA-VM,"User: Thank you for calling the Assure City office.
+Agent: Hi, is 
+User: Our office is currently closed.
+Agent: My 
+User: Office hours are Monday through Thursday, 10 AM to 4 PM. We are out of the office on Fridays.
+User: If you'd like to leave an after hours message for Rebecca, press 1. If you'd like to leave an after hours message for Kim, press 2. If you'd like to leave an after hour message for David, Press 3. If you'd like to send us a fax, please press the pound key.
+User: to reach Aflac Worldwide Headquarters, please press 9. Any messages left after hours will be returned the next business day.
+User: left on Thursday afternoon will be returned on Monday.
+User: we don't respond in a timely manner, please give us a callback. Thank you so much for calling. Stay safe, and have a great day.
+Agent: My apologies, have a great day.
+",https://dxc03zgurdly9.cloudfront.net/call_6fd76799ec192c1fc9831d6a5be/recording.wav,Voicemail

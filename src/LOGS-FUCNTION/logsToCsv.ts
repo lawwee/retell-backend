@@ -26,30 +26,37 @@ export const logsToCsv = async (
         callStatus = callstatusenum.NOT_CALLED;
       } else if (statusOption === "vm") {
         callStatus = callstatusenum.VOICEMAIL;
-        
       } else if (statusOption === "Failed") {
         callStatus = callstatusenum.FAILED;
       }
       query.status = callStatus;
     }
 
-    if (startDate && endDate) {
+    if (startDate) {
       query["datesCalled"] = {
         $gte: startDate,
-        $lte: endDate,
       };
     }
 
+    if (endDate) {
+      query["datesCalled"] = {
+        $lte: endDate,
+      };
+    }
     const foundContacts = await contactModel
       .find(query)
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
       .limit(newlimit);
 
+    console.log(query);
+    console.log(foundContacts);
+
     const contactsData = await Promise.all(
       foundContacts.map(async (contact) => {
         const transcript = contact.referenceToCallId?.transcript;
-        const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+        const analyzedTranscript =
+          contact.referenceToCallId?.analyzedTranscript;
         return {
           firstname: contact.firstname,
           lastname: contact.lastname,
@@ -85,7 +92,10 @@ export const logsToCsv = async (
           filteredContacts.push(contact);
         } else if (
           sentimentOption !== "Uninterested" &&
-          !(sentimentOption === "Interested" && contact.status === "called-NA-VM")
+          !(
+            sentimentOption === "Interested" &&
+            contact.status === "called-NA-VM"
+          )
         ) {
           filteredContacts.push(contact);
         }

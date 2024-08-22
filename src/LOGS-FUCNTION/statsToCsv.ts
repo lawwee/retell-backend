@@ -28,7 +28,7 @@ export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]
 
     const contactsData = await Promise.all(dailyStats.map(async (contact) => {
       const transcript = contact.referenceToCallId?.transcript;
-      const analyzedTranscript = await reviewTranscript(transcript);
+      const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript
       return {
         firstname: contact.firstname,
         lastname:contact.lastname,
@@ -36,7 +36,7 @@ export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]
         phone: contact.phone,
         status: contact.status,
         transcript: transcript,
-        analyzedTranscript: analyzedTranscript?.message.content,
+        analyzedTranscript: analyzedTranscript,
         call_recording_url: contact.referenceToCallId?.recordingUrl,
       };
     }));

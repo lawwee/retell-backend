@@ -2135,13 +2135,14 @@ export class Server {
         );
         console.log("userID is : ",userId)
 
-        const availableTimes = await checkAvailability(
-          clientId,
-          clientSecret,
-          accountId,
-          availabilityId,
-        );
-        console.log("Availablle times are : ", availableTimes);
+        // const availableTimes = await checkAvailability(
+
+        //   clientId,
+        //   clientSecret,
+        //   accountId,
+        //   availabilityId,
+        // );
+        // console.log("Availablle times are : ", availableTimes);
         
         const scheduledMeeting = await scheduleMeeting(
           clientId,
@@ -2238,3 +2239,4 @@ export class Server {
     });
   }
 }
+
