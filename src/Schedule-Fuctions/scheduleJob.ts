@@ -282,7 +282,7 @@ export const scheduleCronJob = async (
 
         for (const operation of bulkOperations) {
           await operation();
-          await new Promise((resolve) => setTimeout(resolve, 10000));
+          await new Promise((resolve) => setTimeout(resolve, 15000));
         }
 
         console.log("Contacts processed, starting recall...");
