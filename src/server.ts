@@ -2120,16 +2120,16 @@ export class Server {
 
   testingZoom() {
     this.app.post("/test/zoom", async (req: Request, res: Response) => {
-      const clientId = "xcs_GJfBR3iKt6GypIfDSw";
-      const clientSecret = "g9UW5Rnp3XjrsLXW0cg9iR8TQ5bGe4W7";
-      const accountId = "RVzzvlOpSXKsc4vgq3Ck5Q";
+      const clientId = process.env.ZOOM_CLIENT_ID;
+      const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+      const accountId = process.env.ZOOM_ACC_ID;
       const userEmail = "hydradaboss06@gmail.com";
       try {
         await generateZoomAccessToken(clientId, clientSecret, accountId);
 
         // Get user ID
         // const userId = await getUserId(userEmail, clientId, clientSecret, accountId);
-        const userId = "4GMJPQS_R4GSJGE-0YMGfA";
+        const userId = process.env.ZOOM_USER_ID;
         const { availabilityId, start_time, invitee } = req.body;
 
         // Check availability for a 60-minute meeting between specified times
