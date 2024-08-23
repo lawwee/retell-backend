@@ -75,7 +75,7 @@ export const getAllContact = async (
     const skip = (page - 1) * limit;
 
     let dateFilter = {};
-    let dateFilter1 = {}
+    let dateFilter1 = {};
 
     const timeZone = "America/Los_Angeles"; // PST time zone
     const now = new Date();
@@ -189,7 +189,7 @@ export const getAllContact = async (
           return "No jobs found for today's filter.";
         }
         const dateToCheck = recentJob.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: { $gte: dateToCheck } };
+        dateFilter1 = { day: { $gte: dateToCheck } };
         break;
       default:
         const recentJob1 = await jobModel
@@ -200,7 +200,7 @@ export const getAllContact = async (
           return "No jobs found for today's filter.";
         }
         const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: { $gte: dateToCheck1 } };
+        dateFilter1 = { day: { $gte: dateToCheck1 } };
         break;
     }
 
@@ -230,7 +230,7 @@ export const getAllContact = async (
       status: callstatusenum.CALLED,
       ...dateFilter,
     });
-    
+
     const stats = await DailyStatsModel.aggregate([
       { $match: { agentId, ...dateFilter1 } },
       {
@@ -245,7 +245,6 @@ export const getAllContact = async (
         },
       },
     ]);
-  
 
     const totalPages = Math.ceil(totalCount / limit);
 
