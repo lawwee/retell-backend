@@ -8,6 +8,7 @@ const dailyStatsSchema = new Schema<Ilogs>(
     totalAnsweredByVm:{type: Number},
     totalFailed: {type:Number},
     totalAppointment:{type: Number},
+    totalCallAnswered:{type:Number},
     agentId:{type:String}
 
   },

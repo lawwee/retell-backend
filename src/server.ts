@@ -144,6 +144,8 @@ export class Server {
     this.testingCalendly();
     this.syncStatWithMake();
     this.testingZoom();
+    // this.updateSentimentMetadata()
+    this.updateUserTag();
     // this.script()
 
     this.retellClient = new Retell({
@@ -925,6 +927,7 @@ export class Server {
     const isCallTransferred = disconnection_reason === "call_transfer";
     const isMachine = call_analysis && call_analysis.in_voicemail == true;
     const isDialNoAnswer = disconnection_reason === "dial_no_answer";
+    const isCallAnswered = disconnection_reason === "user_hangup" || "agent_hangup"
 
     const updateData = {
       callId: call_id,
@@ -947,6 +950,7 @@ export class Server {
       statsUpdate.$inc.totalCalls = 1;
     }
 
+
     if (isMachine) {
       statsUpdate.$inc.totalAnsweredByVm = 1;
       callStatus = callstatusenum.VOICEMAIL;
@@ -961,9 +965,12 @@ export class Server {
       callStatus = callstatusenum.SCHEDULED;
     } else if (isDialNoAnswer) {
       callStatus = callstatusenum.NO_ANSWER;
-    } else {
+    } else if (isCallAnswered){
+      statsUpdate.$inc.totalCallAnswered = 1;
+    }else {
       callStatus = callstatusenum.CALLED;
     }
+
 
     const statsResults = await DailyStatsModel.findOneAndUpdate(
       { day: todayString, agentId: agent_id },
@@ -1054,66 +1061,26 @@ export class Server {
           if (!startDate || !endDate) {
             throw new Error("Date is missing in the request body");
           }
-          const totalCallsTransffered = await contactModel.aggregate([
+          const stats = await DailyStatsModel.aggregate([
+            { $match: { agentId:{$in:agentIds},  day:{ $gte: startDate, $lte: endDate }} },
             {
-              $match: {
-                agentId: { $in: agentIds },
-                isDeleted: { $ne: true },
-                datesCalled: { $gte: startDate, $lte: endDate },
+              $group: {
+                _id: null,
+                totalCalls: { $sum: "$totalCalls" },
+                totalAnsweredByVm: { $sum: "$totalAnsweredByVm" },
+                totalAppointment: { $sum: "$totalAppointment" },
+                totalCallsTransffered: { $sum: "$totalTransffered" },
+                totalFailedCalls: { $sum: "$totalFailed" },
+                // totalContactForAgent: { $sum: 1 },
               },
-            },
-            {
-              $lookup: {
-                from: "transcripts",
-                localField: "referenceToCallId",
-                foreignField: "_id",
-                as: "callDetails",
-              },
-            },
-            {
-              $match: {
-                "callDetails.disconnectionReason": "call_transfer",
-              },
-            },
-            {
-              $count: "result",
             },
           ]);
-          const totalAppointment = await contactModel.aggregate([
-            {
-              $match: {
-                agentId: { $in: agentIds },
-                isDeleted: { $ne: true },
-                datesCalled: { $gte: startDate, $lte: endDate },
-              },
-            },
-            {
-              $lookup: {
-                from: "transcripts",
-                localField: "referenceToCallId",
-                foreignField: "_id",
-                as: "callDetails",
-              },
-            },
-            {
-              $match: {
-                "callDetails.analyzedTranscript": "Scheduled",
-              },
-            },
-            {
-              $count: "result",
-            },
-          ]);
+        
+         
           const totalNotCalledForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
             status: callstatusenum.NOT_CALLED,
-          });
-          const totalAnsweredByVm = await contactModel.countDocuments({
-            agentId: { $in: agentIds },
-            isDeleted: false,
-            datesCalled: { $gte: startDate, $lte: endDate },
-            status: callstatusenum.VOICEMAIL,
           });
           const TotalCalls = await contactModel.countDocuments({
             agentId: { $in: agentIds },
@@ -1139,16 +1106,13 @@ export class Server {
           });
           res.send({
             TotalAnsweredCall,
-            TotalCalls,
-            totalCallsTransffered:
-              totalCallsTransffered.length > 0
-                ? totalCallsTransffered[0].result
-                : 0,
-            totalAppointment:
-              totalAppointment.length > 0 ? totalAppointment[0].result : 0,
+            TotalCalls: stats[0]?.totalCalls || 0,
+            totalCallsTransffered:stats[0]?.totalCallsTransffered || 0,
+            totalAppointment :stats[0]?.totalAppointment || 0,
             totalNotCalledForAgents,
-            totalAnsweredByVm,
+            totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
             totalContactForAgents,
+            totalFailedCalls: stats[0]?.totalFailedCalls || 0
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -2133,7 +2097,7 @@ export class Server {
           clientSecret,
           accountId,
         );
-        console.log("userID is : ",userId)
+        console.log("userID is : ", userId);
 
         // const availableTimes = await checkAvailability(
 
@@ -2143,7 +2107,7 @@ export class Server {
         //   availabilityId,
         // );
         // console.log("Availablle times are : ", availableTimes);
-        
+
         const scheduledMeeting = await scheduleMeeting(
           clientId,
           clientSecret,
@@ -2156,52 +2120,18 @@ export class Server {
           invitee,
         );
         console.log("Meeting scheduled:", scheduledMeeting);
-        res.send("done")
+        res.send("done");
       } catch (error) {
         console.error("An error occurred:", error);
       }
     });
   }
 
-  updateSentimentMetadata() {
-    this.app.post("/update/metadata", async (req: Request, res: Response) => {
-      try {
-        const { id, ...fieldsToUpdate } = req.body;
-
-        // Ensure the ID is provided
-        if (!id) {
-          return res
-            .status(400)
-            .json({ error: "Invalid input: 'id' is required." });
-        }
-
-        // Check if there are any fields to update
-        if (Object.keys(fieldsToUpdate).length === 0) {
-          return res
-            .status(400)
-            .json({ error: "No fields provided for update." });
-        }
-        const updatedEvent = await contactModel.findByIdAndUpdate(
-          id,
-          { $set: fieldsToUpdate },
-          { new: true },
-        );
-
-        if (!updatedEvent) {
-          return res.status(404).json({ error: "Event not found." });
-        }
-        res.json(updatedEvent);
-      } catch (error) {
-        console.error("Error updating event:", error);
-        res.status(500).json({ error: "Internal server error." });
-      }
-    });
-  }
 
   updateUserTag() {
-    this.app.post("/update-fields", async (req: Request, res: Response) => {
+    this.app.post("/update/metadata", async (req: Request, res: Response) => {
       try {
-        const { id: ids, ...fieldsToUpdate } = req.body;
+        const { id: ids, fieldsToUpdate } = req.body;
 
         if (!Array.isArray(ids) || ids.length === 0) {
           return res
@@ -2209,11 +2139,23 @@ export class Server {
             .json({ error: "Invalid input: 'id' must be a non-empty array." });
         }
 
-        // Check if there are any fields to update
         if (Object.keys(fieldsToUpdate).length === 0) {
           return res
             .status(400)
             .json({ error: "No fields provided for update." });
+        }
+
+        const validFields = Object.keys(EventModel.schema.paths);
+        const invalidFields = Object.keys(fieldsToUpdate).filter(
+          (field) => !validFields.includes(field),
+        );
+
+        if (invalidFields.length > 0) {
+          return res.status(400).json({
+            error: `Invalid fields: ${invalidFields.join(
+              ", ",
+            )}. These fields do not exist in the schema.`,
+          });
         }
 
         const result = await EventModel.updateMany(
@@ -2239,4 +2181,3 @@ export class Server {
     });
   }
 }
-

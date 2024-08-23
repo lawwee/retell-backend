@@ -89,7 +89,8 @@ export interface Ilogs {
   totalAnsweredByVm: number;
   agentId: String;
   totalFailed:number
-  totalAppointment:Number
+  totalAppointment:number
+  totalCallAnswered: number
 }
 
 // Retell -> Your Server Events
