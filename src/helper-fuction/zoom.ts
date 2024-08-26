@@ -165,12 +165,24 @@ export async function scheduleMeeting(
     timezone: 'UTC',
     agenda: agenda,
     settings: {
-      meeting_invitees: [{ email: invitee }], // Moving it to 'settings'
-      approval_type: 1, // Automatically approve participants
-      registration_type: 1, // Require registration if needed
-    },
+      host_video: true,
+      participant_video: true,
+      join_before_host: false,
+      mute_upon_entry: true,
+      approval_type: 1, 
+      registration_type: 1, 
+      enforce_login: false,
+      auto_recording: 'none',
+  }
 
   };
+
+  const registrantDetails = {
+    email: invitee,
+    first_name: 'First', 
+    last_name: 'Last', 
+};
+
 
   try {
     const response: AxiosResponse = await axios.post(
@@ -178,9 +190,22 @@ export async function scheduleMeeting(
       meetingDetails,
       { headers }
     );
-    return response.data.settings.meeting_invitees;
+    const meetingId = response.data.id
+
+    const registrantResponse = await axios.post(`https://api.zoom.us/v2/meetings/${meetingId}/registrants`, registrantDetails, {
+      headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+      }
+  });
+
+  console.log('Invitee registered successfully:', registrantResponse.data);
+    return response.data.settings;
   } catch (error) {
     handleAxiosError(error);
     throw error;
   }
+
+  
 }
+

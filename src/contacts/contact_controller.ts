@@ -89,7 +89,6 @@ export const getAllContact = async (
       case DateOption.Yesterday:
         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
         const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-        console.log(yesterday);
         dateFilter = { datesCalled: yesterday };
         break;
       case DateOption.ThisWeek:
@@ -150,7 +149,6 @@ export const getAllContact = async (
       case DateOption.Yesterday:
         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
         const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-        console.log(yesterday);
         dateFilter1 = { day: yesterday };
         break;
       case DateOption.ThisWeek:
