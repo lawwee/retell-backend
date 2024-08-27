@@ -112,8 +112,8 @@ export const searchAndRecallContacts = async (
             override_agent_id: agentId,
             drop_call_if_machine_detected: true,
             retell_llm_dynamic_variables: {
-              firstname: contact.firstname,
-              email: contact.email,
+              user_firstname: contact.firstname,
+              user_email: contact.email,
             },
           });
           await contactModel.findByIdAndUpdate(contact._id, {
