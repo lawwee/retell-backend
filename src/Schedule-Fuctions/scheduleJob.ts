@@ -239,26 +239,44 @@ export const scheduleCronJob = async (
 
             try {
               const newToNumber = formatPhoneNumber(postdata.toNumber);
-              await retellClient.call.registerPhoneCall({
+              // await retellClient.call.registerPhoneCall({
+              //   agent_id: agentId,
+              //   from_number: fromNumber,
+              //   to_number: newToNumber,
+              //   retell_llm_dynamic_variables: {
+              //     user_firstname: contact.firstname,
+              //     user_email: contact.email,
+              //   },
+              // });
+
+              // const registerCallResponse2 =
+              //   await retellClient.call.createPhoneCall({
+              //     from_number: fromNumber,
+              //     to_number: newToNumber,
+              //     override_agent_id: agentId,
+              //     retell_llm_dynamic_variables: {
+              //       user_firstname: contact.firstname,
+              //       user_email: contact.email,
+              //     },
+              //  });
+
+              const callRegister = await retellClient.call.register({
                 agent_id: agentId,
+                audio_encoding: "s16le",
+                audio_websocket_protocol: "twilio",
+                sample_rate: 24000,
+                end_call_after_silence_ms: 15000,
+              });
+              const registerCallResponse2 = await retellClient.call.create({
                 from_number: fromNumber,
                 to_number: newToNumber,
+                override_agent_id: agentId,
+                drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {
-                  user_firstname: contact.firstname,
-                  user_email: contact.email,
+                  firstname: contact.firstname,
+                  email: contact.email,
                 },
               });
-
-              const registerCallResponse2 =
-                await retellClient.call.createPhoneCall({
-                  from_number: fromNumber,
-                  to_number: newToNumber,
-                  override_agent_id: agentId,
-                  retell_llm_dynamic_variables: {
-                    user_firstname: contact.firstname,
-                    user_email: contact.email,
-                  },
-                });
 
               await contactModel.findByIdAndUpdate(contact._id, {
                 callId: registerCallResponse2.call_id,

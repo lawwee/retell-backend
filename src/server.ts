@@ -391,25 +391,43 @@ export class Server {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
         try {
-          const callRegister = await this.retellClient.call.registerPhoneCall({
+          // const callRegister = await this.retellClient.call.registerPhoneCall({
+          //   agent_id: agentId,
+          //   from_number: fromNumber,
+          //   to_number: toNumber,
+          //   retell_llm_dynamic_variables: {
+          //     user_firstname: result.firstname,
+          //     user_email: result.email,
+          //   },
+          // });
+          // const registerCallResponse2 =
+          //   await this.retellClient.call.createPhoneCall({
+          //     from_number: fromNumber,
+          //     to_number: toNumber,
+          //     override_agent_id: agentId,
+          //     retell_llm_dynamic_variables: {
+          //       user_firstname: result.firstname,
+          //       user_email: result.email,
+          //     },
+          //   });
+
+          const callRegister = await this.retellClient.call.register({
             agent_id: agentId,
+            audio_encoding: "s16le",
+            audio_websocket_protocol: "twilio",
+            sample_rate: 24000,
+            end_call_after_silence_ms: 15000,
+          });
+          const registerCallResponse2 = await this.retellClient.call.create({
             from_number: fromNumber,
             to_number: toNumber,
+            override_agent_id: agentId,
+            drop_call_if_machine_detected: true,
             retell_llm_dynamic_variables: {
-              user_firstname: result.firstname,
-              user_email: result.email,
+              firstname: result.firstname,
+              email: result.email,
             },
           });
-          const registerCallResponse2 =
-            await this.retellClient.call.createPhoneCall({
-              from_number: fromNumber,
-              to_number: toNumber,
-              override_agent_id: agentId,
-              retell_llm_dynamic_variables: {
-                user_firstname: result.firstname,
-                user_email: result.email,
-              },
-            });
           await contactModel.findByIdAndUpdate(userId, {
             callId: registerCallResponse2.call_id,
           });
