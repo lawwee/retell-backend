@@ -1,8 +1,6 @@
 import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
-import { reviewTranscript } from "../helper-fuction/transcript-review";
-import { callstatusenum } from "../types";
 
 export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]) => {
   try {

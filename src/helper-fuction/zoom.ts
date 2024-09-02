@@ -149,7 +149,8 @@ export async function scheduleMeeting(
   duration: number,
   topic: string,
   agenda: string,
-  invitee: string
+  invitee: string,
+  firstname: string
 ): Promise<any> {
   await refreshTokenIfNeeded(clientId, clientSecret, accountId);
   const headers = {
@@ -169,18 +170,18 @@ export async function scheduleMeeting(
       participant_video: true,
       join_before_host: false,
       mute_upon_entry: true,
-      approval_type: 1, 
+      approval_type: 0, 
       registration_type: 1, 
       enforce_login: false,
       auto_recording: 'none',
+      registrants_email_notification: true,
   }
 
   };
 
   const registrantDetails = {
     email: invitee,
-    first_name: 'First', 
-    last_name: 'Last', 
+    first_name: firstname
 };
 
 
@@ -198,8 +199,6 @@ export async function scheduleMeeting(
           'Content-Type': 'application/json'
       }
   });
-
-  console.log('Invitee registered successfully:', registrantResponse.data);
     return response.data.settings;
   } catch (error) {
     handleAxiosError(error);

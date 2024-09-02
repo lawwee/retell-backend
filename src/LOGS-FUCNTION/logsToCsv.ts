@@ -72,17 +72,6 @@ export const logsToCsv = async (
 
     let filteredContacts: any = [];
 
-    // contactsData.forEach((contact: any) => {
-    //   if (!sentimentOption || contact.analyzedTranscript === sentimentOption) {
-
-    //     if (sentimentOption === "Uninterested" && contact.status === "call-connected") {
-    //       filteredContacts.push(contact);
-    //     } else if (sentimentOption !== "Uninterested") {
-    //       filteredContacts.push(contact);
-    //     }
-    //   }
-    // });
-
     contactsData.forEach((contact: any) => {
       if (!sentimentOption || contact.analyzedTranscript === sentimentOption) {
         if (

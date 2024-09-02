@@ -49,7 +49,10 @@ import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
 import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
-import { reviewTranscript } from "./helper-fuction/transcript-review";
+import {
+  reviewCallback,
+  reviewTranscript,
+} from "./helper-fuction/transcript-review";
 import jwt from "jsonwebtoken";
 import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
@@ -109,6 +112,7 @@ export class Server {
     });
 
     this.getFullStat();
+    this.testingGpt()
     this.handleRetellLlmWebSocket();
     this.getAllDbTags();
     this.handleContactSaving();
@@ -126,10 +130,10 @@ export class Server {
     this.getAllJob();
     this.stopSpecificJob();
     this.deleteAll();
-    this.logsToCsv();
+    this.adminSideLogsToCsv();
     this.statsForAgent();
     this.peopleStatsLog();
-    this.peopleStatToCsv();
+    this.clientSideToCsv();
     this.createPhoneCall2();
     this.searchForUser();
     this.getTranscriptAfterCallEnded();
@@ -474,7 +478,7 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
+    this.app.post("/users/:agentId", authmiddleware, isAdmin,async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
       const { page, limit, dateOption } = req.body;
       const newPage = parseInt(page);
@@ -598,6 +602,7 @@ export class Server {
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
+      authmiddleware, isAdmin,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         const session = await mongoose.startSession();
@@ -732,6 +737,7 @@ export class Server {
     this.app.get(
       "/schedules/get",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const result = await jobModel.find().sort({ createdAt: "desc" });
         res.json({ result });
@@ -945,7 +951,8 @@ export class Server {
     const isCallTransferred = disconnection_reason === "call_transfer";
     const isMachine = call_analysis && call_analysis.in_voicemail == true;
     const isDialNoAnswer = disconnection_reason === "dial_no_answer";
-    const isCallAnswered = disconnection_reason === "user_hangup" || "agent_hangup"
+    const isCallAnswered =
+      disconnection_reason === "user_hangup" || "agent_hangup";
 
     const updateData = {
       callId: call_id,
@@ -968,7 +975,6 @@ export class Server {
       statsUpdate.$inc.totalCalls = 1;
     }
 
-
     if (isMachine) {
       statsUpdate.$inc.totalAnsweredByVm = 1;
       callStatus = callstatusenum.VOICEMAIL;
@@ -983,12 +989,11 @@ export class Server {
       callStatus = callstatusenum.SCHEDULED;
     } else if (isDialNoAnswer) {
       callStatus = callstatusenum.NO_ANSWER;
-    } else if (isCallAnswered){
+    } else if (isCallAnswered) {
       statsUpdate.$inc.totalCallAnswered = 1;
-    }else {
+    } else {
       callStatus = callstatusenum.CALLED;
     }
-
 
     const statsResults = await DailyStatsModel.findOneAndUpdate(
       { day: todayString, agentId: agent_id },
@@ -1024,8 +1029,8 @@ export class Server {
     );
   }
 
-  logsToCsv() {
-    this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
+  adminSideLogsToCsv() {
+    this.app.post("/call-logs-csv",isAdmin, authmiddleware, async (req: Request, res: Response) => {
       try {
         const {
           agentId,
@@ -1080,7 +1085,12 @@ export class Server {
             throw new Error("Date is missing in the request body");
           }
           const stats = await DailyStatsModel.aggregate([
-            { $match: { agentId:{$in:agentIds},  day:{ $gte: startDate, $lte: endDate }} },
+            {
+              $match: {
+                agentId: { $in: agentIds },
+                day: { $gte: startDate, $lte: endDate },
+              },
+            },
             {
               $group: {
                 _id: null,
@@ -1093,8 +1103,7 @@ export class Server {
               },
             },
           ]);
-        
-         
+
           const totalNotCalledForAgents = await contactModel.countDocuments({
             agentId: { $in: agentIds },
             isDeleted: false,
@@ -1125,12 +1134,12 @@ export class Server {
           res.send({
             TotalAnsweredCall,
             TotalCalls: stats[0]?.totalCalls || 0,
-            totalCallsTransffered:stats[0]?.totalCallsTransffered || 0,
-            totalAppointment :stats[0]?.totalAppointment || 0,
+            totalCallsTransffered: stats[0]?.totalCallsTransffered || 0,
+            totalAppointment: stats[0]?.totalAppointment || 0,
             totalNotCalledForAgents,
             totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
             totalContactForAgents,
-            totalFailedCalls: stats[0]?.totalFailedCalls || 0
+            totalFailedCalls: stats[0]?.totalFailedCalls || 0,
           });
         } catch (error) {
           console.error("Error fetching daily stats:", error);
@@ -1208,7 +1217,7 @@ export class Server {
     );
   }
 
-  peopleStatToCsv() {
+  clientSideToCsv() {
     this.app.post("/get-metadata-csv", authmiddleware, async (req, res) => {
       try {
         const { startDate, endDate, agentIds } = req.body;
@@ -1295,7 +1304,7 @@ export class Server {
   }
 
   searchForUser() {
-    this.app.post("/search", async (req: Request, res: Response) => {
+    this.app.post("/search",authmiddleware, isAdmin, async (req: Request, res: Response) => {
       const {
         searchTerm = "",
         startDate,
@@ -1495,6 +1504,7 @@ export class Server {
     this.app.post(
       "/batch-delete-users",
       authmiddleware,
+      isAdmin,
       async (req: Request, res: Response) => {
         const { contactsToDelete } = req.body;
 
@@ -2082,18 +2092,35 @@ export class Server {
 
   syncStatWithMake() {
     this.app.post("/api/make", async (req: Request, res: Response) => {
-      const foundContacts: IContact[] = await contactModel.find({
-        isDeleted: false,
-      });
+      const foundContacts: IContact[] = await contactModel
+        .find({
+          isDeleted: false,
+        })
+        .populate("referenceToCallId")
+        .limit(10);
 
-      const mappedContacts = foundContacts.map((contact) => ({
-        firstname: contact.firstname,
-        lastname: contact.lastname ?? "",
-        fullName: `${contact.firstname} ${contact.lastname}`,
-        phone: contact.phone,
-        email: contact.email,
-        company: "TVAG",
-      }));
+      const mappedContacts = await Promise.all(
+        foundContacts.map(async (contact) => {
+          let date: string | undefined;
+
+          if (contact.referenceToCallId?.analyzedTranscript === "Call back") {
+            date = await reviewCallback(contact.referenceToCallId.transcript);
+          }
+
+          return {
+            firstname: contact.firstname,
+            lastname: contact?.lastname,
+            fullName: `${contact.firstname} ${contact.lastname}`,
+            phone: contact.phone,
+            email: contact.email,
+            company: "",
+            summary: contact.referenceToCallId?.retellCallSummary,
+            recordingAudioLink: contact.referenceToCallId?.recordingUrl,
+            timeToCallback: date,
+          };
+        }),
+      );
+
       res.json(mappedContacts);
     });
   }
@@ -2103,8 +2130,8 @@ export class Server {
       const clientId = process.env.ZOOM_CLIENT_ID;
       const clientSecret = process.env.ZOOM_CLIENT_SECRET;
       const accountId = process.env.ZOOM_ACC_ID;
-      const userEmail = "hydradaboss06@gmail.com";
-      const userId = process.env.ZOOM_USER_ID;
+      const userEmail = "appointments@thevagroup.com";
+      // const userId = process.env.ZOOM_USER_ID;
       const { availabilityId, start_time, invitee } = req.body;
       try {
         await generateZoomAccessToken(clientId, clientSecret, accountId);
@@ -2125,6 +2152,7 @@ export class Server {
         //   availabilityId,
         // );
         // console.log("Availablle times are : ", availableTimes);
+        const firstname = "Testing";
 
         const scheduledMeeting = await scheduleMeeting(
           clientId,
@@ -2136,6 +2164,7 @@ export class Server {
           "Important Meeting",
           "Discuss important matters",
           invitee,
+          firstname,
         );
         console.log("Meeting scheduled:", scheduledMeeting);
         res.send("done");
@@ -2144,8 +2173,6 @@ export class Server {
       }
     });
   }
-
-
   updateUserTag() {
     this.app.post("/update/metadata", async (req: Request, res: Response) => {
       try {
@@ -2197,5 +2224,64 @@ export class Server {
         res.status(500).json({ error: "Internal server error." });
       }
     });
+  }
+  checkAvailabiltyWithZoom() {
+    this.app.post("/zoom/availabilty", async (req: Request, res: Response) => {
+      const clientId = process.env.ZOOM_CLIENT_ID;
+      const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+      const accountId = process.env.ZOOM_ACC_ID;
+      const availabilityId = "";
+      const availableTimes = await checkAvailability(
+        clientId,
+        clientSecret,
+        accountId,
+        availabilityId,
+      );
+      console.log("Availablle times are : ", availableTimes);
+      res.send(availableTimes);
+    });
+  }
+  bookAppointmentWithZoom() {
+    this.app.post("/zoom/appointment", async (req: Request, res: Response) => {
+      const clientId = process.env.ZOOM_CLIENT_ID;
+      const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+      const accountId = process.env.ZOOM_ACC_ID;
+      const userId = process.env.ZOOM_USER_ID;
+      const invitee = req.body.args.email;
+      const start_time = req.body.args.startTime;
+      const firstname =
+        req.body.call.retell_llm_dynamic_variables.user_firstname;
+      const scheduledMeeting = await scheduleMeeting(
+        clientId,
+        clientSecret,
+        accountId,
+        userId,
+        start_time,
+        60,
+        "Important Meeting",
+        "Discuss important matters",
+        invitee,
+        firstname,
+      );
+    });
+  }
+
+  testingGpt(){
+    this.app.post("/gpt", async (req: Request, res: Response)=> {
+
+      const result = await EventModel.find({analyzedTranscript: "Call back"}).limit(200)
+
+      const mappedContacts = await Promise.all(result.map(async (contact) => {
+        const reviewed = await reviewCallback(contact.transcript)
+        // console.log(reviewed)
+        // console.log("-----------------------------------------------------------------------------")
+        return {
+          time: reviewed
+        }
+      })
+    )
+
+      res.send(mappedContacts)
+    })
   }
 }
