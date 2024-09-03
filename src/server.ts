@@ -67,6 +67,7 @@ import {
   scheduleMeeting,
 } from "./helper-fuction/zoom";
 
+import { MongoClient } from "mongodb";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -111,8 +112,8 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
-    this.getFullStat();
-    this.testingGpt()
+  
+    this.getFullStat()
     this.handleRetellLlmWebSocket();
     this.getAllDbTags();
     this.handleContactSaving();
@@ -478,38 +479,43 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.post("/users/:agentId", authmiddleware, isAdmin,async (req: Request, res: Response) => {
-      const agentId = req.params.agentId;
-      const { page, limit, dateOption } = req.body;
-      const newPage = parseInt(page);
-      const newLimit = parseInt(limit);
+    this.app.post(
+      "/users/:agentId",
+      authmiddleware,
+      isAdmin,
+      async (req: Request, res: Response) => {
+        const agentId = req.params.agentId;
+        const { page, limit, dateOption } = req.body;
+        const newPage = parseInt(page);
+        const newLimit = parseInt(limit);
 
-      // Validate dateOption
-      let validDateOption: DateOption;
+        // Validate dateOption
+        let validDateOption: DateOption;
 
-      // Validate dateOption
-      if (dateOption) {
-        if (!Object.values(DateOption).includes(dateOption)) {
-          return res.status(400).json({ error: "Invalid date option" });
+        // Validate dateOption
+        if (dateOption) {
+          if (!Object.values(DateOption).includes(dateOption)) {
+            return res.status(400).json({ error: "Invalid date option" });
+          }
+          validDateOption = dateOption as DateOption;
+        } else {
+          validDateOption = DateOption.LAST_SCHEDULE;
         }
-        validDateOption = dateOption as DateOption;
-      } else {
-        validDateOption = DateOption.LAST_SCHEDULE;
-      }
 
-      try {
-        const result = await getAllContact(
-          agentId,
-          newPage,
-          newLimit,
-          validDateOption,
-        );
-        res.json({ result });
-      } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "Internal Server Error" });
-      }
-    });
+        try {
+          const result = await getAllContact(
+            agentId,
+            newPage,
+            newLimit,
+            validDateOption,
+          );
+          res.json({ result });
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({ error: "Internal Server Error" });
+        }
+      },
+    );
   }
   handlecontactDelete() {
     this.app.patch(
@@ -602,7 +608,8 @@ export class Server {
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
-      authmiddleware, isAdmin,
+      authmiddleware,
+      isAdmin,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         const session = await mongoose.startSession();
@@ -1030,48 +1037,53 @@ export class Server {
   }
 
   adminSideLogsToCsv() {
-    this.app.post("/call-logs-csv",isAdmin, authmiddleware, async (req: Request, res: Response) => {
-      try {
-        const {
-          agentId,
-          startDate,
-          endDate,
-          limit,
-          statusOption,
-          sentimentOption,
-        } = req.body;
-        const newlimit = parseInt(limit);
-        const result = await logsToCsv(
-          agentId,
-          newlimit,
-          startDate,
-          endDate,
-          statusOption,
-          sentimentOption,
-        );
-        if (typeof result === "string") {
-          const filePath: string = result;
-          if (fs.existsSync(filePath)) {
-            res.setHeader(
-              "Content-Disposition",
-              "attachment; filename=logs.csv",
-            );
-            res.setHeader("Content-Type", "text/csv");
-            const fileStream = fs.createReadStream(filePath);
-            fileStream.pipe(res);
+    this.app.post(
+      "/call-logs-csv",
+      isAdmin,
+      authmiddleware,
+      async (req: Request, res: Response) => {
+        try {
+          const {
+            agentId,
+            startDate,
+            endDate,
+            limit,
+            statusOption,
+            sentimentOption,
+          } = req.body;
+          const newlimit = parseInt(limit);
+          const result = await logsToCsv(
+            agentId,
+            newlimit,
+            startDate,
+            endDate,
+            statusOption,
+            sentimentOption,
+          );
+          if (typeof result === "string") {
+            const filePath: string = result;
+            if (fs.existsSync(filePath)) {
+              res.setHeader(
+                "Content-Disposition",
+                "attachment; filename=logs.csv",
+              );
+              res.setHeader("Content-Type", "text/csv");
+              const fileStream = fs.createReadStream(filePath);
+              fileStream.pipe(res);
+            } else {
+              console.error("CSV file does not exist");
+              res.status(404).send("CSV file not found");
+            }
           } else {
-            console.error("CSV file does not exist");
-            res.status(404).send("CSV file not found");
+            console.error(`Error retrieving contacts: ${result}`);
+            res.status(500).send(`Error retrieving contacts: ${result}`);
           }
-        } else {
-          console.error(`Error retrieving contacts: ${result}`);
-          res.status(500).send(`Error retrieving contacts: ${result}`);
+        } catch (error) {
+          console.error(`Error retrieving contacts: ${error}`);
+          res.status(500).send(`Error retrieving contacts: ${error}`);
         }
-      } catch (error) {
-        console.error(`Error retrieving contacts: ${error}`);
-        res.status(500).send(`Error retrieving contacts: ${error}`);
-      }
-    });
+      },
+    );
   }
 
   statsForAgent() {
@@ -1304,200 +1316,210 @@ export class Server {
   }
 
   searchForUser() {
-    this.app.post("/search",authmiddleware, isAdmin, async (req: Request, res: Response) => {
-      const {
-        searchTerm = "",
-        startDate,
-        endDate,
-        statusOption,
-        sentimentOption,
-        agentId,
-        tag,
-      } = req.body;
+    this.app.post(
+      "/search",
+      authmiddleware,
+      isAdmin,
+      async (req: Request, res: Response) => {
+        const {
+          searchTerm = "",
+          startDate,
+          endDate,
+          statusOption,
+          sentimentOption,
+          agentId,
+          tag,
+        } = req.body;
 
-      if (!agentId) {
-        return res
-          .status(400)
-          .json({ error: "Search term or agent Ids is required" });
-      }
+        if (!agentId) {
+          return res
+            .status(400)
+            .json({ error: "Search term or agent Ids is required" });
+        }
 
-      try {
-        const isValidEmail = (email: string) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email.trim());
-        };
-        const searchTerms = searchTerm
-          .split(",")
-          .map((term: string) => term.trim());
-        const firstTermIsEmail = isValidEmail(searchTerms[0]);
-
-        const searchForTerm = async (term: string, searchByEmail: boolean) => {
-          const query: any = {
-            agentId,
-            isDeleted: false,
-            $or: searchByEmail
-              ? [{ email: { $regex: term, $options: "i" } }]
-              : [
-                  { firstname: { $regex: term, $options: "i" } },
-                  { lastname: { $regex: term, $options: "i" } },
-                  { phone: { $regex: term, $options: "i" } },
-                  { email: { $regex: term, $options: "i" } },
-                ],
+        try {
+          const isValidEmail = (email: string) => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email.trim());
           };
+          const searchTerms = searchTerm
+            .split(",")
+            .map((term: string) => term.trim());
+          const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-          const formatDateToDB = (dateString: any) => {
-            const date = new Date(dateString);
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-based
-            const day = String(date.getUTCDate()).padStart(2, "0");
-            return `${year}-${month}-${day}`;
-          };
+          const searchForTerm = async (
+            term: string,
+            searchByEmail: boolean,
+          ) => {
+            const query: any = {
+              agentId,
+              isDeleted: false,
+              $or: searchByEmail
+                ? [{ email: { $regex: term, $options: "i" } }]
+                : [
+                    { firstname: { $regex: term, $options: "i" } },
+                    { lastname: { $regex: term, $options: "i" } },
+                    { phone: { $regex: term, $options: "i" } },
+                    { email: { $regex: term, $options: "i" } },
+                  ],
+            };
 
-          if (startDate || endDate) {
-            query["datesCalled"] = {};
-            if (startDate) {
-              query["datesCalled"]["$gte"] = formatDateToDB(startDate);
+            const formatDateToDB = (dateString: any) => {
+              const date = new Date(dateString);
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-based
+              const day = String(date.getUTCDate()).padStart(2, "0");
+              return `${year}-${month}-${day}`;
+            };
+
+            if (startDate || endDate) {
+              query["datesCalled"] = {};
+              if (startDate) {
+                query["datesCalled"]["$gte"] = formatDateToDB(startDate);
+              }
+              if (endDate) {
+                query["datesCalled"]["$lte"] = formatDateToDB(endDate);
+              }
             }
-            if (endDate) {
-              query["datesCalled"]["$lte"] = formatDateToDB(endDate);
+
+            if (tag) {
+              query["tag"] = tag;
             }
-          }
 
-          if (tag) {
-            query["tag"] = tag;
-          }
+            if (statusOption && statusOption !== "All") {
+              let callStatus;
 
-          if (statusOption && statusOption !== "All") {
-            let callStatus;
-
-            if (statusOption === "call-transferred") {
-              const pipeline: any[] = [
-                {
-                  $match: {
-                    agentId,
-                    isDeleted: { $ne: true },
-                  },
-                },
-                {
-                  $lookup: {
-                    from: "transcripts",
-                    localField: "referenceToCallId",
-                    foreignField: "_id",
-                    as: "callDetails",
-                  },
-                },
-                {
-                  $match: {
-                    "callDetails.disconnectionReason": "call_transfer",
-                  },
-                },
-              ];
-
-              if (startDate && endDate) {
-                pipeline.push({
-                  $match: {
-                    datesCalled: {
-                      $gte: startDate,
-                      $lte: endDate,
+              if (statusOption === "call-transferred") {
+                const pipeline: any[] = [
+                  {
+                    $match: {
+                      agentId,
+                      isDeleted: { $ne: true },
                     },
                   },
-                });
+                  {
+                    $lookup: {
+                      from: "transcripts",
+                      localField: "referenceToCallId",
+                      foreignField: "_id",
+                      as: "callDetails",
+                    },
+                  },
+                  {
+                    $match: {
+                      "callDetails.disconnectionReason": "call_transfer",
+                    },
+                  },
+                ];
+
+                if (startDate && endDate) {
+                  pipeline.push({
+                    $match: {
+                      datesCalled: {
+                        $gte: startDate,
+                        $lte: endDate,
+                      },
+                    },
+                  });
+                }
+
+                const totalCallsTransferred = await contactModel.aggregate(
+                  pipeline,
+                );
+
+                return totalCallsTransferred;
+              } else {
+                // Handle other status options
+                switch (statusOption.toLowerCase()) {
+                  case "call-connected":
+                    callStatus = callstatusenum.CALLED;
+                    break;
+                  case "not-called":
+                    callStatus = callstatusenum.NOT_CALLED;
+                    break;
+                  case "called-na-vm":
+                    callStatus = callstatusenum.VOICEMAIL;
+                    break;
+                  case "call-failed":
+                    callStatus = callstatusenum.FAILED;
+                    break;
+                  default:
+                    // Return empty array if statusOption doesn't match any known options
+                    return [];
+                }
+
+                query["status"] = callStatus;
               }
-
-              const totalCallsTransferred = await contactModel.aggregate(
-                pipeline,
-              );
-
-              return totalCallsTransferred;
-            } else {
-              // Handle other status options
-              switch (statusOption.toLowerCase()) {
-                case "call-connected":
-                  callStatus = callstatusenum.CALLED;
-                  break;
-                case "not-called":
-                  callStatus = callstatusenum.NOT_CALLED;
-                  break;
-                case "called-na-vm":
-                  callStatus = callstatusenum.VOICEMAIL;
-                  break;
-                case "call-failed":
-                  callStatus = callstatusenum.FAILED;
-                  break;
-                default:
-                  // Return empty array if statusOption doesn't match any known options
-                  return [];
-              }
-
-              query["status"] = callStatus;
             }
+
+            return await contactModel.find(query).populate("referenceToCallId");
+          };
+
+          let allResults: any[] = [];
+
+          for (const term of searchTerms) {
+            const results = await searchForTerm(term, firstTermIsEmail);
+            allResults = allResults.concat(results);
+          }
+          let sentimentStatus:
+            | "Uninterested"
+            | "Call back"
+            | "Interested"
+            | "Scheduled"
+            | "Voicemail"
+            | "Incomplete call"
+            | undefined;
+
+          if (
+            sentimentOption === "Uninterested" ||
+            sentimentOption === "uninterested"
+          ) {
+            sentimentStatus = "Uninterested";
+          } else if (
+            sentimentOption === "Interested" ||
+            sentimentOption === "interested"
+          ) {
+            sentimentStatus = "Interested";
+          } else if (
+            sentimentOption === "Scheduled" ||
+            sentimentOption === "scheduled"
+          ) {
+            sentimentStatus = "Scheduled";
+          } else if (
+            sentimentOption === "Voicemail" ||
+            sentimentOption === "voicemail"
+          ) {
+            sentimentStatus = "Voicemail";
+          } else if (
+            sentimentOption === "incomplete-call" ||
+            sentimentOption === "Incomplete-Call"
+          ) {
+            sentimentStatus = "Incomplete call";
+          } else if (
+            sentimentOption === "call-back" ||
+            sentimentOption === "Call-Back"
+          ) {
+            sentimentStatus = "Call back";
           }
 
-          return await contactModel.find(query).populate("referenceToCallId");
-        };
-
-        let allResults: any[] = [];
-
-        for (const term of searchTerms) {
-          const results = await searchForTerm(term, firstTermIsEmail);
-          allResults = allResults.concat(results);
+          if (!sentimentOption) {
+            res.json(allResults);
+          } else {
+            const filteredResults = allResults.filter((contact) => {
+              const analyzedTranscript =
+                contact.referenceToCallId?.analyzedTranscript;
+              return (
+                analyzedTranscript && analyzedTranscript === sentimentStatus
+              );
+            });
+            res.json(filteredResults);
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({ error: "Internal server error" });
         }
-        let sentimentStatus:
-          | "Uninterested"
-          | "Call back"
-          | "Interested"
-          | "Scheduled"
-          | "Voicemail"
-          | "Incomplete call"
-          | undefined;
-
-        if (
-          sentimentOption === "Uninterested" ||
-          sentimentOption === "uninterested"
-        ) {
-          sentimentStatus = "Uninterested";
-        } else if (
-          sentimentOption === "Interested" ||
-          sentimentOption === "interested"
-        ) {
-          sentimentStatus = "Interested";
-        } else if (
-          sentimentOption === "Scheduled" ||
-          sentimentOption === "scheduled"
-        ) {
-          sentimentStatus = "Scheduled";
-        } else if (
-          sentimentOption === "Voicemail" ||
-          sentimentOption === "voicemail"
-        ) {
-          sentimentStatus = "Voicemail";
-        } else if (
-          sentimentOption === "incomplete-call" ||
-          sentimentOption === "Incomplete-Call"
-        ) {
-          sentimentStatus = "Incomplete call";
-        } else if (
-          sentimentOption === "call-back" ||
-          sentimentOption === "Call-Back"
-        ) {
-          sentimentStatus = "Call back";
-        }
-
-        if (!sentimentOption) {
-          res.json(allResults);
-        } else {
-          const filteredResults = allResults.filter((contact) => {
-            const analyzedTranscript =
-              contact.referenceToCallId?.analyzedTranscript;
-            return analyzedTranscript && analyzedTranscript === sentimentStatus;
-          });
-          res.json(filteredResults);
-        }
-      } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
+      },
+    );
   }
 
   batchDeleteUser() {
@@ -2050,46 +2072,6 @@ export class Server {
     );
   }
 
-  // script() {
-  //   this.app.get("/script", async (req: Request, res: Response) => {
-  //     try {
-  //       // Retrieve all documents from the contactModel
-  //       const contacts = await contactModel.find({isDeleted:false, datesCalled:"2024-08-05"});
-
-  //       // Loop through each contact
-  //       for (const contact of contacts) {
-  //         const { callId } = contact;
-
-  //       if (typeof callId !== 'string') {
-  //         console.log(`Invalid callId for contact ${contact._id}`);
-  //         continue;
-  //       }
-  //         // Find the corresponding transcript document
-  //         const transcript = await EventModel.findOne({callId});
-
-  //         if (transcript.analyzedTranscript === "Voicemail") {
-  //           await contactModel.updateOne(
-  //             { _id: contact._id },
-  //             { $set: { status:callstatusenum.VOICEMAIL  } },
-  //           );
-  //           console.log(
-  //             `Updated contact ${contact._id} with transcript ${transcript._id}`,
-  //           );
-  //         } else {
-  //           console.log(
-  //             transcript.analyzedTranscript
-  //           );
-  //         }
-  //       }
-
-  //       console.log("Update complete.");
-  //       res.send("complete")
-  //     } catch (error) {
-  //       console.error("Error updating references:", error);
-  //     }
-  //   });
-  // }
-
   syncStatWithMake() {
     this.app.post("/api/make", async (req: Request, res: Response) => {
       const foundContacts: IContact[] = await contactModel
@@ -2264,24 +2246,5 @@ export class Server {
         firstname,
       );
     });
-  }
-
-  testingGpt(){
-    this.app.post("/gpt", async (req: Request, res: Response)=> {
-
-      const result = await EventModel.find({analyzedTranscript: "Call back"}).limit(200)
-
-      const mappedContacts = await Promise.all(result.map(async (contact) => {
-        const reviewed = await reviewCallback(contact.transcript)
-        // console.log(reviewed)
-        // console.log("-----------------------------------------------------------------------------")
-        return {
-          time: reviewed
-        }
-      })
-    )
-
-      res.send(mappedContacts)
-    })
   }
 }
