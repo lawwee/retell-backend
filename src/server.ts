@@ -152,6 +152,8 @@ export class Server {
     // this.updateSentimentMetadata()
     this.updateUserTag();
     // this.script()
+    this.bookAppointmentWithZoom()
+    this.checkAvailabiltyWithZoom()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -2230,7 +2232,6 @@ export class Server {
         accountId,
         availabilityId,
       );
-      console.log("Availablle times are : ", availableTimes);
       res.send(availableTimes);
     });
   }
