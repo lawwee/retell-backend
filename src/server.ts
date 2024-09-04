@@ -63,6 +63,7 @@ import mongoose from "mongoose";
 import {
   checkAvailability,
   generateZoomAccessToken,
+  getAllSchedulesWithAvailabilityId,
   getUserId,
   scheduleMeeting,
 } from "./helper-fuction/zoom";
@@ -112,8 +113,7 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
-  
-    this.getFullStat()
+    this.getFullStat();
     this.handleRetellLlmWebSocket();
     this.getAllDbTags();
     this.handleContactSaving();
@@ -416,6 +416,9 @@ export class Server {
           //     },
           //   });
 
+          if (!result.lastname || result.lastname.trim() === '') {
+            result.lastname = '.';
+          }
           const callRegister = await this.retellClient.call.register({
             agent_id: agentId,
             audio_encoding: "s16le",
@@ -429,8 +432,9 @@ export class Server {
             override_agent_id: agentId,
             drop_call_if_machine_detected: true,
             retell_llm_dynamic_variables: {
-              firstname: result.firstname,
-              email: result.email,
+              user_firstname: result.firstname,
+              user_email: result.email,
+              user_lastname: result.lastname
             },
           });
           await contactModel.findByIdAndUpdate(userId, {
@@ -608,8 +612,6 @@ export class Server {
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
-      authmiddleware,
-      isAdmin,
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
         const session = await mongoose.startSession();
@@ -960,6 +962,7 @@ export class Server {
     const isDialNoAnswer = disconnection_reason === "dial_no_answer";
     const isCallAnswered =
       disconnection_reason === "user_hangup" || "agent_hangup";
+    const isCallBack = analyzedTranscript.message.content === "Call back";
 
     const updateData = {
       callId: call_id,
@@ -998,6 +1001,8 @@ export class Server {
       callStatus = callstatusenum.NO_ANSWER;
     } else if (isCallAnswered) {
       statsUpdate.$inc.totalCallAnswered = 1;
+    } else if (isCallBack) {
+      console.log("Call back");
     } else {
       callStatus = callstatusenum.CALLED;
     }
@@ -2112,9 +2117,10 @@ export class Server {
       const clientId = process.env.ZOOM_CLIENT_ID;
       const clientSecret = process.env.ZOOM_CLIENT_SECRET;
       const accountId = process.env.ZOOM_ACC_ID;
-      const userEmail = "appointments@thevagroup.com";
+      const userEmail = process.env.ZOOM_EMAIL;
+      const availabilityId = process.env.ZOOM_AVAILABILTY_ID;
       // const userId = process.env.ZOOM_USER_ID;
-      const { availabilityId, start_time, invitee } = req.body;
+      const { start_time, invitee } = req.body;
       try {
         await generateZoomAccessToken(clientId, clientSecret, accountId);
 
@@ -2126,29 +2132,34 @@ export class Server {
         );
         console.log("userID is : ", userId);
 
-        // const availableTimes = await checkAvailability(
-
-        //   clientId,
-        //   clientSecret,
-        //   accountId,
-        //   availabilityId,
-        // );
-        // console.log("Availablle times are : ", availableTimes);
-        const firstname = "Testing";
-
-        const scheduledMeeting = await scheduleMeeting(
+        await getAllSchedulesWithAvailabilityId(
           clientId,
           clientSecret,
           accountId,
-          userId,
-          start_time,
-          60,
-          "Important Meeting",
-          "Discuss important matters",
-          invitee,
-          firstname,
         );
-        console.log("Meeting scheduled:", scheduledMeeting);
+
+        const availableTimes = await checkAvailability(
+          clientId,
+          clientSecret,
+          accountId,
+          availabilityId,
+        );
+        console.log("Availablle times are : ", availableTimes);
+        // const firstname = "Testing";
+
+        // const scheduledMeeting = await scheduleMeeting(
+        //   clientId,
+        //   clientSecret,
+        //   accountId,
+        //   userId,
+        //   start_time,
+        //   45,
+        //   "Important Meeting with retell",
+        //   "Discuss important matters for 45 minutes",
+        //   invitee,
+        //   firstname,
+        // );
+        // console.log("Meeting scheduled:", scheduledMeeting);
         res.send("done");
       } catch (error) {
         console.error("An error occurred:", error);
@@ -2212,7 +2223,7 @@ export class Server {
       const clientId = process.env.ZOOM_CLIENT_ID;
       const clientSecret = process.env.ZOOM_CLIENT_SECRET;
       const accountId = process.env.ZOOM_ACC_ID;
-      const availabilityId = "";
+      const availabilityId = process.env.ZOOM_AVAILABILTY_ID;
       const availableTimes = await checkAvailability(
         clientId,
         clientSecret,
@@ -2233,18 +2244,22 @@ export class Server {
       const start_time = req.body.args.startTime;
       const firstname =
         req.body.call.retell_llm_dynamic_variables.user_firstname;
+      const lastname =
+        req.body.call.retell_llm_dynamic_variables.user_lastname;
       const scheduledMeeting = await scheduleMeeting(
         clientId,
         clientSecret,
         accountId,
         userId,
         start_time,
-        60,
+        45,
         "Important Meeting",
         "Discuss important matters",
         invitee,
         firstname,
+        lastname
       );
+      res.send("Schduled");
     });
   }
 }

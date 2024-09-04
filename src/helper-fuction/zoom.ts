@@ -121,6 +121,7 @@ export async function checkAvailability(
     );
 
     const segmentsRecurrence = response.data.segments_recurrence;
+    console.log(segmentsRecurrence)
 
     // Transform the data into the desired format
     const availableTimes: Record<string, string> = {};
@@ -150,7 +151,8 @@ export async function scheduleMeeting(
   topic: string,
   agenda: string,
   invitee: string,
-  firstname: string
+  firstname: string,
+  lastname: string
 ): Promise<any> {
   await refreshTokenIfNeeded(clientId, clientSecret, accountId);
   const headers = {
@@ -181,7 +183,8 @@ export async function scheduleMeeting(
 
   const registrantDetails = {
     email: invitee,
-    first_name: firstname
+    first_name: firstname,
+    last_name: lastname
 };
 
 
@@ -207,4 +210,51 @@ export async function scheduleMeeting(
 
   
 }
+
+
+
+export async function getAllSchedulesWithAvailabilityId(
+  clientId: string,
+  clientSecret: string,
+  accountId: string
+): Promise<string[]> {
+  await refreshTokenIfNeeded(clientId, clientSecret, accountId);
+
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+  };
+
+  try {
+    const response: AxiosResponse<{
+      schedules: Array<{ availability_id: string }>;
+    }> = await axios.get(
+      `https://api.zoom.us/v2/scheduler/schedules/ycj1oinx0vuizzajmuny2nrs30`,
+      { headers }
+    );
+
+    console.log(response.data)
+    // Extract availability IDs from the response
+    const availabilityIds = response.data.schedules.map(
+      (schedule) => schedule.availability_id
+    );
+
+    return availabilityIds;
+  } catch (error) {
+    handleAxiosError(error);
+    throw error;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 

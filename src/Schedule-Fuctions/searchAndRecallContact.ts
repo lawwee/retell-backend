@@ -70,6 +70,9 @@ export const searchAndRecallContacts = async (
           return `+1${digitsOnly}`;
         }
         const newToNumber = formatPhoneNumber(postdata.toNumber);
+        if (!contact.lastname || contact.lastname.trim() === '') {
+          contact.lastname = '.';
+        }
         // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
         // await twilioClient.CreatePhoneCall(
         //   postdata.fromNumber,
@@ -78,27 +81,7 @@ export const searchAndRecallContacts = async (
         //   postdata.userId,
         // );
         try {
-          // const callRegister = await retellClient.call.registerPhoneCall({
-          //   agent_id: agentId,
-          //   from_number: fromNumber,
-          //   to_number: newToNumber,
-          //   retell_llm_dynamic_variables: {
-          //     user_firstname: contact.firstname,
-          //     user_email: contact.email,
-          //   },
-          // });
-          // const registerCallResponse2 = await retellClient.call.createPhoneCall(
-          //   {
-          //     from_number: fromNumber,
-          //     to_number: newToNumber,
-          //     override_agent_id: agentId,
-          //     retell_llm_dynamic_variables: {
-          //       user_firstname: contact.firstname,
-          //       user_email: contact.email,
-          //     },
-          //   },
-          // );
-
+         
           const callRegister = await retellClient.call.register({
             agent_id: agentId,
             audio_encoding: "s16le",
@@ -114,6 +97,7 @@ export const searchAndRecallContacts = async (
             retell_llm_dynamic_variables: {
               user_firstname: contact.firstname,
               user_email: contact.email,
+              user_lastname: contact.lastname
             },
           });
           await contactModel.findByIdAndUpdate(contact._id, {
