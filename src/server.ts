@@ -2086,7 +2086,6 @@ export class Server {
           isDeleted: false,
         })
         .populate("referenceToCallId")
-        .limit(5);
 
       const mappedContacts = await Promise.all(
         foundContacts.map(async (contact) => {
