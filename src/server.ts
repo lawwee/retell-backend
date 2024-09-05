@@ -2085,7 +2085,7 @@ export class Server {
         .find({
           isDeleted: false,
         })
-        .populate("referenceToCallId")
+        .populate("referenceToCallId").limit(1000)
 
       const mappedContacts = await Promise.all(
         foundContacts.map(async (contact) => {
