@@ -2086,7 +2086,7 @@ export class Server {
           isDeleted: false,
         })
         .populate("referenceToCallId")
-        .limit(10);
+        .limit(5);
 
       const mappedContacts = await Promise.all(
         foundContacts.map(async (contact) => {
@@ -2096,20 +2096,23 @@ export class Server {
             date = await reviewCallback(contact.referenceToCallId.transcript);
           }
 
-          return {
-            firstname: contact.firstname,
-            lastname: contact?.lastname,
-            fullName: `${contact.firstname} ${contact.lastname}`,
-            phone: contact.phone,
-            email: contact.email,
-            company: "",
-            summary: contact.referenceToCallId?.retellCallSummary,
-            recordingAudioLink: contact.referenceToCallId?.recordingUrl,
-            timeToCallback: date,
-          };
-        }),
-      );
+          const firstname = contact.firstname ? contact.firstname : ".";
+          const lastname = contact.lastname ? contact.lastname : ".";
 
+          return {
+            firstname: firstname,
+            lastname: lastname,
+            fullName: `${firstname} ${lastname}`,
+            phone: contact.phone ? contact.phone : ".", 
+            email: contact.email ? contact.email : ".", 
+            company: "",
+            summary: contact.referenceToCallId?.retellCallSummary ? contact.referenceToCallId.retellCallSummary : ".", 
+            recordingAudioLink: contact.referenceToCallId?.recordingUrl ? contact.referenceToCallId.recordingUrl : ".", 
+            timeToCallback: date ? "." : date, 
+          };
+        })
+      );
+  
       res.json(mappedContacts);
     });
   }
