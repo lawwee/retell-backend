@@ -2239,7 +2239,7 @@ export class Server {
         accountId,
         availabilityId,
       );
-      res.json(availableTimes);
+      res.send(availableTimes);
     });
   }
   bookAppointmentWithZoom() {

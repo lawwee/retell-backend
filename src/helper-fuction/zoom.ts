@@ -121,7 +121,6 @@ export async function checkAvailability(
     );
 
     const segmentsRecurrence = response.data.segments_recurrence;
-    console.log(segmentsRecurrence)
 
     // Transform the data into the desired format
     const availableTimes: Record<string, string> = {};
