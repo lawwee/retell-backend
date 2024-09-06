@@ -12,7 +12,6 @@ const retellClient = new Retell({
 });
 // const twilioClient = new TwilioClient(retellClient);
 
-
 export const scheduleCronJob = async (
   scheduledTimePST: Date,
   agentId: string,
@@ -63,19 +62,9 @@ export const scheduleCronJob = async (
 
         const currentDate = moment().tz("America/Los_Angeles");
         const currentHour = currentDate.hours();
-
-        if (currentHour < 8 || currentHour >= 15) {
-          await jobModel.findOneAndUpdate(
-            { jobId },
-            { callstatus: "cancelled", shouldContinueProcessing: false },
-          );
-          console.log("Job processing stopped due to time constraints.");
-          return;
-        }
-
         const bulkOperations = contacts.map((contact) => {
           return async () => {
-            if (!job || !job.shouldContinueProcessing) {
+            if (!job || job.shouldContinueProcessing === false) {
               console.log("Job processing stopped.");
               await jobModel.findOneAndUpdate(
                 { jobId },
@@ -83,7 +72,14 @@ export const scheduleCronJob = async (
               );
               return;
             }
-
+            if (currentHour < 8 || currentHour >= 15) {
+              await jobModel.findOneAndUpdate(
+                { jobId },
+                { callstatus: "cancelled", shouldContinueProcessing: false },
+              );
+              console.log("Job processing stopped due to time constraints.");
+              return;
+            }
             const postdata = {
               fromNumber,
               toNumber: contact.phone,
@@ -91,10 +87,10 @@ export const scheduleCronJob = async (
               agentId,
             };
 
-            if (!contact.lastname || contact.lastname.trim() === '') {
-              contact.lastname = '.';
+            if (!contact.lastname || contact.lastname.trim() === "") {
+              contact.lastname = ".";
             }
-    
+
             try {
               const newToNumber = formatPhoneNumber(postdata.toNumber);
               const callRegister = await retellClient.call.register({
@@ -112,7 +108,7 @@ export const scheduleCronJob = async (
                 retell_llm_dynamic_variables: {
                   user_firstname: contact.firstname,
                   user_email: contact.email,
-                  user_lasname: contact.lastname
+                  user_lasname: contact.lastname,
                 },
               });
               await contactModel.findByIdAndUpdate(contact._id, {
