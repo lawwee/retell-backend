@@ -15,6 +15,7 @@ import {
   getAllContact,
   updateOneContact,
 } from "./contacts/contact_controller";
+import csv from "csv-parser";
 import {
   connectDb,
   contactModel,
@@ -151,9 +152,9 @@ export class Server {
     this.testingZoom();
     // this.updateSentimentMetadata()
     this.updateUserTag();
-    // this.script()
-    this.bookAppointmentWithZoom()
-    this.checkAvailabiltyWithZoom()
+    this.script();
+    this.bookAppointmentWithZoom();
+    this.checkAvailabiltyWithZoom();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -418,8 +419,8 @@ export class Server {
           //     },
           //   });
 
-          if (!result.lastname || result.lastname.trim() === '') {
-            result.lastname = '.';
+          if (!result.lastname || result.lastname.trim() === "") {
+            result.lastname = ".";
           }
           const callRegister = await this.retellClient.call.register({
             agent_id: agentId,
@@ -436,7 +437,7 @@ export class Server {
             retell_llm_dynamic_variables: {
               user_firstname: result.firstname,
               user_email: result.email,
-              user_lastname: result.lastname
+              user_lastname: result.lastname,
             },
           });
           await contactModel.findByIdAndUpdate(userId, {
@@ -2085,7 +2086,7 @@ export class Server {
         .find({
           isDeleted: false,
         })
-        .populate("referenceToCallId").limit(1000)
+        .populate("referenceToCallId")
 
       const mappedContacts = await Promise.all(
         foundContacts.map(async (contact) => {
@@ -2102,16 +2103,20 @@ export class Server {
             firstname: firstname,
             lastname: lastname,
             fullName: `${firstname} ${lastname}`,
-            phone: contact.phone ? contact.phone : ".", 
-            email: contact.email ? contact.email : ".", 
+            phone: contact.phone ? contact.phone : ".",
+            email: contact.email ? contact.email : ".",
             company: "",
-            summary: contact.referenceToCallId?.retellCallSummary ? contact.referenceToCallId.retellCallSummary : ".", 
-            recordingAudioLink: contact.referenceToCallId?.recordingUrl ? contact.referenceToCallId.recordingUrl : ".", 
-            timeToCallback: date ? "." : date, 
+            summary: contact.referenceToCallId?.retellCallSummary
+              ? contact.referenceToCallId.retellCallSummary
+              : ".",
+            recordingAudioLink: contact.referenceToCallId?.recordingUrl
+              ? contact.referenceToCallId.recordingUrl
+              : ".",
+            timeToCallback: date ? "." : date,
           };
-        })
+        }),
       );
-  
+
       res.json(mappedContacts);
     });
   }
@@ -2247,8 +2252,7 @@ export class Server {
       const start_time = req.body.args.startTime;
       const firstname =
         req.body.call.retell_llm_dynamic_variables.user_firstname;
-      const lastname =
-        req.body.call.retell_llm_dynamic_variables.user_lastname;
+      const lastname = req.body.call.retell_llm_dynamic_variables.user_lastname;
       const scheduledMeeting = await scheduleMeeting(
         clientId,
         clientSecret,
@@ -2260,9 +2264,13 @@ export class Server {
         "Discuss important matters",
         invitee,
         firstname,
-        lastname
+        lastname,
       );
       res.send("Schduled");
     });
+  }
+
+  script() {
+    this.app.post("/script", async (req: Request, res: Response) => {});
   }
 }
