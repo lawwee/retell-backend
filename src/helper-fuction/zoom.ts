@@ -10,6 +10,8 @@ export async function generateZoomAccessToken(
 ): Promise<void> {
   const credentials = `${clientId}:${clientSecret}`;
   const encodedCredentials = Buffer.from(credentials).toString("base64");
+  console.log(encodedCredentials)
+  console.log(credentials)
 
   const headers = {
     "Content-Type": "application/x-www-form-urlencoded",
@@ -28,7 +30,7 @@ export async function generateZoomAccessToken(
       { headers },
     );
     accessToken = response.data.access_token;
-    console.log(accessToken)
+    console.log("acces token:",accessToken)
     tokenExpiryTime = Date.now() + response.data.expires_in * 1000;
     console.log("Access token generated successfully");
   } catch (error) {
@@ -100,46 +102,78 @@ function handleAxiosError(error: unknown): void {
     console.error("Unexpected error:", error);
   }
 }
+// export async function checkAvailability(
+//   clientId: string,
+//   clientSecret: string,
+//   accountId: string,
+//   availabilityId: string
+// ) {
+//   await refreshTokenIfNeeded(clientId, clientSecret, accountId);
+
+//   const headers = {
+//     Authorization: `Bearer ${accessToken}`,
+//   };
+
+//   try {
+//     const response= await axios.get(
+//       `https://api.zoom.us/v2/scheduler/schedules/${availabilityId}`,
+//       { headers }
+//     );
+
+//     const segmentsRecurrence = response.data.availability_rules;
+    
+
+   
+//   } catch (error) {
+//     handleAxiosError(error);
+//     throw error;
+//   }
+// }
+
+
 export async function checkAvailability(
   clientId: string,
   clientSecret: string,
   accountId: string,
-  availabilityId: string
-): Promise<Record<string, string>> {
+  availabilityId: string // new parameter for the availability rule ID
+) {
   await refreshTokenIfNeeded(clientId, clientSecret, accountId);
 
   const headers = {
     Authorization: `Bearer ${accessToken}`,
   };
+  const ruleId = "ew0j54606f4jdw4aiegxbzr1e0"
 
   try {
-    const response: AxiosResponse<{
-      segments_recurrence: SegmentsRecurrence;
-    }> = await axios.get(
-      `https://api.zoom.us/v2/scheduler/availability/${availabilityId}`,
+    const response = await axios.get(
+      `https://api.zoom.us/v2/scheduler/schedules/${availabilityId}`,
       { headers }
     );
 
-    const segmentsRecurrence = response.data.segments_recurrence;
+    const availabilityRules = response.data.availability_rules;
+    if (availabilityRules && availabilityRules.length > 0) {
+      // Find the rule with the matching 'availability_id'
+      const matchingRule = availabilityRules.find(
+        (rule: any) => rule.availability_id === ruleId
+      );
+      
+      if (matchingRule) {
+        const segmentRecurrence = matchingRule.segments_recurrence;
 
-    // Transform the data into the desired format
-    const availableTimes: Record<string, string> = {};
-    for (const [shortDay, segments] of Object.entries(segmentsRecurrence)) {
-      if (Array.isArray(segments) && segments.length > 0) {
-        // Use the full name of the day
-        const fullDayName = dayNames[shortDay];
-        if (fullDayName) {
-          availableTimes[fullDayName] = segments[0].start;
-        }
+        console.log(segmentRecurrence)
+        return segmentRecurrence; // returning the segment recurrence object of the matching rule
+
+      } else {
+        throw new Error(`No availability rule found for ID: ${ruleId}`);
       }
+    } else {
+      throw new Error('No availability rules found');
     }
-    return availableTimes;
   } catch (error) {
     handleAxiosError(error);
     throw error;
   }
 }
-
 export async function scheduleMeeting(
   clientId: string,
   clientSecret: string,
