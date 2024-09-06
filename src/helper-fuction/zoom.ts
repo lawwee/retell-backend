@@ -102,78 +102,51 @@ function handleAxiosError(error: unknown): void {
     console.error("Unexpected error:", error);
   }
 }
-// export async function checkAvailability(
-//   clientId: string,
-//   clientSecret: string,
-//   accountId: string,
-//   availabilityId: string
-// ) {
-//   await refreshTokenIfNeeded(clientId, clientSecret, accountId);
-
-//   const headers = {
-//     Authorization: `Bearer ${accessToken}`,
-//   };
-
-//   try {
-//     const response= await axios.get(
-//       `https://api.zoom.us/v2/scheduler/schedules/${availabilityId}`,
-//       { headers }
-//     );
-
-//     const segmentsRecurrence = response.data.availability_rules;
-    
-
-   
-//   } catch (error) {
-//     handleAxiosError(error);
-//     throw error;
-//   }
-// }
-
 
 export async function checkAvailability(
   clientId: string,
   clientSecret: string,
   accountId: string,
-  availabilityId: string // new parameter for the availability rule ID
-) {
+  availabilityId: string // Add this parameter for the rule ID you want to match
+): Promise<any> {
   await refreshTokenIfNeeded(clientId, clientSecret, accountId);
 
   const headers = {
     Authorization: `Bearer ${accessToken}`,
   };
-  const ruleId = "ew0j54606f4jdw4aiegxbzr1e0"
 
+  const ruleId = "ew0j54606f4jdw4aiegxbzr1e0"
   try {
     const response = await axios.get(
-      `https://api.zoom.us/v2/scheduler/schedules/${availabilityId}`,
+      `https://api.zoom.us/v2/scheduler/availability/${availabilityId}`,
       { headers }
     );
 
-    const availabilityRules = response.data.availability_rules;
-    if (availabilityRules && availabilityRules.length > 0) {
-      // Find the rule with the matching 'availability_id'
-      const matchingRule = availabilityRules.find(
-        (rule: any) => rule.availability_id === ruleId
-      );
-      
-      if (matchingRule) {
-        const segmentRecurrence = matchingRule.segments_recurrence;
+    console.log(response.data)
+    const availabilityRules = response.data.segments_recurrence;
 
-        console.log(segmentRecurrence)
-        return segmentRecurrence; // returning the segment recurrence object of the matching rule
+    // if (availabilityRules && availabilityRules.length > 0) {
+    //   // Find the rule with the matching 'availability_id'
+    //   const matchingRule = availabilityRules.find(
+    //     (rule: any) => rule.availability_id === ruleId
+    //   );
 
-      } else {
-        throw new Error(`No availability rule found for ID: ${ruleId}`);
-      }
-    } else {
-      throw new Error('No availability rules found');
-    }
+    //   if (matchingRule) {
+    //     // Return the segments_recurrence as it is
+    //     return matchingRule.segments_recurrence;
+    //   } else {
+    //     throw new Error(`No availability rule found for ID: ${ruleId}`);
+    //   }
+    // } else {
+    //   throw new Error('No availability rules found');
+    // }
+    return availabilityRules
   } catch (error) {
     handleAxiosError(error);
     throw error;
   }
 }
+
 export async function scheduleMeeting(
   clientId: string,
   clientSecret: string,
