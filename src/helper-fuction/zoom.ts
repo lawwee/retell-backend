@@ -122,7 +122,7 @@ export async function checkAvailability(
       { headers }
     );
 
-    console.log(response.data)
+    
     const availabilityRules = response.data.segments_recurrence;
 
     // if (availabilityRules && availabilityRules.length > 0) {
@@ -217,8 +217,6 @@ export async function scheduleMeeting(
   
 }
 
-
-
 export async function getAllSchedulesWithAvailabilityId(
   clientId: string,
   clientSecret: string,
@@ -250,17 +248,5 @@ export async function getAllSchedulesWithAvailabilityId(
     throw error;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
