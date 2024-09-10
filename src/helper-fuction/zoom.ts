@@ -186,6 +186,9 @@ export async function scheduleMeeting(
 
   };
 
+  if(!lastname){
+    lastname = "."
+  }
   const registrantDetails = {
     email: invitee,
     first_name: firstname,
