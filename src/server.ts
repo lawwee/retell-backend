@@ -1047,6 +1047,11 @@ export class Server {
 
     // Process event based on type
     if (payload.event === "call_analyzed") {
+      const isMachine = call_analysis?.in_voicemail === true;
+      if(isMachine){
+        statsUpdate.$inc.totalAnsweredByVm = 1;
+        callStatus = callstatusenum.VOICEMAIL;
+      }
       analyzedTranscript = await reviewTranscript(transcript);
       const analysisUpdateData = {
         analyzedTranscript: analyzedTranscript.message.content,
