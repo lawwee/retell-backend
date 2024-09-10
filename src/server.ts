@@ -2452,6 +2452,7 @@ export class Server {
   }
   bookAppointmentWithZoom() {
     this.app.post("/zoom/appointment", async (req: Request, res: Response) => {
+      let lastname
       const clientId = process.env.ZOOM_CLIENT_ID;
       const clientSecret = process.env.ZOOM_CLIENT_SECRET;
       const accountId = process.env.ZOOM_ACC_ID;
@@ -2460,7 +2461,11 @@ export class Server {
       const start_time = req.body.args.startTime;
       const firstname =
         req.body.call.retell_llm_dynamic_variables.user_firstname;
-      const lastname = req.body.call.retell_llm_dynamic_variables.user_lastname;
+      lastname = req.body.call.retell_llm_dynamic_variables.user_lastname;
+
+      if(!lastname){
+        lastname = "."
+      }
       const scheduledMeeting = await scheduleMeeting(
         clientId,
         clientSecret,
