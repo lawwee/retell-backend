@@ -30,7 +30,6 @@ export async function generateZoomAccessToken(
       { headers },
     );
     accessToken = response.data.access_token;
-    console.log("acces token:",accessToken)
     tokenExpiryTime = Date.now() + response.data.expires_in * 1000;
     console.log("Access token generated successfully");
   } catch (error) {

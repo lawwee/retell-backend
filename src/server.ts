@@ -1209,10 +1209,12 @@ export class Server {
         const now = new Date();
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
-
+        
         switch (dateOption) {
           case DateOption.Today:
+            
             dateFilter = { datesCalled: today };
+          
             break;
           case DateOption.Yesterday:
             const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
@@ -1227,7 +1229,7 @@ export class Server {
               const day = subDays(now, i);
               const dayOfWeek = day.getDay();
               if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                // Exclude weekends
+              
                 pastDays.push(
                   format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
                     timeZone,
