@@ -1068,6 +1068,12 @@ export class Server {
         { $set: analysisUpdateData },
         {upsert:true}
       );
+      const statsResults = await DailyStatsModel.findOneAndUpdate(
+        { day: todayString, agentId: agent_id },
+        statsUpdate,
+        { upsert: true, returnOriginal: false },
+      );
+
     }
 
     if (payload.event === "call_ended") {
