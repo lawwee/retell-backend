@@ -239,7 +239,7 @@ export const getAllContact = async (
           totalAppointment: { $sum: "$totalAppointment" },
           totalCallsTransffered: { $sum: "$totalTransffered" },
           totalFailedCalls: { $sum: "$totalFailed" },
-          // totalContactForAgent: { $sum: 1 },
+          
         },
       },
     ]);

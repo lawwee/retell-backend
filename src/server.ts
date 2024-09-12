@@ -494,6 +494,7 @@ export class Server {
       "/users/:agentId",
       authmiddleware,
       isAdmin,
+
       async (req: Request, res: Response) => {
         const agentId = req.params.agentId;
         const { page, limit, dateOption } = req.body;
@@ -952,85 +953,6 @@ export class Server {
     );
   }
 
-  // async handleCallEndedOrAnalyzed(payload: any, todayString: any) {
-  //   const {
-  //     call_id,
-  //     transcript,
-  //     recording_url,
-  //     agent_id,
-  //     disconnection_reason,
-  //     call_analysis,
-  //   } = payload.data;
-
-  //   const analyzedTranscript = await reviewTranscript(transcript);
-  //   const isCallFailed = disconnection_reason === "dial_failed";
-  //   const isCallTransferred = disconnection_reason === "call_transfer";
-  //   const isMachine = call_analysis && call_analysis.in_voicemail == true;
-  //   const isDialNoAnswer = disconnection_reason === "dial_no_answer";
-  //   const isCallAnswered =
-  //     disconnection_reason === "user_hangup" || "agent_hangup";
-  //   const isCallBack = analyzedTranscript.message.content === "Call back";
-
-  //   const updateData = {
-  //     callId: call_id,
-  //     recordingUrl: recording_url,
-  //     transcript: transcript,
-  //     disconnectionReason: disconnection_reason,
-  //     analyzedTranscript: analyzedTranscript.message.content,
-  //     ...(call_analysis && {
-  //       retellCallSummary: call_analysis.call_summary,
-  //       userSentiment: call_analysis.user_sentiment,
-  //       agentSemtiment: call_analysis.agent_sentiment,
-  //     }),
-  //   };
-
-  //   const results = await EventModel.create(updateData);
-  //   let callStatus;
-  //   let statsUpdate: any = { $inc: {} };
-
-  //   if (payload.event === "call_ended") {
-  //     statsUpdate.$inc.totalCalls = 1;
-  //   }
-
-  //   if (isMachine) {
-  //     statsUpdate.$inc.totalAnsweredByVm = 1;
-  //     callStatus = callstatusenum.VOICEMAIL;
-  //   } else if (isCallFailed) {
-  //     statsUpdate.$inc.totalFailed = 1;
-  //     callStatus = callstatusenum.FAILED;
-  //   } else if (isCallTransferred) {
-  //     statsUpdate.$inc.totalTransferred = 1;
-  //     callStatus = callstatusenum.TRANSFERRED;
-  //   } else if (analyzedTranscript.message.content === "Scheduled") {
-  //     statsUpdate.$inc.totalAppointment = 1;
-  //     callStatus = callstatusenum.SCHEDULED;
-  //   } else if (isDialNoAnswer) {
-  //     callStatus = callstatusenum.NO_ANSWER;
-  //   } else if (isCallAnswered) {
-  //     statsUpdate.$inc.totalCallAnswered = 1;
-  //   } else if (isCallBack) {
-  //     console.log("Call back");
-  //   } else {
-  //     callStatus = callstatusenum.CALLED;
-  //   }
-
-  //   const statsResults = await DailyStatsModel.findOneAndUpdate(
-  //     { day: todayString, agentId: agent_id },
-  //     statsUpdate,
-  //     { upsert: true, returnOriginal: false },
-  //   );
-
-  //   const linkToCallLogModelId = statsResults ? statsResults._id : null;
-  //   await contactModel.findOneAndUpdate(
-  //     { callId: call_id },
-  //     {
-  //       status: callStatus,
-  //       $push: { datesCalled: todayString },
-  //       referenceToCallId: results._id,
-  //       linktocallLogModel: linkToCallLogModelId,
-  //     },
-  //   );
-  // }
   async handleCallEndedOrAnalyzed(payload: any, todayString: any) {
     const {
       call_id,
@@ -1048,7 +970,7 @@ export class Server {
     // Process event based on type
     if (payload.event === "call_analyzed") {
       const isMachine = call_analysis?.in_voicemail === true;
-      if(isMachine){
+      if (isMachine) {
         statsUpdate.$inc.totalAnsweredByVm = 1;
         callStatus = callstatusenum.VOICEMAIL;
       }
@@ -1066,14 +988,13 @@ export class Server {
       await EventModel.findOneAndUpdate(
         { callId: call_id },
         { $set: analysisUpdateData },
-        {upsert:true}
+        { upsert: true },
       );
       const statsResults = await DailyStatsModel.findOneAndUpdate(
         { day: todayString, agentId: agent_id },
         statsUpdate,
         { upsert: true, returnOriginal: false },
       );
-
     }
 
     if (payload.event === "call_ended") {
@@ -1098,7 +1019,6 @@ export class Server {
         { $set: callEndedUpdateData },
         { upsert: true, returnOriginal: false },
       );
-
 
       statsUpdate.$inc.totalCalls = 1;
 
@@ -1220,12 +1140,11 @@ export class Server {
         const now = new Date();
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
-        
+
         switch (dateOption) {
           case DateOption.Today:
-            
             dateFilter = { datesCalled: today };
-          
+
             break;
           case DateOption.Yesterday:
             const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
@@ -1240,7 +1159,6 @@ export class Server {
               const day = subDays(now, i);
               const dayOfWeek = day.getDay();
               if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-              
                 pastDays.push(
                   format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
                     timeZone,
@@ -1379,7 +1297,7 @@ export class Server {
             },
           };
         }
-        console.log(dateFilter, dateFilter1)
+        console.log(dateFilter, dateFilter1);
 
         const foundContacts = await contactModel
           .find({ agentId: { $in: agentIds }, isDeleted: false, ...dateFilter })
@@ -2463,7 +2381,7 @@ export class Server {
   }
   bookAppointmentWithZoom() {
     this.app.post("/zoom/appointment", async (req: Request, res: Response) => {
-      let lastname
+      let lastname;
       const clientId = process.env.ZOOM_CLIENT_ID;
       const clientSecret = process.env.ZOOM_CLIENT_SECRET;
       const accountId = process.env.ZOOM_ACC_ID;
@@ -2474,8 +2392,8 @@ export class Server {
         req.body.call.retell_llm_dynamic_variables.user_firstname;
       lastname = req.body.call.retell_llm_dynamic_variables.user_lastname;
 
-      if(!lastname){
-        lastname = "."
+      if (!lastname) {
+        lastname = ".";
       }
       const scheduledMeeting = await scheduleMeeting(
         clientId,
