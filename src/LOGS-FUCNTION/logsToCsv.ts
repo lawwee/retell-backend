@@ -21,7 +21,7 @@
 //      // Convert startDate and endDate to "YYYY-MM-DD" format
 //      const formattedStartDate = startDate ? new Date(startDate).toISOString().split("T")[0] : null;
 //      const formattedEndDate = endDate ? new Date(endDate).toISOString().split("T")[0] : null;
- 
+
 //      if (statusOption && statusOption !== "All") {
 //        let callStatus;
 //        if (statusOption === "Called") {
@@ -35,7 +35,7 @@
 //        }
 //        query.status = callStatus;
 //      }
- 
+
 //      if (formattedStartDate && formattedEndDate) {
 //        query["datesCalled"] = {
 //          $gte: formattedStartDate,
@@ -117,8 +117,6 @@
 //     return error;
 //   }
 // };
-
-
 
 // import { createObjectCsvWriter } from "csv-writer";
 // import { contactModel } from "../contacts/contact_model";
@@ -297,7 +295,7 @@ export const logsToCsv = async (
   startDate?: string,
   endDate?: string,
   statusOption?: "Called" | "notCalled" | "vm" | "Failed" | "All",
-  sentimentOption?: any
+  sentimentOption?: any,
 ) => {
   try {
     let query: any = {
@@ -322,34 +320,38 @@ export const logsToCsv = async (
 
     // Handle date ranges
     const today = new Date().toISOString().split("T")[0]; // Today's date in "YYYY-MM-DD"
-    const formattedStartDate = startDate ? new Date(startDate).toISOString().split("T")[0] : today;
-    const formattedEndDate = endDate ? new Date(endDate).toISOString().split("T")[0] : today;
-
-    if (endDate && !startDate) {
-      throw new Error("End date is provided without a start date. Please provide a valid start date.");
-    }
-
+    const formattedStartDate = startDate
+      ? new Date(startDate).toISOString().split("T")[0]
+      : today;
+    const formattedEndDate = endDate
+      ? new Date(endDate).toISOString().split("T")[0]
+      : today;
     // Function to get all dates between startDate and endDate (inclusive)
-const getDatesInRange = (start: string, end: string): string[] => {
-  const startDateObj = new Date(start);
-  const endDateObj = new Date(end);
-  const daysDiff = differenceInDays(endDateObj, startDateObj);
-  const dates = [];
+    const getDatesInRange = (start: string, end: string): string[] => {
+      const startDateObj = new Date(start);
+      const endDateObj = new Date(end);
+      const daysDiff = differenceInDays(endDateObj, startDateObj);
+      const dates = [];
 
-  for (let i = 0; i <= daysDiff; i++) {
-    dates.push(addDays(startDateObj, i).toISOString().split("T")[0]);
-  }
-  return dates;
-};
+      for (let i = 0; i <= daysDiff; i++) {
+        dates.push(addDays(startDateObj, i).toISOString().split("T")[0]);
+      }
+      return dates;
+    };
 
     // Query datesCalled with $in using getDatesInRange function
     if (formattedStartDate && formattedEndDate) {
-      const datesInRange = getDatesInRange(formattedStartDate, formattedEndDate);
+      const datesInRange = getDatesInRange(
+        formattedStartDate,
+        formattedEndDate,
+      );
       query["datesCalled"] = { $in: datesInRange };
     } else if (formattedStartDate) {
-      query["datesCalled"] = { $in: getDatesInRange(formattedStartDate, formattedEndDate) };
+      query["datesCalled"] = {
+        $in: getDatesInRange(formattedStartDate, formattedEndDate),
+      };
     }
-    console.log(query)
+    console.log(query);
 
     const foundContacts = await contactModel
       .find(query)
@@ -362,7 +364,8 @@ const getDatesInRange = (start: string, end: string): string[] => {
     const contactsData = await Promise.all(
       foundContacts.map(async (contact) => {
         const transcript = contact.referenceToCallId?.transcript;
-        const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+        const analyzedTranscript =
+          contact.referenceToCallId?.analyzedTranscript;
         return {
           firstname: contact.firstname,
           lastname: contact.lastname,
@@ -373,7 +376,7 @@ const getDatesInRange = (start: string, end: string): string[] => {
           analyzedTranscript: analyzedTranscript,
           call_recording_url: contact.referenceToCallId?.recordingUrl,
         };
-      })
+      }),
     );
 
     let filteredContacts: any = [];
@@ -416,14 +419,13 @@ const getDatesInRange = (start: string, end: string): string[] => {
     console.log("CSV file logs.csv has been written successfully");
     return filePath;
   } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error generating CSV: ${error.message}`);
-          return { error: error.message };
-        } else {
-          // Handle case where it's not an Error instance
-          console.error("Unknown error occurred.");
-          return { error: "An unknown error occurred." };
-        }
+    if (error instanceof Error) {
+      console.error(`Error generating CSV: ${error.message}`);
+      return { error: error.message };
+    } else {
+      // Handle case where it's not an Error instance
+      console.error("Unknown error occurred.");
+      return { error: "An unknown error occurred." };
+    }
+  }
 };
-
-}
