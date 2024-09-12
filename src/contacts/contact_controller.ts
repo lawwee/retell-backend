@@ -1,8 +1,8 @@
 import { populate } from "dotenv";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { DateOption, IContact, callstatusenum } from "../types";
-import { contactModel, jobModel } from "./contact_model";
-import { Document } from "mongoose";
+import { contactModel, EventModel, jobModel } from "./contact_model";
+import mongoose, { Document } from "mongoose";
 import axios from "axios";
 import Retell from "retell-sdk";
 import { subDays, startOfMonth, startOfWeek } from "date-fns";
@@ -239,7 +239,6 @@ export const getAllContact = async (
           totalAppointment: { $sum: "$totalAppointment" },
           totalCallsTransffered: { $sum: "$totalTransffered" },
           totalFailedCalls: { $sum: "$totalFailed" },
-          
         },
       },
     ]);
@@ -301,5 +300,44 @@ export const updateOneContact = async (id: string, updateFields: object) => {
   } catch (error) {
     console.error("Error updating contact:", error);
     return "could not update contact";
+  }
+};
+
+export const updateContactAndTranscript = async (
+  updates: any,
+): Promise<any> => {
+  try {
+    for (const update of updates) {
+      if (update.id) {
+        await contactModel.findOneAndUpdate(
+          {
+            _id: new mongoose.Types.ObjectId(update.id),
+            isDeleted: { $ne: true },
+          },
+          { $set: update.updateFields },
+          { new: true },
+        );
+      }
+
+      if (
+        update.updateFields.referencetocallid &&
+        update.updateFields.referencetocallid.id
+      ) {
+        await EventModel.findOneAndUpdate(
+          {
+            _id: new mongoose.Types.ObjectId(
+              update.updateFields.referencetocallid.id,
+            ),
+          },
+          { $set: update.updateFields.referencetocallid.updateFields },
+          { new: true },
+        );
+      }
+    }
+
+    return "Update successful";
+  } catch (error) {
+    console.error("Error updating contact and transcript:", error);
+    return "Could not update contact and transcript";
   }
 };

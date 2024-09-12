@@ -14,6 +14,7 @@ import {
   createContact,
   deleteOneContact,
   getAllContact,
+  updateContactAndTranscript,
   updateOneContact,
 } from "./contacts/contact_controller";
 import { readFileSync } from "fs";
@@ -569,6 +570,7 @@ export class Server {
       },
     );
   }
+ 
   // createPhoneCall() {
   //   this.app.post(
   //     "/create-phone-call/:agentId",
@@ -2313,49 +2315,9 @@ export class Server {
   updateUserTag() {
     this.app.post("/update/metadata", async (req: Request, res: Response) => {
       try {
-        const { id: ids, fieldsToUpdate } = req.body;
-
-        if (!Array.isArray(ids) || ids.length === 0) {
-          return res
-            .status(400)
-            .json({ error: "Invalid input: 'id' must be a non-empty array." });
-        }
-
-        if (Object.keys(fieldsToUpdate).length === 0) {
-          return res
-            .status(400)
-            .json({ error: "No fields provided for update." });
-        }
-
-        const validFields = Object.keys(EventModel.schema.paths);
-        const invalidFields = Object.keys(fieldsToUpdate).filter(
-          (field) => !validFields.includes(field),
-        );
-
-        if (invalidFields.length > 0) {
-          return res.status(400).json({
-            error: `Invalid fields: ${invalidFields.join(
-              ", ",
-            )}. These fields do not exist in the schema.`,
-          });
-        }
-
-        const result = await EventModel.updateMany(
-          { _id: { $in: ids } },
-          { $set: fieldsToUpdate },
-          { new: true },
-        );
-
-        if (result.matchedCount === 0) {
-          return res
-            .status(404)
-            .json({ error: "No events found with the provided IDs." });
-        }
-
-        res.json({
-          message: "Events updated successfully",
-          modifiedCount: result.modifiedCount,
-        });
+      const {updates} = req.body
+      const result = await updateContactAndTranscript(updates)
+      res.send(result)
       } catch (error) {
         console.error("Error updating events:", error);
         res.status(500).json({ error: "Internal server error." });
