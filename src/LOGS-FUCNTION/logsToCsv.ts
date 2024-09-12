@@ -318,8 +318,8 @@ export const logsToCsv = async (
       query.status = callStatus;
     }
 
-    // Handle date ranges
-    const today = new Date().toISOString().split("T")[0]; // Today's date in "YYYY-MM-DD"
+  
+    const today = new Date().toISOString().split("T")[0]; 
     const formattedStartDate = startDate
       ? new Date(startDate).toISOString().split("T")[0]
       : today;
