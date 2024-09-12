@@ -1079,8 +1079,6 @@ export class Server {
   adminSideLogsToCsv() {
     this.app.post(
       "/call-logs-csv",
-      isAdmin,
-      authmiddleware,
       async (req: Request, res: Response) => {
         try {
           const {
