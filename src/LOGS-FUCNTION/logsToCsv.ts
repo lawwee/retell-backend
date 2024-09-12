@@ -319,14 +319,13 @@ export const logsToCsv = async (
     }
 
   
-    const today = new Date().toISOString().split("T")[0]; 
+    const today = ""
     const formattedStartDate = startDate
       ? new Date(startDate).toISOString().split("T")[0]
       : today;
     const formattedEndDate = endDate
       ? new Date(endDate).toISOString().split("T")[0]
-      : today;
-    // Function to get all dates between startDate and endDate (inclusive)
+      : today
     const getDatesInRange = (start: string, end: string): string[] => {
       const startDateObj = new Date(start);
       const endDateObj = new Date(end);
