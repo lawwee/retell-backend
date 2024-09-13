@@ -2317,7 +2317,7 @@ export class Server {
       try {
       const {updates} = req.body
       const result = await updateContactAndTranscript(updates)
-      res.send(result)
+      res.json({"message":result})
       } catch (error) {
         console.error("Error updating events:", error);
         res.status(500).json({ error: "Internal server error." });
