@@ -1636,21 +1636,19 @@ export class Server {
         ) {
           sentimentStatus = "Call back";
         }
-
-        if (sentimentOption && sentimentOption === "Uninterested") {
+        if (sentimentOption && sentimentOption.toLowerCase() === "uninterested") {
           const filteredResults = allResults.filter((contact) => {
-            return contact.status === callstatusenum.CALLED;
+            const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+            const callStatus = contact.status === callstatusenum.CALLED; // Ensure call-connected status
+            return analyzedTranscript === "Uninterested" && callStatus;
           });
           res.json(filteredResults);
         } else if (!sentimentOption) {
           res.json(allResults);
         } else {
           const filteredResults = allResults.filter((contact) => {
-            const analyzedTranscript =
-              contact.referenceToCallId?.analyzedTranscript;
-            return (
-              analyzedTranscript && analyzedTranscript === sentimentStatus
-            );
+            const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+            return analyzedTranscript === sentimentStatus;
           });
           res.json(filteredResults);
         }
