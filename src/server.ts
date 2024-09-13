@@ -570,7 +570,7 @@ export class Server {
       },
     );
   }
- 
+
   // createPhoneCall() {
   //   this.app.post(
   //     "/create-phone-call/:agentId",
@@ -1079,51 +1079,48 @@ export class Server {
   }
 
   adminSideLogsToCsv() {
-    this.app.post(
-      "/call-logs-csv",
-      async (req: Request, res: Response) => {
-        try {
-          const {
-            agentId,
-            startDate,
-            endDate,
-            limit,
-            statusOption,
-            sentimentOption,
-          } = req.body;
-          const newlimit = parseInt(limit);
-          const result = await logsToCsv(
-            agentId,
-            newlimit,
-            startDate,
-            endDate,
-            statusOption,
-            sentimentOption,
-          );
-          if (typeof result === "string") {
-            const filePath: string = result;
-            if (fs.existsSync(filePath)) {
-              res.setHeader(
-                "Content-Disposition",
-                "attachment; filename=logs.csv",
-              );
-              res.setHeader("Content-Type", "text/csv");
-              const fileStream = fs.createReadStream(filePath);
-              fileStream.pipe(res);
-            } else {
-              console.error("CSV file does not exist");
-              res.status(404).send("CSV file not found");
-            }
+    this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
+      try {
+        const {
+          agentId,
+          startDate,
+          endDate,
+          limit,
+          statusOption,
+          sentimentOption,
+        } = req.body;
+        const newlimit = parseInt(limit);
+        const result = await logsToCsv(
+          agentId,
+          newlimit,
+          startDate,
+          endDate,
+          statusOption,
+          sentimentOption,
+        );
+        if (typeof result === "string") {
+          const filePath: string = result;
+          if (fs.existsSync(filePath)) {
+            res.setHeader(
+              "Content-Disposition",
+              "attachment; filename=logs.csv",
+            );
+            res.setHeader("Content-Type", "text/csv");
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
           } else {
-            console.error(`Error retrieving contacts: ${result}`);
-            res.status(500).send(`Error retrieving contacts: ${result}`);
+            console.error("CSV file does not exist");
+            res.status(404).send("CSV file not found");
           }
-        } catch (error) {
-          console.error(`Error retrieving contacts: ${error}`);
-          res.status(500).send(`Error retrieving contacts: ${error}`);
+        } else {
+          console.error(`Error retrieving contacts: ${result}`);
+          res.status(500).send(`Error retrieving contacts: ${result}`);
         }
-      },
-    );
+      } catch (error) {
+        console.error(`Error retrieving contacts: ${error}`);
+        res.status(500).send(`Error retrieving contacts: ${error}`);
+      }
+    });
   }
 
   statsForAgent() {
@@ -1461,210 +1458,207 @@ export class Server {
   }
 
   searchForUser() {
-    this.app.post(
-      "/search",
-      authmiddleware,
-      isAdmin,
-      async (req: Request, res: Response) => {
-        const {
-          searchTerm = "",
-          startDate,
-          endDate,
-          statusOption,
-          sentimentOption,
-          agentId,
-          tag,
-        } = req.body;
+    this.app.post("/search", async (req: Request, res: Response) => {
+      const {
+        searchTerm = "",
+        startDate,
+        endDate,
+        statusOption,
+        sentimentOption,
+        agentId,
+        tag,
+      } = req.body;
 
-        if (!agentId) {
-          return res
-            .status(400)
-            .json({ error: "Search term or agent Ids is required" });
-        }
+      if (!agentId) {
+        return res
+          .status(400)
+          .json({ error: "Search term or agent Ids is required" });
+      }
 
-        try {
-          const isValidEmail = (email: string) => {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email.trim());
-          };
-          const searchTerms = searchTerm
-            .split(",")
-            .map((term: string) => term.trim());
-          const firstTermIsEmail = isValidEmail(searchTerms[0]);
+      try {
+        const isValidEmail = (email: string) => {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(email.trim());
+        };
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim());
+        const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-          const searchForTerm = async (
-            term: string,
-            searchByEmail: boolean,
-          ) => {
-            const query: any = {
-              agentId,
-              isDeleted: false,
-              $or: searchByEmail
-                ? [{ email: { $regex: term, $options: "i" } }]
-                : [
-                    { firstname: { $regex: term, $options: "i" } },
-                    { lastname: { $regex: term, $options: "i" } },
-                    { phone: { $regex: term, $options: "i" } },
-                    { email: { $regex: term, $options: "i" } },
-                  ],
-            };
-
-            const formatDateToDB = (dateString: any) => {
-              const date = new Date(dateString);
-              const year = date.getUTCFullYear();
-              const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-based
-              const day = String(date.getUTCDate()).padStart(2, "0");
-              return `${year}-${month}-${day}`;
-            };
-
-            if (startDate || endDate) {
-              query["datesCalled"] = {};
-              if (startDate) {
-                query["datesCalled"]["$gte"] = formatDateToDB(startDate);
-              }
-              if (endDate) {
-                query["datesCalled"]["$lte"] = formatDateToDB(endDate);
-              }
-            }
-
-            if (tag) {
-              query["tag"] = tag;
-            }
-
-            if (statusOption && statusOption !== "All") {
-              let callStatus;
-
-              if (statusOption === "call-transferred") {
-                const pipeline: any[] = [
-                  {
-                    $match: {
-                      agentId,
-                      isDeleted: { $ne: true },
-                    },
-                  },
-                  {
-                    $lookup: {
-                      from: "transcripts",
-                      localField: "referenceToCallId",
-                      foreignField: "_id",
-                      as: "callDetails",
-                    },
-                  },
-                  {
-                    $match: {
-                      "callDetails.disconnectionReason": "call_transfer",
-                    },
-                  },
-                ];
-
-                if (startDate && endDate) {
-                  pipeline.push({
-                    $match: {
-                      datesCalled: {
-                        $gte: startDate,
-                        $lte: endDate,
-                      },
-                    },
-                  });
-                }
-
-                const totalCallsTransferred = await contactModel.aggregate(
-                  pipeline,
-                );
-
-                return totalCallsTransferred;
-              } else {
-                // Handle other status options
-                switch (statusOption.toLowerCase()) {
-                  case "call-connected":
-                    callStatus = callstatusenum.CALLED;
-                    break;
-                  case "not-called":
-                    callStatus = callstatusenum.NOT_CALLED;
-                    break;
-                  case "called-na-vm":
-                    callStatus = callstatusenum.VOICEMAIL;
-                    break;
-                  case "call-failed":
-                    callStatus = callstatusenum.FAILED;
-                    break;
-                  default:
-                    // Return empty array if statusOption doesn't match any known options
-                    return [];
-                }
-
-                query["status"] = callStatus;
-              }
-            }
-
-            return await contactModel.find(query).populate("referenceToCallId");
+        const searchForTerm = async (term: string, searchByEmail: boolean) => {
+          const query: any = {
+            agentId,
+            isDeleted: false,
+            $or: searchByEmail
+              ? [{ email: { $regex: term, $options: "i" } }]
+              : [
+                  { firstname: { $regex: term, $options: "i" } },
+                  { lastname: { $regex: term, $options: "i" } },
+                  { phone: { $regex: term, $options: "i" } },
+                  { email: { $regex: term, $options: "i" } },
+                ],
           };
 
-          let allResults: any[] = [];
+          const formatDateToDB = (dateString: any) => {
+            const date = new Date(dateString);
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-based
+            const day = String(date.getUTCDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+          };
 
-          for (const term of searchTerms) {
-            const results = await searchForTerm(term, firstTermIsEmail);
-            allResults = allResults.concat(results);
-          }
-          let sentimentStatus:
-            | "Uninterested"
-            | "Call back"
-            | "Interested"
-            | "Scheduled"
-            | "Voicemail"
-            | "Incomplete call"
-            | undefined;
-
-          if (
-            sentimentOption === "Uninterested" ||
-            sentimentOption === "uninterested"
-          ) {
-            sentimentStatus = "Uninterested";
-          } else if (
-            sentimentOption === "Interested" ||
-            sentimentOption === "interested"
-          ) {
-            sentimentStatus = "Interested";
-          } else if (
-            sentimentOption === "Scheduled" ||
-            sentimentOption === "scheduled"
-          ) {
-            sentimentStatus = "Scheduled";
-          } else if (
-            sentimentOption === "Voicemail" ||
-            sentimentOption === "voicemail"
-          ) {
-            sentimentStatus = "Voicemail";
-          } else if (
-            sentimentOption === "incomplete-call" ||
-            sentimentOption === "Incomplete-Call"
-          ) {
-            sentimentStatus = "Incomplete call";
-          } else if (
-            sentimentOption === "call-back" ||
-            sentimentOption === "Call-Back"
-          ) {
-            sentimentStatus = "Call back";
+          if (startDate || endDate) {
+            query["datesCalled"] = {};
+            if (startDate) {
+              query["datesCalled"]["$gte"] = formatDateToDB(startDate);
+            }
+            if (endDate) {
+              query["datesCalled"]["$lte"] = formatDateToDB(endDate);
+            }
           }
 
-          if (!sentimentOption) {
-            res.json(allResults);
-          } else {
-            const filteredResults = allResults.filter((contact) => {
-              const analyzedTranscript =
-                contact.referenceToCallId?.analyzedTranscript;
-              return (
-                analyzedTranscript && analyzedTranscript === sentimentStatus
+          if (tag) {
+            query["tag"] = tag;
+          }
+
+          if (statusOption && statusOption !== "All") {
+            let callStatus;
+
+            if (statusOption === "call-transferred") {
+              const pipeline: any[] = [
+                {
+                  $match: {
+                    agentId,
+                    isDeleted: { $ne: true },
+                  },
+                },
+                {
+                  $lookup: {
+                    from: "transcripts",
+                    localField: "referenceToCallId",
+                    foreignField: "_id",
+                    as: "callDetails",
+                  },
+                },
+                {
+                  $match: {
+                    "callDetails.disconnectionReason": "call_transfer",
+                  },
+                },
+              ];
+
+              if (startDate && endDate) {
+                pipeline.push({
+                  $match: {
+                    datesCalled: {
+                      $gte: startDate,
+                      $lte: endDate,
+                    },
+                  },
+                });
+              }
+
+              const totalCallsTransferred = await contactModel.aggregate(
+                pipeline,
               );
-            });
-            res.json(filteredResults);
+
+              return totalCallsTransferred;
+            } else {
+              // Handle other status options
+              switch (statusOption.toLowerCase()) {
+                case "call-connected":
+                  callStatus = callstatusenum.CALLED;
+                  break;
+                case "not-called":
+                  callStatus = callstatusenum.NOT_CALLED;
+                  break;
+                case "called-na-vm":
+                  callStatus = callstatusenum.VOICEMAIL;
+                  break;
+                case "call-failed":
+                  callStatus = callstatusenum.FAILED;
+                  break;
+                default:
+                  return [];
+              }
+
+              query["status"] = callStatus;
+            }
           }
-        } catch (error) {
-          console.log(error);
-          res.status(500).json({ error: "Internal server error" });
+
+          
+          return await contactModel.find(query).populate("referenceToCallId");
+        };
+
+        let allResults: any[] = [];
+
+        for (const term of searchTerms) {
+          const results = await searchForTerm(term, firstTermIsEmail);
+          allResults = allResults.concat(results);
         }
-      },
-    );
+        let sentimentStatus:
+          | "Uninterested"
+          | "Call back"
+          | "Interested"
+          | "Scheduled"
+          | "Voicemail"
+          | "Incomplete call"
+          | undefined;
+
+        if (
+          sentimentOption === "Uninterested" ||
+          sentimentOption === "uninterested"
+        ) {
+          sentimentStatus = "Uninterested";
+        } else if (
+          sentimentOption === "Interested" ||
+          sentimentOption === "interested"
+        ) {
+          sentimentStatus = "Interested";
+        } else if (
+          sentimentOption === "Scheduled" ||
+          sentimentOption === "scheduled"
+        ) {
+          sentimentStatus = "Scheduled";
+        } else if (
+          sentimentOption === "Voicemail" ||
+          sentimentOption === "voicemail"
+        ) {
+          sentimentStatus = "Voicemail";
+        } else if (
+          sentimentOption === "incomplete-call" ||
+          sentimentOption === "Incomplete-Call"
+        ) {
+          sentimentStatus = "Incomplete call";
+        } else if (
+          sentimentOption === "call-back" ||
+          sentimentOption === "Call-Back"
+        ) {
+          sentimentStatus = "Call back";
+        }
+
+        if (sentimentOption && sentimentOption === "Uninterested") {
+          const filteredResults = allResults.filter((contact) => {
+            return contact.status === callstatusenum.CALLED;
+          });
+          res.json(filteredResults);
+        } else if (!sentimentOption) {
+          res.json(allResults);
+        } else {
+          const filteredResults = allResults.filter((contact) => {
+            const analyzedTranscript =
+              contact.referenceToCallId?.analyzedTranscript;
+            return (
+              analyzedTranscript && analyzedTranscript === sentimentStatus
+            );
+          });
+          res.json(filteredResults);
+        }
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
   }
 
   batchDeleteUser() {
@@ -2315,9 +2309,9 @@ export class Server {
   updateUserTag() {
     this.app.post("/update/metadata", async (req: Request, res: Response) => {
       try {
-      const {updates} = req.body
-      const result = await updateContactAndTranscript(updates)
-      res.json({"message":result})
+        const { updates } = req.body;
+        const result = await updateContactAndTranscript(updates);
+        res.json({ message: result });
       } catch (error) {
         console.error("Error updating events:", error);
         res.status(500).json({ error: "Internal server error." });
