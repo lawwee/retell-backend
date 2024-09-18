@@ -1750,6 +1750,7 @@ export class Server {
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
+            agentId:userInDb.agents
           },
         });
       } catch (error) {
@@ -2376,8 +2377,7 @@ export class Server {
       const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
       let dateFilter = {};
   
-    console.log(status)
-    console.log(dateOption)
+   
       switch (dateOption) {
         case DateOption.Today:
           dateFilter = { datesCalled: today };
@@ -2423,7 +2423,7 @@ export class Server {
       let result;
       
   
-      console.log(dateFilter)
+      
       switch (status) {
         case "failed":
           result = await contactModel.find({
