@@ -1801,15 +1801,15 @@ export class Server {
           return res.status(400).json({ message: "Provide the login details" });
         }
   
-        // Fetch user by username along with the necessary fields
+       
         const userInDb = await userModel.findOne(
           { username },
           {
-            "agents.agentId": 1,   // Project only agentId inside agents array
-            passwordHash: 1,       // Include passwordHash for password verification
-            isAdmin: 1,            // Include isAdmin to check user type
-            username: 1,           // Include username
-            group: 1               // Include group
+            "agents.agentId": 1,
+            passwordHash: 1,  
+            isAdmin: 1,         
+            username: 1,           
+            group: 1              
           },
         );
         
@@ -1834,10 +1834,10 @@ export class Server {
               $unwind: "$agents",  // Unwind the agents array
             },
             {
-              $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } }, // Group all agentIds into an array
+              $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } }
             },
             {
-              $project: { _id: 0, allAgentIds: 1 },  // Remove _id from the result
+              $project: { _id: 0, allAgentIds: 1 },  
             },
           ]);
           result = payload.length > 0 ? payload[0].allAgentIds : [];
