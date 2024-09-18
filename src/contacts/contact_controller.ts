@@ -229,6 +229,7 @@ export const getAllContact = async (
       ...dateFilter,
     });
 
+
     const stats = await DailyStatsModel.aggregate([
       { $match: { agentId, ...dateFilter1 } },
       {
@@ -267,7 +268,7 @@ export const getAllContact = async (
       totalCalls: stats[0]?.totalCalls || 0,
       totalFailedCalls: stats[0]?.totalFailedCalls || 0,
       totalPages,
-      contacts: statsWithTranscripts,
+      contacts: statsWithTranscripts
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
