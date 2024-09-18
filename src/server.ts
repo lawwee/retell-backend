@@ -491,41 +491,38 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.post(
-      "/users/:agentId",
-      async (req: Request, res: Response) => {
-        const agentId = req.params.agentId;
-        const { page, limit, dateOption } = req.body;
-        const newPage = parseInt(page);
-        const newLimit = parseInt(limit);
+    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
+      const agentId = req.params.agentId;
+      const { page, limit, dateOption } = req.body;
+      const newPage = parseInt(page);
+      const newLimit = parseInt(limit);
 
-        // Validate dateOption
-        let validDateOption: DateOption;
+      // Validate dateOption
+      let validDateOption: DateOption;
 
-        // Validate dateOption
-        if (dateOption) {
-          if (!Object.values(DateOption).includes(dateOption)) {
-            return res.status(400).json({ error: "Invalid date option" });
-          }
-          validDateOption = dateOption as DateOption;
-        } else {
-          validDateOption = DateOption.LAST_SCHEDULE;
+      // Validate dateOption
+      if (dateOption) {
+        if (!Object.values(DateOption).includes(dateOption)) {
+          return res.status(400).json({ error: "Invalid date option" });
         }
+        validDateOption = dateOption as DateOption;
+      } else {
+        validDateOption = DateOption.LAST_SCHEDULE;
+      }
 
-        try {
-          const result = await getAllContact(
-            agentId,
-            newPage,
-            newLimit,
-            validDateOption,
-          );
-          res.json({ result });
-        } catch (error) {
-          console.log(error);
-          res.status(500).json({ error: "Internal Server Error" });
-        }
-      },
-    );
+      try {
+        const result = await getAllContact(
+          agentId,
+          newPage,
+          newLimit,
+          validDateOption,
+        );
+        res.json({ result });
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
   }
   handlecontactDelete() {
     this.app.patch(
@@ -769,8 +766,7 @@ export class Server {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
           { agentId },
-          { status: "not called", answeredByVM: false ,   datesCalled: []},
-        
+          { status: "not called", answeredByVM: false, datesCalled: [] },
         );
         res.json({ result });
       },
@@ -967,7 +963,6 @@ export class Server {
     let callStatus;
     let statsUpdate: any = { $inc: {} };
 
-    
     if (payload.event === "call_analyzed") {
       const isMachine = call_analysis?.in_voicemail === true;
       if (isMachine) {
@@ -1040,7 +1035,6 @@ export class Server {
         console.log("Call back");
       }
 
-    
       const statsResults = await DailyStatsModel.findOneAndUpdate(
         { day: todayString, agentId: agent_id },
         statsUpdate,
@@ -1584,7 +1578,6 @@ export class Server {
             }
           }
 
-          
           return await contactModel.find(query).populate("referenceToCallId");
         };
 
@@ -1634,9 +1627,13 @@ export class Server {
         ) {
           sentimentStatus = "Call back";
         }
-        if (sentimentOption && sentimentOption.toLowerCase() === "uninterested") {
+        if (
+          sentimentOption &&
+          sentimentOption.toLowerCase() === "uninterested"
+        ) {
           const filteredResults = allResults.filter((contact) => {
-            const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+            const analyzedTranscript =
+              contact.referenceToCallId?.analyzedTranscript;
             const callStatus = contact.status === callstatusenum.CALLED; // Ensure call-connected status
             return analyzedTranscript === "Uninterested" && callStatus;
           });
@@ -1645,7 +1642,8 @@ export class Server {
           res.json(allResults);
         } else {
           const filteredResults = allResults.filter((contact) => {
-            const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+            const analyzedTranscript =
+              contact.referenceToCallId?.analyzedTranscript;
             return analyzedTranscript === sentimentStatus;
           });
           res.json(filteredResults);
@@ -1719,6 +1717,82 @@ export class Server {
       },
     );
   }
+  // loginUser() {
+  //   this.app.post("/user/login", async (req: Request, res: Response) => {
+  //     try {
+  //       const { username, password } = req.body;
+  //       if (!username || !password) {
+  //         return res.status(400).json({ message: "Provide the login details" });
+  //       }
+
+  //       const userInDb = await userModel.findOne(
+  //         { username }, // Find user by username
+  //         { "agents.agentId": 1, _id: 0 }, // Only project the agentId field in the agents array
+  //       );
+  //       if (!userInDb) {
+  //         return res.status(400).json({ message: "Invalid login credentials" });
+  //       }
+  //       const verifyPassword = await argon2.verify(
+  //         userInDb.passwordHash,
+  //         password,
+  //       );
+  //       if (!verifyPassword) {
+  //         return res.status(400).json({ message: "Incorrect password" });
+  //       }
+  //       let result;
+  //       if (userInDb.isAdmin === true) {
+  //         const payload = await userModel.aggregate([
+  //           {
+  //             // Project only the agents field, which contains the agentId
+  //             $project: {
+  //               agents: 1,
+  //             },
+  //           },
+  //           {
+  //             // Unwind the agents array to have individual documents for each agent
+  //             $unwind: "$agents",
+  //           },
+  //           {
+  //             // Group all the agentId values into one array
+  //             $group: {
+  //               _id: null, // Single group
+  //               allAgentIds: { $push: "$agents.agentId" },
+  //             },
+  //           },
+  //           {
+  //             // Optionally, remove the _id field from the result
+  //             $project: {
+  //               _id: 0,
+  //               allAgentIds: 1,
+  //             },
+  //           },
+  //         ]);
+  //         result = payload.length > 0 ? payload[0].allAgentIds : [];
+  //       } else {
+  //         result = userInDb?.agents?.map(agent => agent.agentId) || [];
+  //       }
+  //       const token = jwt.sign(
+  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+  //         process.env.JWT_SECRET,
+  //         { expiresIn: "1d" },
+  //       );
+  //       console.log(result);
+  //       res.json({
+  //         payload: {
+  //           message: "Logged in succefully",
+  //           token,
+  //           username: userInDb.username,
+  //           userId: userInDb._id,
+  //           group: userInDb.group,
+  //           agentId: result,
+  //         },
+  //       });
+  //     } catch (error) {
+  //       console.log(error);
+  //       return res.status(500).json({ message: "Error happened during login" });
+  //     }
+  //   });
+  // }
   loginUser() {
     this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
@@ -1726,65 +1800,68 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-
-        const userInDb = await userModel.findOne({ username });
+  
+        // Fetch user by username along with the necessary fields
+        const userInDb = await userModel.findOne(
+          { username },
+          {
+            "agents.agentId": 1,   // Project only agentId inside agents array
+            passwordHash: 1,       // Include passwordHash for password verification
+            isAdmin: 1,            // Include isAdmin to check user type
+            username: 1,           // Include username
+            group: 1               // Include group
+          },
+        );
+        
         if (!userInDb) {
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-        const verifyPassword = await argon2.verify(
-          userInDb.passwordHash,
-          password,
-        );
+  
+        // Verify the password using argon2
+        const verifyPassword = await argon2.verify(userInDb.passwordHash, password);
         if (!verifyPassword) {
           return res.status(400).json({ message: "Incorrect password" });
         }
-        let result
-        if(userInDb.isAdmin === true){
-           const payload = await userModel.aggregate([
+  
+        // Check if user is admin and fetch all agentIds if true
+        let result;
+        if (userInDb.isAdmin === true) {
+          const payload = await userModel.aggregate([
             {
-              // Project only the agents field, which contains the agentId
-              $project: {
-                agents: 1
-              }
+              $project: { agents: 1 },  // Project only the agents field
             },
             {
-              // Unwind the agents array to have individual documents for each agent
-              $unwind: "$agents"
+              $unwind: "$agents",  // Unwind the agents array
             },
             {
-              // Group all the agentId values into one array
-              $group: {
-                _id: null, // Single group
-                allAgentIds: { $push: "$agents.agentId" }
-              }
+              $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } }, // Group all agentIds into an array
             },
             {
-              // Optionally, remove the _id field from the result
-              $project: {
-                _id: 0,
-                allAgentIds: 1
-              }
-            }
+              $project: { _id: 0, allAgentIds: 1 },  // Remove _id from the result
+            },
           ]);
-          result =  payload.length > 0 ? payload[0].allAgentIds : [];
-          
-        }else {
-          result = userInDb.agents
+          result = payload.length > 0 ? payload[0].allAgentIds : [];
+        } else {
+          // For non-admin users, return their own agentId
+          result = userInDb?.agents?.map(agent => agent.agentId) || [];
         }
+  
+        // Generate JWT token
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-        console.log(result)
+  
+        // Return the response
         res.json({
           payload: {
-            message: "Logged in succefully",
+            message: "Logged in successfully",
             token,
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
-            agentId: result
+            agentIds: result,  // Include agentIds in the response
           },
         });
       } catch (error) {
@@ -1793,6 +1870,7 @@ export class Server {
       }
     });
   }
+  
 
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
@@ -1801,7 +1879,7 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-        const userInDb = await userModel.findOne({ username });
+        const userInDb = await userModel.findOne({ username },);
         if (!userInDb) {
           return res.status(400).json({ message: "Invalid login credentials" });
         }
@@ -1824,29 +1902,29 @@ export class Server {
           {
             // Project only the agents field, which contains the agentId
             $project: {
-              agents: 1
-            }
+              agents: 1,
+            },
           },
           {
             // Unwind the agents array to have individual documents for each agent
-            $unwind: "$agents"
+            $unwind: "$agents",
           },
           {
             // Group all the agentId values into one array
             $group: {
               _id: null, // Single group
-              allAgentIds: { $push: "$agents.agentId" }
-            }
+              allAgentIds: { $push: "$agents.agentId" },
+            },
           },
           {
             // Optionally, remove the _id field from the result
             $project: {
               _id: 0,
-              allAgentIds: 1
-            }
-          }
+              allAgentIds: 1,
+            },
+          },
         ]);
-        
+
         return res.status(200).json({
           payload: {
             message: "Logged in succefully",
@@ -1854,7 +1932,7 @@ export class Server {
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
-            agentId: result
+            agentId: result,
           },
         });
       } catch (error) {
@@ -2307,8 +2385,7 @@ export class Server {
       const zonedNow = toZonedTime(now, timeZone);
       const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
       let dateFilter = {};
-  
-   
+
       switch (dateOption) {
         case DateOption.Today:
           dateFilter = { datesCalled: today };
@@ -2324,106 +2401,131 @@ export class Server {
             const day = subDays(now, i);
             const dayOfWeek = day.getDay();
             if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-              pastDays.push(format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }));
+              pastDays.push(
+                format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
+              );
             }
           }
-          dateFilter = { datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today } };
+          dateFilter = {
+            datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
+          };
           break;
         case DateOption.ThisMonth:
           const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-          const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", { timeZone });
+          const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+            timeZone,
+          });
           dateFilter = { datesCalled: { $gte: startOfMonthDate } };
           break;
         case DateOption.Total:
           dateFilter = {};
           break;
         case DateOption.LAST_SCHEDULE:
-          const recentJob = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
-          if (!recentJob) return res.status(404).send("No jobs found for today's filter.");
+          const recentJob = await jobModel
+            .findOne({})
+            .sort({ createdAt: -1 })
+            .lean();
+          if (!recentJob)
+            return res.status(404).send("No jobs found for today's filter.");
           const dateToCheck = recentJob.scheduledTime.split("T")[0];
           dateFilter = { datesCalled: { $gte: dateToCheck } };
           break;
         default:
-          const recentJob1 = await jobModel.findOne({}).sort({ createdAt: -1 }).lean();
-          if (!recentJob1) return res.status(404).send("No jobs found for today's filter.");
+          const recentJob1 = await jobModel
+            .findOne({})
+            .sort({ createdAt: -1 })
+            .lean();
+          if (!recentJob1)
+            return res.status(404).send("No jobs found for today's filter.");
           const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
           dateFilter = { datesCalled: { $gte: dateToCheck1 } };
           break;
       }
-  
+
       let result;
-      
-  
-      
+
       switch (status) {
         case "failed":
-          result = await contactModel.find({
-            agentId,
-            isDeleted: false,
-            status: callstatusenum.FAILED,
-            ...dateFilter,
-          }).populate("referenceToCallId");
-          break;
-  
-        case "called":
-            result = await contactModel.find({
+          result = await contactModel
+            .find({
               agentId,
               isDeleted: false,
-              status:  {$ne:callstatusenum.NOT_CALLED},
+              status: callstatusenum.FAILED,
               ...dateFilter,
-            }).populate("referenceToCallId");
+            })
+            .populate("referenceToCallId");
           break;
-      
+
+        case "called":
+          result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              status: { $ne: callstatusenum.NOT_CALLED },
+              ...dateFilter,
+            })
+            .populate("referenceToCallId");
+          break;
+
         case "not-called":
-          result = await contactModel.find({
-            agentId,
-            isDeleted: false,
-            status: callstatusenum.NOT_CALLED,
-          }).populate("referenceToCallId");
+          result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.NOT_CALLED,
+            })
+            .populate("referenceToCallId");
           break;
-  
+
         case "answered":
-          result = await contactModel.find({
-            agentId,
-            isDeleted: false,
-            status: callstatusenum.CALLED,
-            ...dateFilter,
-          }).populate("referenceToCallId");
+          result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.CALLED,
+              ...dateFilter,
+            })
+            .populate("referenceToCallId");
           break;
-  
+
         case "transferred":
-          result = await contactModel.find({
-            agentId,
-            isDeleted: false,
-            status: callstatusenum.TRANSFERRED,
-            ...dateFilter,
-          }).populate("referenceToCallId");
+          result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.TRANSFERRED,
+              ...dateFilter,
+            })
+            .populate("referenceToCallId");
           break;
-  
+
         case "voicemail":
-          result = await contactModel.find({
-            agentId,
-            isDeleted: false,
-            status: callstatusenum.VOICEMAIL,
-            ...dateFilter,
-          }).populate("referenceToCallId");
+          result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.VOICEMAIL,
+              ...dateFilter,
+            })
+            .populate("referenceToCallId");
           break;
-  
+
         case "appointment":
-          result = await contactModel.find({
-            agentId,
-            isDeleted: false,
-            status: callstatusenum.SCHEDULED,
-          }).populate("referenceToCallId");
+          result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              status: callstatusenum.SCHEDULED,
+            })
+            .populate("referenceToCallId");
           break;
-  
+
         default:
           return res.status(400).send("Invalid status option.");
       }
-  
+
       // Send the response
       res.json(result);
     });
   }
-  
 }
