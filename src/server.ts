@@ -1738,6 +1738,38 @@ export class Server {
         if (!verifyPassword) {
           return res.status(400).json({ message: "Incorrect password" });
         }
+        let result
+        if(userInDb.isAdmin === true){
+           result = await userModel.aggregate([
+            {
+              // Project only the agents field, which contains the agentId
+              $project: {
+                agents: 1
+              }
+            },
+            {
+              // Unwind the agents array to have individual documents for each agent
+              $unwind: "$agents"
+            },
+            {
+              // Group all the agentId values into one array
+              $group: {
+                _id: null, // Single group
+                allAgentIds: { $push: "$agents.agentId" }
+              }
+            },
+            {
+              // Optionally, remove the _id field from the result
+              $project: {
+                _id: 0,
+                allAgentIds: 1
+              }
+            }
+          ]);
+          
+        }else {
+          result = userInDb.agents
+        }
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
@@ -1750,7 +1782,7 @@ export class Server {
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
-            agentId:userInDb.agents
+            agentId: result
           },
         });
       } catch (error) {
