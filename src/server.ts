@@ -1740,7 +1740,7 @@ export class Server {
         }
         let result
         if(userInDb.isAdmin === true){
-           result = await userModel.aggregate([
+           const payload = await userModel.aggregate([
             {
               // Project only the agents field, which contains the agentId
               $project: {
@@ -1766,6 +1766,7 @@ export class Server {
               }
             }
           ]);
+          result =  payload.length > 0 ? payload[0].allAgentIds : [];
           
         }else {
           result = userInDb.agents
@@ -1775,6 +1776,7 @@ export class Server {
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
+        console.log(result)
         res.json({
           payload: {
             message: "Logged in succefully",
