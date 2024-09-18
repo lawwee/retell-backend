@@ -1786,6 +1786,33 @@ export class Server {
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
+        const result = await userModel.aggregate([
+          {
+            // Project only the agents field, which contains the agentId
+            $project: {
+              agents: 1
+            }
+          },
+          {
+            // Unwind the agents array to have individual documents for each agent
+            $unwind: "$agents"
+          },
+          {
+            // Group all the agentId values into one array
+            $group: {
+              _id: null, // Single group
+              allAgentIds: { $push: "$agents.agentId" }
+            }
+          },
+          {
+            // Optionally, remove the _id field from the result
+            $project: {
+              _id: 0,
+              allAgentIds: 1
+            }
+          }
+        ]);
+        
         return res.status(200).json({
           payload: {
             message: "Logged in succefully",
@@ -1793,6 +1820,7 @@ export class Server {
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
+            agentId: result
           },
         });
       } catch (error) {
@@ -1850,137 +1878,6 @@ export class Server {
     }
   }
 
-  // returnContactsFromStats() {
-  //   this.app.post(
-  //     "/user/populate",
-  //     authmiddleware,
-  //     isAdmin,
-  //     async (req: Request, res: Response) => {
-  //       try {
-  //         const { agentId, options } = req.body;
-  //         console.log("here");
-  //         if (!agentId) {
-  //           return res.json({ message: "Please provide agent id" });
-  //         }
-  //         let result: any = {};
-  //         if (options === "Transffered") {
-  //           const totalCallsTransferred = await contactModel.aggregate([
-  //             {
-  //               $match: {
-  //                 agentId,
-  //                 isDeleted: { $ne: true },
-  //               },
-  //             },
-  //             {
-  //               $lookup: {
-  //                 from: "transcripts",
-  //                 localField: "referenceToCallId",
-  //                 foreignField: "_id",
-  //                 as: "referenceToCallId",
-  //               },
-  //             },
-  //             {
-  //               $match: {
-  //                 "referenceToCallId.disconnectionReason": "call_transfer",
-  //               },
-  //             },
-  //           ]);
-  //           result.totalCallsTransferred = totalCallsTransferred;
-  //         }
-
-  //         if (options === "Appointment") {
-  //           const totalAppointment = await contactModel.aggregate([
-  //             {
-  //               $match: {
-  //                 agentId,
-  //                 isDeleted: { $ne: true },
-  //               },
-  //             },
-  //             {
-  //               $lookup: {
-  //                 from: "transcripts",
-  //                 localField: "referenceToCallId",
-  //                 foreignField: "_id",
-  //                 as: "callDetails",
-  //               },
-  //             },
-  //             {
-  //               $match: {
-  //                 "callDetails.analyzedTranscript": "Scheduled",
-  //               },
-  //             },
-  //           ]);
-  //           result.totalAppointment = totalAppointment;
-  //         }
-
-  //         if (options === "Not-Called") {
-  //           const totalNotCalledForAgents = await contactModel.find({
-  //             agentId,
-  //             isDeleted: false,
-  //             status: callstatusenum.NOT_CALLED,
-  //           });
-  //           result.totalNotCalledForAgents = totalNotCalledForAgents;
-  //         }
-
-  //         if (options === "VM") {
-  //           const totalAnsweredByVm = await contactModel.find({
-  //             agentId,
-  //             isDeleted: false,
-  //             // datesCalled: { $gte: startDate, $lte: endDate },
-  //             status: callstatusenum.VOICEMAIL,
-  //           });
-  //           result.totalAnsweredByVm = totalAnsweredByVm;
-  //         }
-
-  //         if (options === "Total") {
-  //           const totalCalls = await contactModel.find({
-  //             agentId,
-  //             isDeleted: false,
-  //             // datesCalled: { $gte: startDate, $lte: endDate },
-  //             status: {
-  //               $in: [
-  //                 callstatusenum.CALLED,
-  //                 callstatusenum.VOICEMAIL,
-  //                 callstatusenum.FAILED,
-  //               ],
-  //             },
-  //           });
-  //           result.totalCalls = totalCalls;
-  //         }
-
-  //         if (options === "Answered") {
-  //           const totalAnsweredCall = await contactModel.find({
-  //             agentId,
-  //             isDeleted: false,
-  //             status: callstatusenum.CALLED,
-  //             // datesCalled: { $gte: startDate, $lte: endDate },
-  //           });
-  //           result.totalAnsweredCall = totalAnsweredCall;
-  //         }
-
-  //         if (options === "Total-Contact") {
-  //           const totalContactForAgents = await contactModel.find({
-  //             agentId,
-  //             isDeleted: false,
-  //           });
-  //           result.totalContactForAgents = totalContactForAgents;
-  //         }
-
-  //         if (options === "Failed") {
-  //           const countCallFailed = await contactModel.find({
-  //             agentId,
-  //             isDeleted: false,
-  //             status: callstatusenum.FAILED,
-  //           });
-  //           result.countCallFailed = countCallFailed;
-  //         }
-  //         res.send(result);
-  //       } catch (error) {
-  //         res.status(500).send({ error });
-  //       }
-  //     },
-  //   );
-  // }
   testingMake() {
     this.app.post("/make", async (req: Request, res: Response) => {
       const result = await axios.post(
