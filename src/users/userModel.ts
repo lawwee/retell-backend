@@ -37,6 +37,9 @@ const userSchema = new Schema(
     passwordHash: {
       type: String,
     },
+    name:{
+      type: String
+    }
   },
   {
     timestamps: true,

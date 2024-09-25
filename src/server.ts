@@ -1717,82 +1717,6 @@ export class Server {
       },
     );
   }
-  // loginUser() {
-  //   this.app.post("/user/login", async (req: Request, res: Response) => {
-  //     try {
-  //       const { username, password } = req.body;
-  //       if (!username || !password) {
-  //         return res.status(400).json({ message: "Provide the login details" });
-  //       }
-
-  //       const userInDb = await userModel.findOne(
-  //         { username }, // Find user by username
-  //         { "agents.agentId": 1, _id: 0 }, // Only project the agentId field in the agents array
-  //       );
-  //       if (!userInDb) {
-  //         return res.status(400).json({ message: "Invalid login credentials" });
-  //       }
-  //       const verifyPassword = await argon2.verify(
-  //         userInDb.passwordHash,
-  //         password,
-  //       );
-  //       if (!verifyPassword) {
-  //         return res.status(400).json({ message: "Incorrect password" });
-  //       }
-  //       let result;
-  //       if (userInDb.isAdmin === true) {
-  //         const payload = await userModel.aggregate([
-  //           {
-  //             // Project only the agents field, which contains the agentId
-  //             $project: {
-  //               agents: 1,
-  //             },
-  //           },
-  //           {
-  //             // Unwind the agents array to have individual documents for each agent
-  //             $unwind: "$agents",
-  //           },
-  //           {
-  //             // Group all the agentId values into one array
-  //             $group: {
-  //               _id: null, // Single group
-  //               allAgentIds: { $push: "$agents.agentId" },
-  //             },
-  //           },
-  //           {
-  //             // Optionally, remove the _id field from the result
-  //             $project: {
-  //               _id: 0,
-  //               allAgentIds: 1,
-  //             },
-  //           },
-  //         ]);
-  //         result = payload.length > 0 ? payload[0].allAgentIds : [];
-  //       } else {
-  //         result = userInDb?.agents?.map(agent => agent.agentId) || [];
-  //       }
-  //       const token = jwt.sign(
-  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-  //         process.env.JWT_SECRET,
-  //         { expiresIn: "1d" },
-  //       );
-  //       console.log(result);
-  //       res.json({
-  //         payload: {
-  //           message: "Logged in succefully",
-  //           token,
-  //           username: userInDb.username,
-  //           userId: userInDb._id,
-  //           group: userInDb.group,
-  //           agentId: result,
-  //         },
-  //       });
-  //     } catch (error) {
-  //       console.log(error);
-  //       return res.status(500).json({ message: "Error happened during login" });
-  //     }
-  //   });
-  // }
   loginUser() {
     this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
@@ -1817,21 +1741,20 @@ export class Server {
           return res.status(400).json({ message: "Invalid login credentials" });
         }
   
-        // Verify the password using argon2
+        
         const verifyPassword = await argon2.verify(userInDb.passwordHash, password);
         if (!verifyPassword) {
           return res.status(400).json({ message: "Incorrect password" });
         }
   
-        // Check if user is admin and fetch all agentIds if true
         let result;
         if (userInDb.isAdmin === true) {
           const payload = await userModel.aggregate([
             {
-              $project: { agents: 1 },  // Project only the agents field
+              $project: { agents: 1 },  
             },
             {
-              $unwind: "$agents",  // Unwind the agents array
+              $unwind: "$agents",
             },
             {
               $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } }
@@ -1842,18 +1765,18 @@ export class Server {
           ]);
           result = payload.length > 0 ? payload[0].allAgentIds : [];
         } else {
-          // For non-admin users, return their own agentId
+          
           result = userInDb?.agents?.map(agent => agent.agentId) || [];
         }
   
-        // Generate JWT token
+    
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
   
-        // Return the response
+      
         res.json({
           payload: {
             message: "Logged in successfully",
@@ -1861,7 +1784,8 @@ export class Server {
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
-            agentIds: result,  // Include agentIds in the response
+            name:userInDb.name,
+            agentIds: result,  
           },
         });
       } catch (error) {
