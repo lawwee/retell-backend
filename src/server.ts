@@ -1733,7 +1733,8 @@ export class Server {
             passwordHash: 1,  
             isAdmin: 1,         
             username: 1,           
-            group: 1              
+            group: 1,
+            name:1              
           },
         );
         
@@ -1776,6 +1777,7 @@ export class Server {
           { expiresIn: "1d" },
         );
   
+        console.log(userInDb)
       
         res.json({
           payload: {
