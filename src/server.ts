@@ -636,6 +636,26 @@ export class Server {
             header: true,
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
+              const headers = results.meta.fields; // Get the headers from the parsed CSV
+
+              // Check for required headers
+              const requiredHeaders = [
+                "firstname",
+                "lastname",
+                "phone",
+                "email",
+              ];
+              const missingHeaders = requiredHeaders.filter(
+                (header) => !headers.includes(header),
+              );
+              if (missingHeaders.length > 0) {
+                return res.status(400).json({
+                  message: `CSV must contain the following headers: ${missingHeaders.join(
+                    ", ",
+                  )}`,
+                });
+              }
+
               const agentId = req.params.agentId;
               let uploadedNumber = 0;
               let duplicateCount = 0;
@@ -665,6 +685,7 @@ export class Server {
                 agentId: agentId,
               }));
 
+              console.log(emailsAndAgentIds);
               // Check existing users in batch
               const existingUsers = await contactModel
                 .find({
@@ -964,11 +985,6 @@ export class Server {
     let statsUpdate: any = { $inc: {} };
 
     if (payload.event === "call_analyzed") {
-      const isMachine = call_analysis?.in_voicemail === true;
-      if (isMachine) {
-        statsUpdate.$inc.totalAnsweredByVm = 1;
-        callStatus = callstatusenum.VOICEMAIL;
-      }
       analyzedTranscript = await reviewTranscript(transcript);
       const analysisUpdateData = {
         analyzedTranscript: analyzedTranscript.message.content,
@@ -995,7 +1011,7 @@ export class Server {
     if (payload.event === "call_ended") {
       const isCallFailed = disconnection_reason === "dial_failed";
       const isCallTransferred = disconnection_reason === "call_transfer";
-      const isMachine = call_analysis?.in_voicemail === true;
+      const isMachine = disconnection_reason === "voicemail_reached";
       const isDialNoAnswer = disconnection_reason === "dial_no_answer";
       const isCallAnswered =
         disconnection_reason === "user_hangup" ||
@@ -1050,6 +1066,7 @@ export class Server {
           referenceToCallId: results._id,
           linktocallLogModel: linkToCallLogModelId,
         },
+        { upsert: true },
       );
     }
   }
@@ -1724,61 +1741,60 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-  
-       
+
         const userInDb = await userModel.findOne(
           { username },
           {
             "agents.agentId": 1,
-            passwordHash: 1,  
-            isAdmin: 1,         
-            username: 1,           
+            passwordHash: 1,
+            isAdmin: 1,
+            username: 1,
             group: 1,
-            name:1              
+            name: 1,
           },
         );
-        
+
         if (!userInDb) {
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-  
-        
-        const verifyPassword = await argon2.verify(userInDb.passwordHash, password);
+
+        const verifyPassword = await argon2.verify(
+          userInDb.passwordHash,
+          password,
+        );
         if (!verifyPassword) {
           return res.status(400).json({ message: "Incorrect password" });
         }
-  
+
         let result;
         if (userInDb.isAdmin === true) {
           const payload = await userModel.aggregate([
             {
-              $project: { agents: 1 },  
+              $project: { agents: 1 },
             },
             {
               $unwind: "$agents",
             },
             {
-              $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } }
+              $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } },
             },
             {
-              $project: { _id: 0, allAgentIds: 1 },  
+              $project: { _id: 0, allAgentIds: 1 },
             },
           ]);
           result = payload.length > 0 ? payload[0].allAgentIds : [];
         } else {
-          
-          result = userInDb?.agents?.map(agent => agent.agentId) || [];
+          result = userInDb?.agents?.map((agent) => agent.agentId) || [];
         }
-  
-    
+
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-  
-        console.log(userInDb)
-      
+
+        console.log(userInDb);
+
         res.json({
           payload: {
             message: "Logged in successfully",
@@ -1786,8 +1802,8 @@ export class Server {
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
-            name:userInDb.name,
-            agentIds: result,  
+            name: userInDb.name,
+            agentIds: result,
           },
         });
       } catch (error) {
@@ -1796,7 +1812,6 @@ export class Server {
       }
     });
   }
-  
 
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
@@ -1805,7 +1820,7 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-        const userInDb = await userModel.findOne({ username },);
+        const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
           return res.status(400).json({ message: "Invalid login credentials" });
         }
@@ -2299,10 +2314,16 @@ export class Server {
   }
   script() {
     this.app.post("/script", async (req: Request, res: Response) => {
-      const result = await createGoogleCalendarEvent();
-      res.send(result);
+      try {
+      } catch (error) {
+        // Send an error response to the client
+        res.status(500).json({
+          message: "An error occurred while updating phone numbers",
+        });
+      }
     });
   }
+
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       const { agentId, dateOption, status } = req.body;
