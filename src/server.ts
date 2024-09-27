@@ -2147,13 +2147,25 @@ export class Server {
     );
   }
   getAllDbTags() {
-    this.app.get(
+    this.app.post(
       "/get-tags",
-      authmiddleware,
-      isAdmin,
+      
       async (req: Request, res: Response) => {
-        const foundTags = await contactModel.distinct("tag");
-        res.send(foundTags);
+        const {agentId} = req.body
+
+        try {
+          const user = await userModel.findOne({ 'agents.agentId': agentId }, { 'agents.$': 1 }); 
+          if (user && user.agents.length > 0) {
+            res.send( {payload:user.agents[0].tag})
+          } else {
+            res.send({payload: 'Agent not found'})
+          }
+        } catch (error) {
+          console.error('Error fetching tag:', error);
+          return 'Error fetching tag';
+        }
+      
+      
       },
     );
   }

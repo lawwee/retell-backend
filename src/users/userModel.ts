@@ -1,6 +1,12 @@
 import { model, Schema } from "mongoose";
 import argon2 from "argon2";
 
+const agentSchema = new Schema({
+  agentId: String,
+  tag: String,
+  alias: String,
+  name: String,
+});
 const userSchema = new Schema(
   {
     email: {
@@ -18,28 +24,20 @@ const userSchema = new Schema(
     },
     group: {
       type: String,
-      enum: ["BE+WELL", "TVAG", "ARS","GSA"],
+      enum: ["BE+WELL", "TVAG", "ARS", "GSA"],
       required: [true, "provide a group"],
     },
     isAdmin: {
       type: Boolean,
       default: false,
     },
-    agents:{
-        type:[
-            {
-                name: String,
-                agentId: String,
-                alias:String
-            }
-        ]
-    },
+    agents: [agentSchema],
     passwordHash: {
       type: String,
     },
-    name:{
-      type: String
-    }
+    name: {
+      type: String,
+    },
   },
   {
     timestamps: true,
