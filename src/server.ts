@@ -1494,7 +1494,7 @@ export class Server {
           .map((term: string) => term.trim());
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-        const newtag = tag.toLowerCase()
+        const newtag = tag ? tag.toLowerCase() :""
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query: any = {
             agentId,
