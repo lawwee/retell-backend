@@ -1519,10 +1519,13 @@ export class Server {
 
           if (startDate || endDate) {
             query["datesCalled"] = {};
-            if (startDate) {
+            if (startDate && !endDate) {
+              // If only startDate is provided, filter by that date
+              const formattedStartDate = formatDateToDB(startDate);
+              query["datesCalled"]["$eq"] = formattedStartDate; // Match exactly that date
+            } else if (startDate && endDate) {
+              // If both dates are provided, filter by range
               query["datesCalled"]["$gte"] = formatDateToDB(startDate);
-            }
-            if (endDate) {
               query["datesCalled"]["$lte"] = formatDateToDB(endDate);
             }
           }
