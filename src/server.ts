@@ -1494,6 +1494,7 @@ export class Server {
           .map((term: string) => term.trim());
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
+        const newtag = tag.toLowerCase()
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query: any = {
             agentId,
@@ -1527,7 +1528,7 @@ export class Server {
           }
 
           if (tag) {
-            query["tag"] = tag;
+            query["tag"] = newtag;
           }
 
           if (statusOption && statusOption !== "All") {
@@ -1595,6 +1596,7 @@ export class Server {
             }
           }
 
+          console.log(query)
           return await contactModel.find(query).populate("referenceToCallId");
         };
 
