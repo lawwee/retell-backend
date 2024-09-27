@@ -3,7 +3,7 @@ import argon2 from "argon2";
 
 const agentSchema = new Schema({
   agentId: String,
-  tag: String,
+  tag: [String],
   alias: String,
   name: String,
 });
