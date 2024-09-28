@@ -620,12 +620,10 @@ export class Server {
       async (req: Request, res: Response) => {
         const session = await mongoose.startSession();
         session.startTransaction();
-
         try {
           if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
           }
-
           const csvFile = req.file;
           const day = req.query.day;
           const tag = req.query.tag;
@@ -636,9 +634,7 @@ export class Server {
             header: true,
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const headers = results.meta.fields; // Get the headers from the parsed CSV
-
-              // Check for required headers
+              const headers = results.meta.fields; 
               const requiredHeaders = [
                 "firstname",
                 "lastname",
@@ -678,15 +674,11 @@ export class Server {
                 }
                 return `+1${digitsOnly}`;
               }
-
-              // Extract emails and agentId for batch checking
               const emailsAndAgentIds = jsonArrayObj.map((user) => ({
                 email: user.email,
                 agentId: agentId,
               }));
 
-              console.log(emailsAndAgentIds);
-              // Check existing users in batch
               const existingUsers = await contactModel
                 .find({
                   $or: emailsAndAgentIds,
@@ -725,16 +717,22 @@ export class Server {
 
               if (successfulUsers.length > 0) {
                 await contactModel.insertMany(successfulUsers, { session });
-              }
 
+                await userModel.updateOne(
+                  { "agents.agentId": agentId }, 
+                  {
+                    $addToSet: { "agents.$.tag": lowerCaseTag }, 
+                  },
+                  { session },
+                );
+              }
               await session.commitTransaction();
               session.endSession();
-
               res.status(200).json({
                 message: `Upload successful, contacts uploaded: ${uploadedNumber}, duplicates found: ${duplicateCount}`,
                 failedUsers: failedUsers.filter(
                   (user) => user.email || user.firstname || user.phone,
-                ), // Remove empty objects
+                ),
               });
             },
             error: async (err: Error) => {
@@ -1494,7 +1492,7 @@ export class Server {
           .map((term: string) => term.trim());
         const firstTermIsEmail = isValidEmail(searchTerms[0]);
 
-        const newtag = tag ? tag.toLowerCase() :""
+        const newtag = tag ? tag.toLowerCase() : "";
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query: any = {
             agentId,
@@ -1599,7 +1597,7 @@ export class Server {
             }
           }
 
-          console.log(query)
+          console.log(query);
           return await contactModel.find(query).populate("referenceToCallId");
         };
 
@@ -2154,23 +2152,24 @@ export class Server {
   getAllDbTags() {
     this.app.post(
       "/get-tags",
-      
+
       async (req: Request, res: Response) => {
-        const {agentId} = req.body
+        const { agentId } = req.body;
 
         try {
-          const user = await userModel.findOne({ 'agents.agentId': agentId }, { 'agents.$': 1 }); 
+          const user = await userModel.findOne(
+            { "agents.agentId": agentId },
+            { "agents.$": 1 },
+          );
           if (user && user.agents.length > 0) {
-            res.send( {payload:user.agents[0].tag})
+            res.send({ payload: user.agents[0].tag });
           } else {
-            res.send({payload: 'Agent not found'})
+            res.send({ payload: "Agent not found" });
           }
         } catch (error) {
-          console.error('Error fetching tag:', error);
-          return 'Error fetching tag';
+          console.error("Error fetching tag:", error);
+          return "Error fetching tag";
         }
-      
-      
       },
     );
   }
