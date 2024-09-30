@@ -8,6 +8,7 @@ import Retell from "retell-sdk";
 import { subDays, startOfMonth, startOfWeek } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import { DailyStatsModel } from "./call_log";
+
 const retell = new Retell({
   apiKey: process.env.RETELL_API_KEY,
 });
@@ -49,7 +50,7 @@ export const createContact = async (
   }
 };
 
-type ContactDocument = Omit<Document & IContact, "_id">;
+export type ContactDocument = Omit<Document & IContact, "_id">;
 
 export const getAllContact = async (
   agentId: string,

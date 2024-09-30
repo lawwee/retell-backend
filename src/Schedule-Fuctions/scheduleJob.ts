@@ -117,6 +117,7 @@ export const scheduleCronJob = async (
             await contactModel.findByIdAndUpdate(contact._id, {
               callId: registerCallResponse2.call_id,
               $push: { jobProcessedWithId: jobId },
+              isusercalled: true
             });
 
             await jobModel.findOneAndUpdate(
@@ -135,8 +136,6 @@ export const scheduleCronJob = async (
                 { _id: contact._id.toString() },
               ],
             });
-
-          
             if (updatedContact?.status === "dial_no_answer") {
               console.log(
                 `User ${contact.firstname} didn't answer, calling again...`
@@ -167,9 +166,6 @@ export const scheduleCronJob = async (
             }
           } catch (error) {
             console.log("Error during call processing:", error);
-            await contactModel.findByIdAndUpdate(contact._id, {
-              status: "call-failed",
-            });
           }
 
           // Wait for 4 seconds before processing the next contact

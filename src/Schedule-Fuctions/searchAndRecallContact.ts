@@ -17,10 +17,8 @@ export const searchAndRecallContacts = async (
 ) => {
   try {
     let contactStatusArray = [
-      "called-NA-VM",
       "ringing",
       "on call",
-      callstatusenum.FAILED,
     ];
     const contacts = await contactModel
       .find({
@@ -104,10 +102,7 @@ export const searchAndRecallContacts = async (
             callId: registerCallResponse2.call_id,
           });
         } catch (error) {
-          console.log("This is the error:", error);
-          await contactModel.findByIdAndUpdate(postdata.userId, {
-            status: "call-failed",
-          });
+          console.log("This is the error:", error)
         }
 
         console.log(

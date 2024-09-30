@@ -73,9 +73,6 @@ import {
   getUserId,
   scheduleMeeting,
 } from "./helper-fuction/zoom";
-
-import { MongoClient } from "mongodb";
-import { createGoogleCalendarEvent } from "./helper-fuction/google-calender";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -447,6 +444,7 @@ export class Server {
           });
           await contactModel.findByIdAndUpdate(userId, {
             callId: registerCallResponse2.call_id,
+            isusercalled: true
           });
           res.send({ callCreation: registerCallResponse2, callRegister });
         } catch (error) {
@@ -634,7 +632,7 @@ export class Server {
             header: true,
             complete: async (results) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const headers = results.meta.fields; 
+              const headers = results.meta.fields;
               const requiredHeaders = [
                 "firstname",
                 "lastname",
@@ -719,9 +717,9 @@ export class Server {
                 await contactModel.insertMany(successfulUsers, { session });
 
                 await userModel.updateOne(
-                  { "agents.agentId": agentId }, 
+                  { "agents.agentId": agentId },
                   {
-                    $addToSet: { "agents.$.tag": lowerCaseTag }, 
+                    $addToSet: { "agents.$.tag": lowerCaseTag },
                   },
                   { session },
                 );
@@ -785,7 +783,7 @@ export class Server {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
           { agentId },
-          { status: "not called", answeredByVM: false, datesCalled: [] },
+          { status: "not called", answeredByVM: false, datesCalled: [], isusercalled: false },
         );
         res.json({ result });
       },
@@ -982,30 +980,6 @@ export class Server {
     let callStatus;
     let statsUpdate: any = { $inc: {} };
 
-    if (payload.event === "call_analyzed") {
-      analyzedTranscript = await reviewTranscript(transcript);
-      const analysisUpdateData = {
-        analyzedTranscript: analyzedTranscript.message.content,
-        ...(call_analysis && {
-          retellCallSummary: call_analysis.call_summary,
-          userSentiment: call_analysis.user_sentiment,
-          agentSentiment: call_analysis.agent_sentiment,
-        }),
-      };
-
-      // Update the document with call analysis data
-      await EventModel.findOneAndUpdate(
-        { callId: call_id },
-        { $set: analysisUpdateData },
-        { upsert: true },
-      );
-      const statsResults = await DailyStatsModel.findOneAndUpdate(
-        { day: todayString, agentId: agent_id },
-        statsUpdate,
-        { upsert: true, returnOriginal: false },
-      );
-    }
-
     if (payload.event === "call_ended") {
       const isCallFailed = disconnection_reason === "dial_failed";
       const isCallTransferred = disconnection_reason === "call_transfer";
@@ -1014,21 +988,24 @@ export class Server {
       const isCallAnswered =
         disconnection_reason === "user_hangup" ||
         disconnection_reason === "agent_hangup";
-      const isCallBack = transcript && transcript.includes("Call back");
 
+      analyzedTranscript = await reviewTranscript(transcript);
       const callEndedUpdateData = {
         callId: call_id,
+        agentId: payload.call.agent_id,
         recordingUrl: recording_url,
         disconnectionReason: disconnection_reason,
+        analyzedTranscript: analyzedTranscript.message.content,
         ...(transcript && { transcript }),
       };
 
       const results = await EventModel.findOneAndUpdate(
-        { callId: call_id },
+        { callId: call_id, agentId: payload.call.agent_id },
         { $set: callEndedUpdateData },
         { upsert: true, returnOriginal: false },
       );
-
+      // const foundone = await contactModel.findOne(callId: call_id)
+     
       statsUpdate.$inc.totalCalls = 1;
 
       if (isMachine) {
@@ -1045,8 +1022,6 @@ export class Server {
       } else if (isCallAnswered) {
         statsUpdate.$inc.totalCallAnswered = 1;
         callStatus = callstatusenum.CALLED;
-      } else if (isCallBack) {
-        console.log("Call back");
       }
 
       const statsResults = await DailyStatsModel.findOneAndUpdate(
@@ -1055,16 +1030,17 @@ export class Server {
         { upsert: true, returnOriginal: false },
       );
 
+    
+
       const linkToCallLogModelId = statsResults ? statsResults._id : null;
       await contactModel.findOneAndUpdate(
-        { callId: call_id },
+        { callId: call_id , agentId:payload.call.agent_id},
         {
           status: callStatus,
           $push: { datesCalled: todayString },
           referenceToCallId: results._id,
           linktocallLogModel: linkToCallLogModelId,
         },
-        { upsert: true },
       );
     }
   }
@@ -2404,9 +2380,7 @@ export class Server {
           dateFilter = { datesCalled: { $gte: dateToCheck1 } };
           break;
       }
-
       let result;
-
       switch (status) {
         case "failed":
           result = await contactModel
