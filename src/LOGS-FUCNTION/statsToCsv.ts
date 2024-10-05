@@ -67,6 +67,7 @@ export const statsToCsv = async (
         { id: "last_date_called", title: "last_date_called" },
       ],
     });
+    
 
     await csvWriter.writeRecords(contactsData);
     console.log("CSV file stats.csv has been written successfully");
