@@ -1,8 +1,8 @@
 import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
-import { callstatusenum } from "../types"; // Assuming this is the enum for call statuses
-import { differenceInDays, addDays } from "date-fns"; // Using date-fns for date handling
+import { callstatusenum } from "../types"; 
+import { differenceInDays, addDays } from "date-fns"; 
 
 export const logsToCsv = async (
   agentId: string,
@@ -53,7 +53,7 @@ export const logsToCsv = async (
       return dates;
     };
 
-    // Query datesCalled with $in using getDatesInRange function
+    
     if (formattedStartDate && formattedEndDate) {
       const datesInRange = getDatesInRange(
         formattedStartDate,
@@ -73,13 +73,14 @@ export const logsToCsv = async (
       .populate("referenceToCallId")
       .limit(newlimit);
 
-    // Proceed with the rest of your code to handle filtering and CSV generation...
-
     const contactsData = await Promise.all(
       foundContacts.map(async (contact) => {
         const transcript = contact.referenceToCallId?.transcript;
         const analyzedTranscript =
           contact.referenceToCallId?.analyzedTranscript;
+        const lastDateCalled = contact.datesCalled?.length > 0 
+          ? contact.datesCalled[contact.datesCalled.length - 1] 
+          : null; 
         return {
           firstname: contact.firstname,
           lastname: contact.lastname,
@@ -89,6 +90,7 @@ export const logsToCsv = async (
           transcript: transcript,
           analyzedTranscript: analyzedTranscript,
           call_recording_url: contact.referenceToCallId?.recordingUrl,
+          last_date_called: lastDateCalled
         };
       }),
     );
@@ -137,7 +139,6 @@ export const logsToCsv = async (
       console.error(`Error generating CSV: ${error.message}`);
       return { error: error.message };
     } else {
-      // Handle case where it's not an Error instance
       console.error("Unknown error occurred.");
       return { error: "An unknown error occurred." };
     }
