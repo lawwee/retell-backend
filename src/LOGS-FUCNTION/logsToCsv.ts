@@ -129,6 +129,7 @@ export const logsToCsv = async (
         { id: "transcript", title: "transcript" },
         { id: "call_recording_url", title: "call_recording_url" },
         { id: "analyzedTranscript", title: "analyzedTranscript" },
+        {id:"last_date_called", title:"last_date_called"}
       ],
     });
     await csvWriter.writeRecords(filteredContacts);
