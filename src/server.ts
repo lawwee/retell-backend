@@ -1004,7 +1004,7 @@ export class Server {
         { $set: callEndedUpdateData },
         { upsert: true, returnOriginal: false },
       );
-      // const foundone = await contactModel.findOne(callId: call_id)
+      
      
       statsUpdate.$inc.totalCalls = 1;
 

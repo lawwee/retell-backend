@@ -8,7 +8,6 @@ const agentSchema = new Schema({
   name: String,
 });
 
-
 const userSchema = new Schema(
   {
     email: {
