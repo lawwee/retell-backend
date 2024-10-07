@@ -43,7 +43,7 @@ export const scheduleCronJob = async (
     const contacts = await contactModel
       .find({
         agentId,
-        status: "not called",
+        status: "not-called",
         isDeleted: { $ne: true },
         ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
       })
