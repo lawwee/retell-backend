@@ -11,7 +11,7 @@ export const reviewTranscript = async (transcript: string) => {
         { role: "system", content: "You are a helpful assistant." },
         {
           role: "user",
-          content: `Please categorize the following interactions into the categories: Uninterested, Interested, Scheduled, Voicemail, Incomplete call, Call back. Just go straight to the point and respond with only the option, if an empty string is giving or nothing is passed as the transcript return "N/A".NOTE: Interested are those that agree to booking an appointment or booking an appointment. Transcript: ${transcript}`,
+          content: `Please categorize the following interactions into the categories: not-interested, interested, appt-scheduled, connected-voicemail, Incomplete-call, call-back. Just go straight to the point and respond with only the option, if an empty string is giving or nothing is passed as the transcript return "N/A".NOTE: Interested are those that agree to booking an appointment or booking an appointment. Transcript: ${transcript}`,
         },
       ],
       // model: "gpt-4-turbo-preview",

@@ -50,15 +50,15 @@ export enum callstatusenum {
   QUEUED = "queued",
   RINGING = "ringing",
   IN_PROGRESS = "on call",
-  CALLED = "call-connected",
+  CALLED = "connected-user",
   BUSY = "busy",
   FAILED = "call-failed",
-  VOICEMAIL = "called-NA-VM",
+  VOICEMAIL = "connected-voicemail",
   CANCELED = "canceled",
-  NOT_CALLED = "not called",
-  TRANSFERRED = "call-transferred",
-  SCHEDULED = "scheduled",
-  NO_ANSWER = "dial_no_answer"
+  NOT_CALLED = "not-called",
+  TRANSFERRED = "connected-transferred",
+  SCHEDULED = "appt-scheduled",
+  NO_ANSWER = "not-answered"
 }
 
 export interface Itranscript {

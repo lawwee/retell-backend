@@ -10,6 +10,7 @@ import https, {
 import { Server as HTTPServer, createServer as httpCreateServer } from "http";
 import { RawData, WebSocket } from "ws";
 import { Retell } from "retell-sdk";
+import { createObjectCsvWriter } from "csv-writer";
 import {
   createContact,
   deleteOneContact,
@@ -444,7 +445,7 @@ export class Server {
           });
           await contactModel.findByIdAndUpdate(userId, {
             callId: registerCallResponse2.call_id,
-            isusercalled: true
+            isusercalled: true,
           });
           res.send({ callCreation: registerCallResponse2, callRegister });
         } catch (error) {
@@ -783,7 +784,12 @@ export class Server {
         const { agentId } = req.body;
         const result = await contactModel.updateMany(
           { agentId },
-          { status: "not called", answeredByVM: false, datesCalled: [], isusercalled: false },
+          {
+            status: "not called",
+            answeredByVM: false,
+            datesCalled: [],
+            isusercalled: false,
+          },
         );
         res.json({ result });
       },
@@ -1004,8 +1010,7 @@ export class Server {
         { $set: callEndedUpdateData },
         { upsert: true, returnOriginal: false },
       );
-      
-     
+
       statsUpdate.$inc.totalCalls = 1;
 
       if (isMachine) {
@@ -1030,11 +1035,9 @@ export class Server {
         { upsert: true, returnOriginal: false },
       );
 
-    
-
       const linkToCallLogModelId = statsResults ? statsResults._id : null;
       await contactModel.findOneAndUpdate(
-        { callId: call_id , agentId:payload.call.agent_id},
+        { callId: call_id, agentId: payload.call.agent_id },
         {
           status: callStatus,
           $push: { datesCalled: todayString },
@@ -2307,8 +2310,79 @@ export class Server {
   script() {
     this.app.post("/script", async (req: Request, res: Response) => {
       try {
+        interface Contact {
+          email: string;
+          [key: string]: string; 
+        }
+
+        async function readCSV(filePath: string): Promise<Contact[]> {
+          return new Promise((resolve, reject) => {
+            const results: Contact[] = [];
+            fs.createReadStream(filePath)
+              .pipe(csv())
+              .on("data", (data: Contact) => results.push(data))
+              .on("end", () => resolve(results))
+              .on("error", (err) => reject(err));
+          });
+        }
+
+        async function writeCSV(
+          filePath: string,
+          data: Contact[],
+        ): Promise<void> {
+          if (data.length === 0) {
+            console.log("No data to write.");
+            return;
+          }
+
+          const csvWriter = createObjectCsvWriter({
+            path: filePath,
+            header: Object.keys(data[0]).map((key) => ({
+              id: key,
+              title: key,
+            })),
+          });
+
+          await csvWriter.writeRecords(data);
+          console.log(`Data written to ${filePath}`);
+        }
+
+        async function removeDNCContacts(
+          mainCSV: string,
+          dncCSV: string,
+          outputCSV: string,
+        ): Promise<void> {
+          try {
+            
+            const mainContacts = await readCSV(mainCSV);
+            const dncContacts = await readCSV(dncCSV);
+
+         
+            const dncEmails = new Set(
+              dncContacts.map((contact) => contact.email),
+            );
+
+
+            const filteredContacts = mainContacts.filter(
+              (contact) => !dncEmails.has(contact.email),
+            );
+
+           
+            await writeCSV(outputCSV, filteredContacts);
+
+            console.log(`Filtered contacts saved to ${outputCSV}`);
+          } catch (error) {
+            console.error("Error processing CSV files:", error);
+          }
+        }
+
+        // Usage
+        const mainCSVPath = "main.csv"; // Main database CSV
+        const dncCSVPath = "dnc.csv"; // DNC CSV
+        const outputCSVPath = "filtered_main.csv"; // Output CSV for filtered contacts
+
+        removeDNCContacts(mainCSVPath, dncCSVPath, outputCSVPath);
       } catch (error) {
-        // Send an error response to the client
         res.status(500).json({
           message: "An error occurred while updating phone numbers",
         });
