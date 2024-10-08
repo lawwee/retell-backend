@@ -1587,44 +1587,44 @@ export class Server {
           allResults = allResults.concat(results);
         }
         let sentimentStatus:
-          | "Uninterested"
-          | "Call back"
-          | "Interested"
-          | "Scheduled"
-          | "Voicemail"
-          | "Incomplete call"
+          | "uninterested"
+          | "call-back"
+          | "interested"
+          | "appt-scheduled"
+          | "connected-voicemail"
+          | "incomplete-call"
           | undefined;
 
         if (
           sentimentOption === "Uninterested" ||
           sentimentOption === "uninterested"
         ) {
-          sentimentStatus = "Uninterested";
+          sentimentStatus = "uninterested";
         } else if (
           sentimentOption === "Interested" ||
           sentimentOption === "interested"
         ) {
-          sentimentStatus = "Interested";
+          sentimentStatus = "interested";
         } else if (
           sentimentOption === "Scheduled" ||
           sentimentOption === "scheduled"
         ) {
-          sentimentStatus = "Scheduled";
+          sentimentStatus = "appt-scheduled";
         } else if (
           sentimentOption === "Voicemail" ||
           sentimentOption === "voicemail"
         ) {
-          sentimentStatus = "Voicemail";
+          sentimentStatus = "connected-voicemail";
         } else if (
           sentimentOption === "incomplete-call" ||
           sentimentOption === "Incomplete-Call"
         ) {
-          sentimentStatus = "Incomplete call";
+          sentimentStatus = "incomplete-call";
         } else if (
           sentimentOption === "call-back" ||
           sentimentOption === "Call-Back"
         ) {
-          sentimentStatus = "Call back";
+          sentimentStatus = "call-back";
         }
         if (
           sentimentOption &&
@@ -1634,7 +1634,7 @@ export class Server {
             const analyzedTranscript =
               contact.referenceToCallId?.analyzedTranscript;
             const callStatus = contact.status === callstatusenum.CALLED; 
-            return analyzedTranscript === "Uninterested" && callStatus;
+            return analyzedTranscript === "uninterested" && callStatus;
           });
           res.json(filteredResults);
         } else if (!sentimentOption) {
