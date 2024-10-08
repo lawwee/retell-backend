@@ -11,7 +11,27 @@ export const reviewTranscript = async (transcript: string) => {
         { role: "system", content: "You are a helpful assistant." },
         {
           role: "user",
-          content: `Please categorize the following interactions into the categories: not-interested, interested, appt-scheduled, connected-voicemail, Incomplete-call, call-back. Just go straight to the point and respond with only the option, if an empty string is giving or nothing is passed as the transcript return "N/A".NOTE: Interested are those that agree to booking an appointment or booking an appointment. Transcript: ${transcript}`,
+          content: `You are an expert data analyst specializing in user sentiment analysis. Your task is to analyze call transcript conversations between voice AI agents and leads, categorizing the sentiment into one of the following categories: {Interested}, {Not-Interested}, {Appt.-Scheduled}, {Call-Back-Request}, {Incomplete-Call}.
+
+Here is the transcript you need to analyze:
+
+<transcript>
+${transcript}
+</transcript>
+
+Carefully read through the transcript and follow these guidelines to determine the most appropriate and accurate category:
+
+1. {Interested}: Assign this category if the lead answers "yes" to the question "Are you still looking for help?".
+
+2. {Appt.-Scheduled}: Use this category if the lead agrees to scheduling a Zoom call or booking an appointment.
+
+3. {Not-Interested}: Assign this category if the lead answers "no", "no longer looking", "already hired someone", or gives a similar response to the question "Are you still looking for help?".
+
+4. {Call-Back-Request}: Use this category if the lead answers "not at this time", "call me back", "call back", "follow up", "check back" to the question "Are you still looking for help?", or explicitly requests a call back or follow up.
+
+5. {Incomplete-Call}: Assign this category if the call ended early due to the user hanging up or getting disconnected before they were able to answer the question "Are you still looking for help?".
+
+If the transcript is an empty string or nothing is passed in the transcript, return {N/A}.`,
         },
       ],
       // model: "gpt-4-turbo-preview",

@@ -1633,7 +1633,7 @@ export class Server {
           const filteredResults = allResults.filter((contact) => {
             const analyzedTranscript =
               contact.referenceToCallId?.analyzedTranscript;
-            const callStatus = contact.status === callstatusenum.CALLED; 
+            const callStatus = contact.status === callstatusenum.CALLED;
             return analyzedTranscript === "uninterested" && callStatus;
           });
           res.json(filteredResults);
@@ -2312,76 +2312,79 @@ export class Server {
       try {
         interface Contact {
           email: string;
-          [key: string]: string; 
+          [key: string]: string;
         }
 
-        async function readCSV(filePath: string): Promise<Contact[]> {
-          return new Promise((resolve, reject) => {
-            const results: Contact[] = [];
-            fs.createReadStream(filePath)
-              .pipe(csv())
-              .on("data", (data: Contact) => results.push(data))
-              .on("end", () => resolve(results))
-              .on("error", (err) => reject(err));
-          });
-        }
-
-        async function writeCSV(
-          filePath: string,
-          data: Contact[],
-        ): Promise<void> {
-          if (data.length === 0) {
-            console.log("No data to write.");
-            return;
-          }
-
-          const csvWriter = createObjectCsvWriter({
-            path: filePath,
-            header: Object.keys(data[0]).map((key) => ({
-              id: key,
-              title: key,
-            })),
-          });
-
-          await csvWriter.writeRecords(data);
-          console.log(`Data written to ${filePath}`);
-        }
-
-        async function removeDNCContacts(
+        async function processCSV(
           mainCSV: string,
           dncCSV: string,
           outputCSV: string,
         ): Promise<void> {
-          try {
-            
-            const mainContacts = await readCSV(mainCSV);
-            const dncContacts = await readCSV(dncCSV);
+          return new Promise((resolve, reject) => {
+            const mainContacts: Contact[] = [];
+            const dncContacts: Contact[] = [];
 
-         
-            const dncEmails = new Set(
-              dncContacts.map((contact) => contact.email),
-            );
+            fs.createReadStream(mainCSV)
+              .pipe(csv())
+              .on("data", (data: Contact) => mainContacts.push(data))
+              .on("end", () => {
+                fs.createReadStream(dncCSV)
+                  .pipe(csv())
+                  .on("data", (data: Contact) => dncContacts.push(data))
+                  .on("end", async () => {
+                    try {
+                      const dncEmails = new Set(
+                        dncContacts.map((contact) => contact.email),
+                      );
 
+                      const filteredContacts = mainContacts.filter(
+                        (contact) => !dncEmails.has(contact.email),
+                      );
 
-            const filteredContacts = mainContacts.filter(
-              (contact) => !dncEmails.has(contact.email),
-            );
+                      if (filteredContacts.length === 0) {
+                        console.log("No data to write.");
+                        resolve();
+                        return;
+                      }
 
-           
-            await writeCSV(outputCSV, filteredContacts);
+                      const csvWriter = createObjectCsvWriter({
+                        path: outputCSV,
+                        header: Object.keys(filteredContacts[0]).map((key) => ({
+                          id: key,
+                          title: key,
+                        })),
+                      });
 
-            console.log(`Filtered contacts saved to ${outputCSV}`);
-          } catch (error) {
-            console.error("Error processing CSV files:", error);
-          }
+                      // Write filtered contacts to a new CSV
+                      await csvWriter.writeRecords(filteredContacts);
+                      console.log(`Filtered contacts saved to ${outputCSV}`);
+                      resolve();
+                    } catch (err) {
+                      console.error("Error writing CSV:", err);
+                      reject(err);
+                    }
+                  })
+                  .on("error", (err) => reject(err));
+              })
+              .on("error", (err) => reject(err));
+          });
         }
 
-        // Usage
-        const mainCSVPath = "main.csv"; // Main database CSV
-        const dncCSVPath = "dnc.csv"; // DNC CSV
-        const outputCSVPath = "filtered_main.csv"; // Output CSV for filtered contacts
+        // Paths to CSV files in the public folder
+        const mainCSVPath = path.join(__dirname, "public", "main.csv");
+        const dncCSVPath = path.join(__dirname, "public", "dnc.csv");
+        const outputCSVPath = path.join(
+          __dirname,
+          "public",
+          "filtered_main.csv",
+        );
 
-        removeDNCContacts(mainCSVPath, dncCSVPath, outputCSVPath);
+        // Call the function to process the CSV files
+        await processCSV(mainCSVPath, dncCSVPath, outputCSVPath);
+
+        res.status(200).json({
+          message: "Contacts have been filtered and saved successfully",
+        });
       } catch (error) {
         res.status(500).json({
           message: "An error occurred while updating phone numbers",
