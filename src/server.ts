@@ -785,7 +785,7 @@ export class Server {
         const result = await contactModel.updateMany(
           { agentId },
           {
-            status: "not called",
+            status: callstatusenum.NOT_CALLED,
             answeredByVM: false,
             datesCalled: [],
             isusercalled: false,
@@ -1633,7 +1633,7 @@ export class Server {
           const filteredResults = allResults.filter((contact) => {
             const analyzedTranscript =
               contact.referenceToCallId?.analyzedTranscript;
-            const callStatus = contact.status === callstatusenum.CALLED; // Ensure call-connected status
+            const callStatus = contact.status === callstatusenum.CALLED; 
             return analyzedTranscript === "Uninterested" && callStatus;
           });
           res.json(filteredResults);
@@ -1703,7 +1703,7 @@ export class Server {
             throw new Error("Please provide an agent ID");
           }
           const result = await contactModel.updateMany(
-            { agentId, status: "not called" },
+            { agentId, status: callstatusenum.NOT_CALLED },
             { isDeleted: true },
           );
           res.json({
@@ -2007,7 +2007,7 @@ export class Server {
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const foundContacts = await contactModel.find({
-          status: { $ne: "not called" },
+          status: { $ne: callstatusenum.NOT_CALLED },
           isDeleted: false,
         });
         const totalCount = await contactModel.countDocuments({
