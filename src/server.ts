@@ -1918,6 +1918,76 @@ export class Server {
     });
   }
 
+  // loginAdmin() {
+  //   this.app.post("/admin/login", async (req: Request, res: Response) => {
+  //     try {
+  //       const { username, password } = req.body;
+  //       if (!username || !password) {
+  //         return res.status(400).json({ message: "Provide the login details" });
+  //       }
+  //       const userInDb = await userModel.findOne({ username });
+  //       if (!userInDb) {
+  //         return res.status(400).json({ message: "Invalid login credentials" });
+  //       }
+  //       const verifyPassword = await argon2.verify(
+  //         userInDb.passwordHash,
+  //         password,
+  //       );
+  //       if (!verifyPassword) {
+  //         return res.status(400).json({ message: "Incorrect password" });
+  //       }
+  //       if (userInDb.isAdmin === false) {
+  //         return res.status(401).json("Only admins can access here");
+  //       }
+  //       const token = jwt.sign(
+  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+  //         process.env.JWT_SECRET,
+  //         { expiresIn: "1d" },
+  //       );
+  //       const result = await userModel.aggregate([
+  //         {
+  //           // Project only the agents field, which contains the agentId
+  //           $project: {
+  //             agents: 1,
+  //           },
+  //         },
+  //         {
+  //           // Unwind the agents array to have individual documents for each agent
+  //           $unwind: "$agents",
+  //         },
+  //         {
+  //           // Group all the agentId values into one array
+  //           $group: {
+  //             _id: null, // Single group
+  //             allAgentIds: { $push: "$agents.agentId" },
+  //           },
+  //         },
+  //         {
+  //           // Optionally, remove the _id field from the result
+  //           $project: {
+  //             _id: 0,
+  //             allAgentIds: 1,
+  //           },
+  //         },
+  //       ]);
+
+  //       return res.status(200).json({
+  //         payload: {
+  //           message: "Logged in succefully",
+  //           token,
+  //           username: userInDb.username,
+  //           userId: userInDb._id,
+  //           group: userInDb.group,
+  //           agentId: result,
+  //         },
+  //       });
+  //     } catch (error) {
+  //       console.log(error);
+  //       return res.status(500).json({ message: "Error happened during login" });
+  //     }
+  //   });
+  // }
+  
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
@@ -1925,25 +1995,70 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
+  
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
+          // Log unsuccessful login attempt
+          await userModel.updateOne(
+            { username },
+            {
+              $push: {
+                loginDetails: {
+                  ipAddress: req.ip,
+                  device: "Unknown", // Improve this as needed
+                  successful: false,
+                },
+              },
+            }
+          );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
+  
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
         );
         if (!verifyPassword) {
+          // Log unsuccessful login attempt
+          await userModel.updateOne(
+            { username },
+            {
+              $push: {
+                loginDetails: {
+                  ipAddress: req.ip,
+                  device: "Unknown", // Improve this as needed
+                  successful: false,
+                },
+              },
+            }
+          );
           return res.status(400).json({ message: "Incorrect password" });
         }
+  
         if (userInDb.isAdmin === false) {
           return res.status(401).json("Only admins can access here");
         }
+  
+        // Log successful login attempt
+        await userModel.updateOne(
+          { username },
+          {
+            $push: {
+              loginDetails: {
+                ipAddress: req.ip,
+                device: "Unknown", // Improve this as needed
+                successful: true,
+              },
+            },
+          }
+        );
+  
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
+  
         const result = await userModel.aggregate([
           {
             // Project only the agents field, which contains the agentId
@@ -1964,21 +2079,22 @@ export class Server {
           },
           {
             // Optionally, remove the _id field from the result
+          
             $project: {
               _id: 0,
               allAgentIds: 1,
             },
           },
         ]);
-
+  
         return res.status(200).json({
           payload: {
-            message: "Logged in succefully",
+            message: "Logged in successfully",
             token,
             username: userInDb.username,
             userId: userInDb._id,
             group: userInDb.group,
-            agentId: result,
+            agentIds: result,
           },
         });
       } catch (error) {
