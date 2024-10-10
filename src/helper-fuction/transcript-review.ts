@@ -11,27 +11,31 @@ export const reviewTranscript = async (transcript: string) => {
         { role: "system", content: "You are a helpful assistant." },
         {
           role: "user",
-          content: `You are an expert data analyst specializing in user sentiment analysis. Your task is to analyze call transcript conversations between voice AI agents and leads, categorizing the sentiment into one of the following categories: {Interested}, {Not-Interested}, {Appt.-Scheduled}, {Call-Back-Request}, {Incomplete-Call}.
+          content: `You are an expert data analyst specializing in sentiment analysis of call transcripts between AI agents and leads. Your task is to accurately categorize each conversation based on the lead's responses. Please use one of the following categories:
 
-Here is the transcript you need to analyze:
+Categories:
 
-<transcript>
-${transcript}
-</transcript>
+Interested: The lead clearly expresses interest, agrees to book an appointment, or continues discussing next steps.
 
-Carefully read through the transcript and follow these guidelines to determine the most appropriate and accurate category:
+Not-Interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
 
-1. {Interested}: Assign this category if the lead answers "yes" to the question "Are you still looking for help?".
+Scheduled: The lead confirms a specific time for an appointment or meeting.
 
-2. {Appt.-Scheduled}: Use this category if the lead agrees to scheduling a Zoom call or booking an appointment.
+Call-Back: The lead requests the agent to call back later or suggests following up in the future.
 
-3. {Not-Interested}: Assign this category if the lead answers "no", "no longer looking", "already hired someone", or gives a similar response to the question "Are you still looking for help?".
+Incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
 
-4. {Call-Back-Request}: Use this category if the lead answers "not at this time", "call me back", "call back", "follow up", "check back" to the question "Are you still looking for help?", or explicitly requests a call back or follow up.
+Voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
 
-5. {Incomplete-Call}: Assign this category if the call ended early due to the user hanging up or getting disconnected before they were able to answer the question "Are you still looking for help?".
+Instructions:
 
-If the transcript is an empty string or nothing is passed in the transcript, return {N/A}.`,
+Analyze the transcript below and assign it the most fitting category based on the lead's responses.
+
+Only respond with the category name.
+
+If the transcript is empty or missing, respond with N/A.
+
+Transcript: ${transcript}`,
         },
       ],
       // model: "gpt-4-turbo-preview",
@@ -47,14 +51,17 @@ If the transcript is an empty string or nothing is passed in the transcript, re
 export const reviewCallback = async (transcript: string) => {
   try {
     const currentDate = new Date();
-     const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     };
-    const formattedCurrentDate = new Intl.DateTimeFormat('en-US', options).format(currentDate);
-    
+    const formattedCurrentDate = new Intl.DateTimeFormat(
+      "en-US",
+      options,
+    ).format(currentDate);
+
     const completion = await client.chat.completions.create({
       messages: [
         { role: "system", content: "You are a helpful assistant." },
@@ -73,4 +80,3 @@ export const reviewCallback = async (transcript: string) => {
     throw new Error("Failed to analyze transcript");
   }
 };
-

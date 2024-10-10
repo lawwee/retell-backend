@@ -2312,18 +2312,20 @@ export class Server {
       try {
         interface Contact {
           email: string;
+          firstname: string;
           [key: string]: string;
         }
-
+  
         async function processCSV(
           mainCSV: string,
           dncCSV: string,
-          outputCSV: string,
+          nonDuplicateCSV: string,
+          duplicateCSV: string
         ): Promise<void> {
           return new Promise((resolve, reject) => {
             const mainContacts: Contact[] = [];
             const dncContacts: Contact[] = [];
-
+  
             fs.createReadStream(mainCSV)
               .pipe(csv())
               .on("data", (data: Contact) => mainContacts.push(data))
@@ -2333,31 +2335,54 @@ export class Server {
                   .on("data", (data: Contact) => dncContacts.push(data))
                   .on("end", async () => {
                     try {
-                      const dncEmails = new Set(
-                        dncContacts.map((contact) => contact.email),
+                      // Create a set of both email and firstname from the DNC list
+                      const dncSet = new Set(
+                        dncContacts.map(
+                          (contact) => `${contact.email}-${contact.firstname}`
+                        )
                       );
-
-                      const filteredContacts = mainContacts.filter(
-                        (contact) => !dncEmails.has(contact.email),
+  
+                      // Filter non-duplicate contacts (not in DNC list)
+                      const nonDuplicateContacts = mainContacts.filter(
+                        (contact) =>
+                          !dncSet.has(`${contact.email}-${contact.firstname}`)
                       );
-
-                      if (filteredContacts.length === 0) {
-                        console.log("No data to write.");
-                        resolve();
-                        return;
+  
+                      // Filter duplicate contacts (in DNC list)
+                      const duplicateContacts = mainContacts.filter((contact) =>
+                        dncSet.has(`${contact.email}-${contact.firstname}`)
+                      );
+  
+                      if (nonDuplicateContacts.length > 0) {
+                        const nonDuplicateWriter = createObjectCsvWriter({
+                          path: nonDuplicateCSV,
+                          header: Object.keys(nonDuplicateContacts[0]).map(
+                            (key) => ({
+                              id: key,
+                              title: key,
+                            })
+                          ),
+                        });
+                        await nonDuplicateWriter.writeRecords(nonDuplicateContacts);
+                        console.log(`Non-duplicate contacts saved to ${nonDuplicateCSV}`);
+                      } else {
+                        console.log("No non-duplicate contacts to write.");
                       }
-
-                      const csvWriter = createObjectCsvWriter({
-                        path: outputCSV,
-                        header: Object.keys(filteredContacts[0]).map((key) => ({
-                          id: key,
-                          title: key,
-                        })),
-                      });
-
-                      // Write filtered contacts to a new CSV
-                      await csvWriter.writeRecords(filteredContacts);
-                      console.log(`Filtered contacts saved to ${outputCSV}`);
+  
+                      if (duplicateContacts.length > 0) {
+                        const duplicateWriter = createObjectCsvWriter({
+                          path: duplicateCSV,
+                          header: Object.keys(duplicateContacts[0]).map((key) => ({
+                            id: key,
+                            title: key,
+                          })),
+                        });
+                        await duplicateWriter.writeRecords(duplicateContacts);
+                        console.log(`Duplicate contacts saved to ${duplicateCSV}`);
+                      } else {
+                        console.log("No duplicate contacts to write.");
+                      }
+  
                       resolve();
                     } catch (err) {
                       console.error("Error writing CSV:", err);
@@ -2369,19 +2394,24 @@ export class Server {
               .on("error", (err) => reject(err));
           });
         }
-
+  
         // Paths to CSV files in the public folder
-        const mainCSVPath = path.join(__dirname, "public", "main.csv");
-        const dncCSVPath = path.join(__dirname, "public", "dnc.csv");
-        const outputCSVPath = path.join(
+        const mainCSVPath = path.join(__dirname, "../public", "main.csv");
+        const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
+        const nonDuplicateCSVPath = path.join(
           __dirname,
-          "public",
-          "filtered_main.csv",
+          "../public",
+          "non_duplicate_main.csv"
         );
-
+        const duplicateCSVPath = path.join(
+          __dirname,
+          "../public",
+          "duplicate_main.csv"
+        );
+  
         // Call the function to process the CSV files
-        await processCSV(mainCSVPath, dncCSVPath, outputCSVPath);
-
+        await processCSV(mainCSVPath, dncCSVPath, nonDuplicateCSVPath, duplicateCSVPath);
+  
         res.status(200).json({
           message: "Contacts have been filtered and saved successfully",
         });
