@@ -158,7 +158,7 @@ export class Server {
     this.script();
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
-    this.resetPassword()
+    this.resetPassword();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -632,7 +632,7 @@ export class Server {
 
           Papa.parse(csvData, {
             header: true,
-            complete: async (results) => {
+            complete: async (results: any) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
               const headers = results.meta.fields;
               const requiredHeaders = [
@@ -672,6 +672,9 @@ export class Server {
                 if (phoneNumber.startsWith("+1")) {
                   return `${digitsOnly}`;
                 }
+                if (phoneNumber.startsWith("1")) {
+                  return `+${digitsOnly}`;
+                }
                 return `+1${digitsOnly}`;
               }
               const emailsAndAgentIds = jsonArrayObj.map((user) => ({
@@ -681,11 +684,14 @@ export class Server {
 
               const existingUsers = await contactModel
                 .find({
-                  $or: emailsAndAgentIds,isDeleted: false
+                  $or: emailsAndAgentIds.map((emailAndAgentId) => ({
+                    email: emailAndAgentId.email,
+                    agentId: emailAndAgentId.agentId,
+                  })),
+                  isDeleted: false,
                 })
                 .select("email agentId")
                 .session(session);
-
               const existingUsersSet = new Set(
                 existingUsers.map((user) => `${user.email}-${user.agentId}`),
               );
@@ -1717,6 +1723,85 @@ export class Server {
       },
     );
   }
+  // loginUser() {
+  //   this.app.post("/user/login", async (req: Request, res: Response) => {
+  //     try {
+  //       const { username, password } = req.body;
+  //       if (!username || !password) {
+  //         return res.status(400).json({ message: "Provide the login details" });
+  //       }
+
+  //       const userInDb = await userModel.findOne(
+  //         { username },
+  //         {
+  //           "agents.agentId": 1,
+  //           passwordHash: 1,
+  //           isAdmin: 1,
+  //           username: 1,
+  //           group: 1,
+  //           name: 1,
+  //         },
+  //       );
+
+  //       if (!userInDb) {
+  //         return res.status(400).json({ message: "Invalid login credentials" });
+  //       }
+
+  //       const verifyPassword = await argon2.verify(
+  //         userInDb.passwordHash,
+  //         password,
+  //       );
+  //       if (!verifyPassword) {
+  //         return res.status(400).json({ message: "Incorrect password" });
+  //       }
+
+  //       let result;
+  //       if (userInDb.isAdmin === true) {
+  //         const payload = await userModel.aggregate([
+  //           {
+  //             $project: { agents: 1 },
+  //           },
+  //           {
+  //             $unwind: "$agents",
+  //           },
+  //           {
+  //             $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } },
+  //           },
+  //           {
+  //             $project: { _id: 0, allAgentIds: 1 },
+  //           },
+  //         ]);
+  //         result = payload.length > 0 ? payload[0].allAgentIds : [];
+  //       } else {
+  //         result = userInDb?.agents?.map((agent) => agent.agentId) || [];
+  //       }
+
+  //       const token = jwt.sign(
+  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+  //         process.env.JWT_SECRET,
+  //         { expiresIn: "1d" },
+  //       );
+
+  //       console.log(userInDb);
+
+  //       res.json({
+  //         payload: {
+  //           message: "Logged in successfully",
+  //           token,
+  //           username: userInDb.username,
+  //           userId: userInDb._id,
+  //           group: userInDb.group,
+  //           name: userInDb.name,
+  //           agentIds: result,
+  //         },
+  //       });
+  //     } catch (error) {
+  //       console.log(error);
+  //       return res.status(500).json({ message: "Error happened during login" });
+  //     }
+  //   });
+  // }
+
   loginUser() {
     this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
@@ -1738,6 +1823,18 @@ export class Server {
         );
 
         if (!userInDb) {
+          // Log unsuccessful login attempt
+          await userModel.updateOne(
+            { username },
+            {
+              $push: {
+                loginDetails: {
+                  ipAddress: req.ip,
+                  successful: false,
+                },
+              },
+            },
+          );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
 
@@ -1746,8 +1843,33 @@ export class Server {
           password,
         );
         if (!verifyPassword) {
+          // Log unsuccessful login attempt
+          await userModel.updateOne(
+            { username },
+            {
+              $push: {
+                loginDetails: {
+                  ipAddress: req.ip,
+                  successful: false,
+                },
+              },
+            },
+          );
           return res.status(400).json({ message: "Incorrect password" });
         }
+
+        // Log successful login attempt
+        await userModel.updateOne(
+          { username },
+          {
+            $push: {
+              loginDetails: {
+                ipAddress: req.ip,
+                successful: true,
+              },
+            },
+          },
+        );
 
         let result;
         if (userInDb.isAdmin === true) {
@@ -2316,17 +2438,17 @@ export class Server {
           firstname: string;
           [key: string]: string;
         }
-  
+
         async function processCSV(
           mainCSV: string,
           dncCSV: string,
           nonDuplicateCSV: string,
-          duplicateCSV: string
+          duplicateCSV: string,
         ): Promise<void> {
           return new Promise((resolve, reject) => {
             const mainContacts: Contact[] = [];
             const dncContacts: Contact[] = [];
-  
+
             fs.createReadStream(mainCSV)
               .pipe(csv())
               .on("data", (data: Contact) => mainContacts.push(data))
@@ -2339,21 +2461,21 @@ export class Server {
                       // Create a set of both email and firstname from the DNC list
                       const dncSet = new Set(
                         dncContacts.map(
-                          (contact) => `${contact.email}-${contact.firstname}`
-                        )
+                          (contact) => `${contact.email}-${contact.firstname}`,
+                        ),
                       );
-  
+
                       // Filter non-duplicate contacts (not in DNC list)
                       const nonDuplicateContacts = mainContacts.filter(
                         (contact) =>
-                          !dncSet.has(`${contact.email}-${contact.firstname}`)
+                          !dncSet.has(`${contact.email}-${contact.firstname}`),
                       );
-  
+
                       // Filter duplicate contacts (in DNC list)
                       const duplicateContacts = mainContacts.filter((contact) =>
-                        dncSet.has(`${contact.email}-${contact.firstname}`)
+                        dncSet.has(`${contact.email}-${contact.firstname}`),
                       );
-  
+
                       if (nonDuplicateContacts.length > 0) {
                         const nonDuplicateWriter = createObjectCsvWriter({
                           path: nonDuplicateCSV,
@@ -2361,29 +2483,37 @@ export class Server {
                             (key) => ({
                               id: key,
                               title: key,
-                            })
+                            }),
                           ),
                         });
-                        await nonDuplicateWriter.writeRecords(nonDuplicateContacts);
-                        console.log(`Non-duplicate contacts saved to ${nonDuplicateCSV}`);
+                        await nonDuplicateWriter.writeRecords(
+                          nonDuplicateContacts,
+                        );
+                        console.log(
+                          `Non-duplicate contacts saved to ${nonDuplicateCSV}`,
+                        );
                       } else {
                         console.log("No non-duplicate contacts to write.");
                       }
-  
+
                       if (duplicateContacts.length > 0) {
                         const duplicateWriter = createObjectCsvWriter({
                           path: duplicateCSV,
-                          header: Object.keys(duplicateContacts[0]).map((key) => ({
-                            id: key,
-                            title: key,
-                          })),
+                          header: Object.keys(duplicateContacts[0]).map(
+                            (key) => ({
+                              id: key,
+                              title: key,
+                            }),
+                          ),
                         });
                         await duplicateWriter.writeRecords(duplicateContacts);
-                        console.log(`Duplicate contacts saved to ${duplicateCSV}`);
+                        console.log(
+                          `Duplicate contacts saved to ${duplicateCSV}`,
+                        );
                       } else {
                         console.log("No duplicate contacts to write.");
                       }
-  
+
                       resolve();
                     } catch (err) {
                       console.error("Error writing CSV:", err);
@@ -2395,24 +2525,29 @@ export class Server {
               .on("error", (err) => reject(err));
           });
         }
-  
+
         // Paths to CSV files in the public folder
         const mainCSVPath = path.join(__dirname, "../public", "main.csv");
         const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
         const nonDuplicateCSVPath = path.join(
           __dirname,
           "../public",
-          "non_duplicate_main.csv"
+          "non_duplicate_main.csv",
         );
         const duplicateCSVPath = path.join(
           __dirname,
           "../public",
-          "duplicate_main.csv"
+          "duplicate_main.csv",
         );
-  
+
         // Call the function to process the CSV files
-        await processCSV(mainCSVPath, dncCSVPath, nonDuplicateCSVPath, duplicateCSVPath);
-  
+        await processCSV(
+          mainCSVPath,
+          dncCSVPath,
+          nonDuplicateCSVPath,
+          duplicateCSVPath,
+        );
+
         res.status(200).json({
           message: "Contacts have been filtered and saved successfully",
         });
@@ -2573,35 +2708,42 @@ export class Server {
       res.json(result);
     });
   }
-  resetPassword(){
-    this.app.post("/user/reset-password", async (req: Request, res: Response) => {
-      try {
-        const { email, newPassword } = req.body;
-    
-        // Validate input
-        if (!email || !newPassword) {
-          return res.status(400).json({ message: "Please provide email and new password" });
+  resetPassword() {
+    this.app.post(
+      "/user/reset-password",
+      async (req: Request, res: Response) => {
+        try {
+          const { email, newPassword } = req.body;
+
+          // Validate input
+          if (!email || !newPassword) {
+            return res
+              .status(400)
+              .json({ message: "Please provide email and new password" });
+          }
+
+          // Find the user by email
+          const user = await userModel.findOne({ email });
+          if (!user) {
+            return res.status(404).json({ message: "User not found" });
+          }
+
+          // Hash the new password
+          const newPasswordHash = await argon2.hash(newPassword);
+
+          // Update the user's passwordHash
+          user.password = newPassword;
+          user.passwordHash = newPasswordHash;
+          await user.save();
+
+          return res.json({ message: "Password reset successfully" });
+        } catch (error) {
+          console.log(error);
+          return res
+            .status(500)
+            .json({ message: "Error while resetting password" });
         }
-    
-        // Find the user by email
-        const user = await userModel.findOne({ email });
-        if (!user) {
-          return res.status(404).json({ message: "User not found" });
-        }
-    
-        // Hash the new password
-        const newPasswordHash = await argon2.hash(newPassword);
-    
-        // Update the user's passwordHash
-        user.password = newPassword
-        user.passwordHash = newPasswordHash;
-        await user.save();
-    
-        return res.json({ message: "Password reset successfully" });
-      } catch (error) {
-        console.log(error);
-        return res.status(500).json({ message: "Error while resetting password" });
-      }
-    });
+      },
+    );
   }
 }

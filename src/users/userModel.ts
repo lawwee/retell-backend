@@ -8,6 +8,18 @@ const agentSchema = new Schema({
   name: String,
 });
 
+const loginSchema = new Schema({
+  loginTime: {
+    type: Date,
+    default: Date.now,
+  },
+  ipAddress: {
+    type: String,
+  },
+  successful: {
+    type: Boolean,
+  },
+});
 const userSchema = new Schema(
   {
     email: {
@@ -39,6 +51,7 @@ const userSchema = new Schema(
     name: {
       type: String,
     },
+    loginDetails: [loginSchema],
   },
   {
     timestamps: true,

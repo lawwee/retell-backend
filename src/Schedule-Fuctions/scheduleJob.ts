@@ -22,11 +22,12 @@ export const scheduleCronJob = async (
 
   function formatPhoneNumber(phoneNumber: string) {
     let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
-
     if (phoneNumber.startsWith("+1")) {
       return `${digitsOnly}`;
     }
-
+    if (phoneNumber.startsWith("1")) {
+      return `+${digitsOnly}`;
+    }
     return `+1${digitsOnly}`;
   }
 
@@ -69,10 +70,10 @@ export const scheduleCronJob = async (
           if (currentHour < 8 || currentHour >= 15) {
             await jobModel.findOneAndUpdate(
               { jobId },
-              { callstatus: "cancelled", shouldContinueProcessing: false }
+              { callstatus: "cancelled", shouldContinueProcessing: false },
             );
             console.log("Job processing stopped due to time constraints.");
-            break; 
+            break;
           }
 
           // Check if the job should stop processing
@@ -80,11 +81,11 @@ export const scheduleCronJob = async (
             console.log("Job processing stopped by user flag.");
             await jobModel.findOneAndUpdate(
               { jobId },
-              { callstatus: "cancelled", shouldContinueProcessing: false }
+              { callstatus: "cancelled", shouldContinueProcessing: false },
             );
-            break; 
+            break;
           }
-          
+
           const postdata = {
             fromNumber,
             toNumber: contact.phone,
@@ -117,12 +118,12 @@ export const scheduleCronJob = async (
             await contactModel.findByIdAndUpdate(contact._id, {
               callId: registerCallResponse2.call_id,
               $push: { jobProcessedWithId: jobId },
-              isusercalled: true
+              isusercalled: true,
             });
 
             await jobModel.findOneAndUpdate(
               { jobId },
-              { $inc: { processedContacts: 1 } }
+              { $inc: { processedContacts: 1 } },
             );
 
             console.log(`Call successful for contact: ${contact.firstname}`);
@@ -138,7 +139,7 @@ export const scheduleCronJob = async (
             });
             if (updatedContact?.status === "dial_no_answer") {
               console.log(
-                `User ${contact.firstname} didn't answer, calling again...`
+                `User ${contact.firstname} didn't answer, calling again...`,
               );
 
               const retryCallResponse = await retellClient.call.create({
@@ -157,11 +158,11 @@ export const scheduleCronJob = async (
               });
 
               console.log(
-                `Retry call initiated for contact: ${contact.firstname}`
+                `Retry call initiated for contact: ${contact.firstname}`,
               );
             } else {
               console.log(
-                `User ${contact.firstname} answered or the status changed, skipping recall.`
+                `User ${contact.firstname} answered or the status changed, skipping recall.`,
               );
             }
           } catch (error) {
@@ -178,7 +179,7 @@ export const scheduleCronJob = async (
           agentId,
           fromNumber,
           jobId,
-          lowerCaseTag
+          lowerCaseTag,
         );
       } catch (error) {
         console.error("Error in job processing:", error);
@@ -186,7 +187,7 @@ export const scheduleCronJob = async (
     });
 
     console.log(
-      `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}`
+      `Job scheduled with ID: ${jobId}, Next scheduled run: ${job.nextInvocation()}`,
     );
     return { jobId, scheduledTime: scheduledTimePST, contacts };
   } catch (error) {
