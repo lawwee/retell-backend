@@ -28,13 +28,8 @@ Incomplete: The call ends abruptly, or the lead cannot be reached before answeri
 Voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
 
 Instructions:
-
-Analyze the transcript below and assign it the most fitting category based on the lead's responses.
-
-Only respond with the category name.
-
-If the transcript is empty or missing, respond with N/A.
-
+1. Analyze the transcript below and assign it the most fitting category based on the lead's responses.
+2. If the transcript is empty or missing, respond with N/A.
 Transcript: ${transcript}`,
         },
       ],

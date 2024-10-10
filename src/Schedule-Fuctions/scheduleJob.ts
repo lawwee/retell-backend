@@ -24,7 +24,7 @@ export const scheduleCronJob = async (
     let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
     if (phoneNumber.startsWith("+1")) {
-      return `+${digitsOnly}`;
+      return `${digitsOnly}`;
     }
 
     return `+1${digitsOnly}`;

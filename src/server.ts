@@ -158,6 +158,7 @@ export class Server {
     this.script();
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
+    this.resetPassword()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -669,7 +670,7 @@ export class Server {
                 let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
                 if (phoneNumber.startsWith("+1")) {
-                  return `+${digitsOnly}`;
+                  return `${digitsOnly}`;
                 }
                 return `+1${digitsOnly}`;
               }
@@ -680,7 +681,7 @@ export class Server {
 
               const existingUsers = await contactModel
                 .find({
-                  $or: emailsAndAgentIds,
+                  $or: emailsAndAgentIds,isDeleted: false
                 })
                 .select("email agentId")
                 .session(session);
@@ -2570,6 +2571,37 @@ export class Server {
 
       // Send the response
       res.json(result);
+    });
+  }
+  resetPassword(){
+    this.app.post("/user/reset-password", async (req: Request, res: Response) => {
+      try {
+        const { email, newPassword } = req.body;
+    
+        // Validate input
+        if (!email || !newPassword) {
+          return res.status(400).json({ message: "Please provide email and new password" });
+        }
+    
+        // Find the user by email
+        const user = await userModel.findOne({ email });
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+    
+        // Hash the new password
+        const newPasswordHash = await argon2.hash(newPassword);
+    
+        // Update the user's passwordHash
+        user.password = newPassword
+        user.passwordHash = newPasswordHash;
+        await user.save();
+    
+        return res.json({ message: "Password reset successfully" });
+      } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: "Error while resetting password" });
+      }
     });
   }
 }
