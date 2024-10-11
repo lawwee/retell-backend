@@ -159,6 +159,7 @@ export class Server {
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
     this.resetPassword();
+    this.testingZap();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1043,7 +1044,7 @@ export class Server {
       );
 
       const linkToCallLogModelId = statsResults ? statsResults._id : null;
-      await contactModel.findOneAndUpdate(
+      const resultForUserUpdate = await contactModel.findOneAndUpdate(
         { callId: call_id, agentId: payload.call.agent_id },
         {
           status: callStatus,
@@ -1052,6 +1053,18 @@ export class Server {
           linktocallLogModel: linkToCallLogModelId,
         },
       );
+      if (analyzedTranscript.message.content === callstatusenum.SCHEDULED) {
+        const data = {
+          firstname: resultForUserUpdate.firstname,
+          lastname: resultForUserUpdate.lastname ? resultForUserUpdate.lastname : "None",
+          email: resultForUserUpdate.email,
+          phone: resultForUserUpdate.phone,
+        };
+         axios.post(
+          "https://hooks.zapier.com/hooks/catch/20371605/21yedgz/",
+          data,
+        );
+      }
     }
   }
 
@@ -1987,7 +2000,7 @@ export class Server {
   //     }
   //   });
   // }
-  
+
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
@@ -1995,7 +2008,7 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-  
+
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
           // Log unsuccessful login attempt
@@ -2009,11 +2022,11 @@ export class Server {
                   successful: false,
                 },
               },
-            }
+            },
           );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-  
+
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
@@ -2030,15 +2043,15 @@ export class Server {
                   successful: false,
                 },
               },
-            }
+            },
           );
           return res.status(400).json({ message: "Incorrect password" });
         }
-  
+
         if (userInDb.isAdmin === false) {
           return res.status(401).json("Only admins can access here");
         }
-  
+
         // Log successful login attempt
         await userModel.updateOne(
           { username },
@@ -2050,15 +2063,15 @@ export class Server {
                 successful: true,
               },
             },
-          }
+          },
         );
-  
+
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-  
+
         const result = await userModel.aggregate([
           {
             // Project only the agents field, which contains the agentId
@@ -2079,14 +2092,14 @@ export class Server {
           },
           {
             // Optionally, remove the _id field from the result
-          
+
             $project: {
               _id: 0,
               allAgentIds: 1,
             },
           },
         ]);
-  
+
         return res.status(200).json({
           payload: {
             message: "Logged in successfully",
@@ -2861,5 +2874,25 @@ export class Server {
         }
       },
     );
+  }
+  testingZap() {
+    this.app.post("/zapTest", (req: Request, res: Response) => {
+      try {
+        const data = {
+          firstname: "Nick",
+          lastname: "Bernadini",
+          email: "info@ixperience.io",
+          phone: "+1727262723",
+        };
+        const result = axios.post(
+          "https://hooks.zapier.com/hooks/catch/20310592/212r5cy/",
+          data,
+        );
+        console.log("don");
+        res.send("done");
+      } catch (error) {
+        console.log(error);
+      }
+    });
   }
 }
