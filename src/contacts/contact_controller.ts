@@ -132,7 +132,7 @@ export const getAllContact = async (
         break;
       default:
         const recentJob1 = await jobModel
-          .findOne({})
+          .findOne({agentId})
           .sort({ createdAt: -1 })
           .lean();
         if (!recentJob1) {
@@ -192,7 +192,7 @@ export const getAllContact = async (
         break;
       default:
         const recentJob1 = await jobModel
-          .findOne({})
+          .findOne({agentId})
           .sort({ createdAt: -1 })
           .lean();
         if (!recentJob1) {
