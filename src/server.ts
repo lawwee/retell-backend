@@ -635,7 +635,9 @@ export class Server {
             header: true,
             complete: async (results: any) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const headers = results.meta.fields;
+              
+              let headers = results.meta.fields;
+              headers = headers.map((header: string) => header.trim());
               const requiredHeaders = [
                 "firstname",
                 "lastname",
