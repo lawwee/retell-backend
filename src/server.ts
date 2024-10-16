@@ -77,7 +77,7 @@ import {
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
-  target: "https://intuitiveagents.io/webhook",
+  target: "https://intuitiveagents.ai/webhook",
   logger: console,
 });
 smee.start();
