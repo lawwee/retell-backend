@@ -2012,7 +2012,6 @@ export class Server {
       }
     });
   }
-
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
@@ -2192,7 +2191,6 @@ export class Server {
       res.send("done");
     });
   }
-
   testingCalendly() {
     this.app.post("/test-calender", async (req: Request, res: Response) => {
       // Replace with your event type and date/time
@@ -2416,7 +2414,6 @@ export class Server {
       },
     );
   }
-
   syncStatWithMake() {
     this.app.post("/api/make", async (req: Request, res: Response) => {
       const foundContacts: IContact[] = await contactModel
@@ -2457,7 +2454,6 @@ export class Server {
       res.json(mappedContacts);
     });
   }
-
   testingZoom() {
     this.app.post("/test/zoom", async (req: Request, res: Response) => {
       const clientId = process.env.ZOOM_CLIENT_ID;
@@ -2577,9 +2573,10 @@ export class Server {
         interface Contact {
           email: string;
           firstname: string;
+          phone: string;
           [key: string]: string;
         }
-
+  
         async function processCSV(
           mainCSV: string,
           dncCSV: string,
@@ -2589,7 +2586,7 @@ export class Server {
           return new Promise((resolve, reject) => {
             const mainContacts: Contact[] = [];
             const dncContacts: Contact[] = [];
-
+  
             fs.createReadStream(mainCSV)
               .pipe(csv())
               .on("data", (data: Contact) => mainContacts.push(data))
@@ -2599,24 +2596,25 @@ export class Server {
                   .on("data", (data: Contact) => dncContacts.push(data))
                   .on("end", async () => {
                     try {
-                      // Create a set of both email and firstname from the DNC list
+                      // Create a set of both email and phone from the DNC list
                       const dncSet = new Set(
                         dncContacts.map(
-                          (contact) => `${contact.email}-${contact.firstname}`,
+                          (contact) =>
+                            `${contact.email}-${contact.phone}`,
                         ),
                       );
-
+  
                       // Filter non-duplicate contacts (not in DNC list)
                       const nonDuplicateContacts = mainContacts.filter(
                         (contact) =>
-                          !dncSet.has(`${contact.email}-${contact.firstname}`),
+                          !dncSet.has(`${contact.email}-${contact.phone}`),
                       );
-
+  
                       // Filter duplicate contacts (in DNC list)
                       const duplicateContacts = mainContacts.filter((contact) =>
-                        dncSet.has(`${contact.email}-${contact.firstname}`),
+                        dncSet.has(`${contact.email}-${contact.phone}`),
                       );
-
+  
                       if (nonDuplicateContacts.length > 0) {
                         const nonDuplicateWriter = createObjectCsvWriter({
                           path: nonDuplicateCSV,
@@ -2636,7 +2634,7 @@ export class Server {
                       } else {
                         console.log("No non-duplicate contacts to write.");
                       }
-
+  
                       if (duplicateContacts.length > 0) {
                         const duplicateWriter = createObjectCsvWriter({
                           path: duplicateCSV,
@@ -2654,7 +2652,7 @@ export class Server {
                       } else {
                         console.log("No duplicate contacts to write.");
                       }
-
+  
                       resolve();
                     } catch (err) {
                       console.error("Error writing CSV:", err);
@@ -2666,7 +2664,7 @@ export class Server {
               .on("error", (err) => reject(err));
           });
         }
-
+  
         // Paths to CSV files in the public folder
         const mainCSVPath = path.join(__dirname, "../public", "main.csv");
         const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
@@ -2680,7 +2678,7 @@ export class Server {
           "../public",
           "duplicate_main.csv",
         );
-
+  
         // Call the function to process the CSV files
         await processCSV(
           mainCSVPath,
@@ -2688,7 +2686,7 @@ export class Server {
           nonDuplicateCSVPath,
           duplicateCSVPath,
         );
-
+  
         res.status(200).json({
           message: "Contacts have been filtered and saved successfully",
         });
@@ -2699,7 +2697,7 @@ export class Server {
       }
     });
   }
-
+  
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       const { agentId, dateOption, status } = req.body;
