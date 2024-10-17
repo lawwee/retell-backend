@@ -67,7 +67,7 @@ export const logsToCsv = async (
       .populate("referenceToCallId")
       .limit(newlimit);
 
-      console.log(foundContacts)
+
     // Combine mapping and filtering for efficiency
     const contactsData = await Promise.all(
       foundContacts.filter((contact) => {
