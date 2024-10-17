@@ -140,9 +140,9 @@ export class Server {
     this.statsForAgent();
     this.clientSideToCsv();
     this.createPhoneCall2();
-    this.searchForUser();
+    this.searchForAdmin();
     this.getTranscriptAfterCallEnded();
-    this.searchForvagroup();
+    this.searchForClient();
     this.batchDeleteUser();
     this.getNotCalledUsersAndDelete();
     this.signUpUser();
@@ -1004,8 +1004,10 @@ export class Server {
       const isCallAnswered =
         disconnection_reason === "user_hangup" ||
         disconnection_reason === "agent_hangup";
-
+     
+//.
       analyzedTranscript = await reviewTranscript(transcript);
+      const isCallScheduled =  analyzedTranscript.message.content === "Scheduled"
       const callEndedUpdateData = {
         callId: call_id,
         agentId: payload.call.agent_id,
@@ -1030,13 +1032,16 @@ export class Server {
         statsUpdate.$inc.totalFailed = 1;
         callStatus = callstatusenum.FAILED;
       } else if (isCallTransferred) {
-        statsUpdate.$inc.totalTransferred = 1;
+        statsUpdate.$inc.totalTransffered = 1;
         callStatus = callstatusenum.TRANSFERRED;
       } else if (isDialNoAnswer) {
         callStatus = callstatusenum.NO_ANSWER;
       } else if (isCallAnswered) {
         statsUpdate.$inc.totalCallAnswered = 1;
         callStatus = callstatusenum.CALLED;
+      } else if (isCallScheduled){
+        statsUpdate.$inc.totalAppointment = 1;
+        callStatus = callstatusenum.SCHEDULED
       }
 
       const statsResults = await DailyStatsModel.findOneAndUpdate(
@@ -1055,7 +1060,7 @@ export class Server {
           linktocallLogModel: linkToCallLogModelId,
         },
       );
-      if (analyzedTranscript.message.content === callstatusenum.SCHEDULED) {
+      if (analyzedTranscript.message.content === "Scheduled") {
         const data = {
           firstname: resultForUserUpdate.firstname,
           lastname: resultForUserUpdate.lastname ? resultForUserUpdate.lastname : "None",
@@ -1408,7 +1413,7 @@ export class Server {
       }
     });
   }
-  searchForvagroup() {
+  searchForClient() {
     this.app.post(
       "/search-logs",
       authmiddleware,
@@ -1465,7 +1470,7 @@ export class Server {
     );
   }
 
-  searchForUser() {
+  searchForAdmin() {
     this.app.post("/search", async (req: Request, res: Response) => {
       const {
         searchTerm = "",
@@ -1487,6 +1492,10 @@ export class Server {
         const isValidEmail = (email: string) => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(email.trim());
+        };
+        const isValidPhone = (phone: string) => {
+          const phoneRegex = /^\+\d{10,15}$/;
+          return phoneRegex.test(phone.trim());
         };
         const searchTerms = searchTerm
           .split(",")
@@ -1511,7 +1520,7 @@ export class Server {
           const formatDateToDB = (dateString: any) => {
             const date = new Date(dateString);
             const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-based
+            const month = String(date.getUTCMonth() + 1).padStart(2, "0"); 
             const day = String(date.getUTCDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
           };
@@ -1519,9 +1528,9 @@ export class Server {
           if (startDate || endDate) {
             query["datesCalled"] = {};
             if (startDate && !endDate) {
-              // If only startDate is provided, filter by that date
+            
               const formattedStartDate = formatDateToDB(startDate);
-              query["datesCalled"]["$eq"] = formattedStartDate; // Match exactly that date
+              query["datesCalled"]["$eq"] = formattedStartDate; 
             } else if (startDate && endDate) {
               // If both dates are provided, filter by range
               query["datesCalled"]["$gte"] = formatDateToDB(startDate);
@@ -1676,6 +1685,156 @@ export class Server {
     });
   }
 
+  // searchForAdmin() {
+  //   this.app.post("/search", async (req: Request, res: Response) => {
+  //     const {
+  //       searchTerm = "",
+  //       startDate,
+  //       endDate,
+  //       statusOption,
+  //       sentimentOption,
+  //       agentId,
+  //       tag,
+  //     } = req.body;
+  
+  //     if (!agentId) {
+  //       return res.status(400).json({ error: "Search term or agent Id is required" });
+  //     }
+  
+  //     try {
+  //       const isValidEmail = (email: string) => {
+  //         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //         return emailRegex.test(email.trim());
+  //       };
+  
+  //       const isValidPhone = (phone: string) => {
+  //         const phoneRegex = /^\+\d{10,15}$/; // Check if phone is in international format
+  //         return phoneRegex.test(phone.trim());
+  //       };
+  
+  //       const searchTerms = searchTerm.split(",").map((term: string) => term.trim());
+  //       const firstTerm = searchTerms[0];
+  //       const firstTermIsEmail = isValidEmail(firstTerm);
+  //       const firstTermIsPhone = isValidPhone(firstTerm);
+  
+  //       const newtag = tag ? tag.toLowerCase() : "";
+  
+  //       const searchForTerm = async (term: string, searchByEmail: boolean, searchByPhone: boolean) => {
+  //         const query: any = {
+  //           agentId,
+  //           isDeleted: false,
+  //           $or: searchByEmail
+  //             ? [{ email: { $regex: term, $options: "i" } }]
+  //             : searchByPhone
+  //               ? [{ phone: { $regex: term, $options: "i" } }]
+  //               : [
+  //                   { firstname: { $regex: term, $options: "i" } },
+  //                   { lastname: { $regex: term, $options: "i" } },
+  //                   { phone: { $regex: term, $options: "i" } },
+  //                   { email: { $regex: term, $options: "i" } },
+  //                 ],
+  //         };
+  
+  //         const formatDateToDB = (dateString: any) => {
+  //           const date = new Date(dateString);
+  //           const year = date.getUTCFullYear();
+  //           const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  //           const day = String(date.getUTCDate()).padStart(2, "0");
+  //           return `${year}-${month}-${day}`;
+  //         };
+  
+  //         if (startDate || endDate) {
+  //           query["datesCalled"] = {};
+  //           if (startDate && !endDate) {
+  //             const formattedStartDate = formatDateToDB(startDate);
+  //             query["datesCalled"]["$eq"] = formattedStartDate;
+  //           } else if (startDate && endDate) {
+  //             query["datesCalled"]["$gte"] = formatDateToDB(startDate);
+  //             query["datesCalled"]["$lte"] = formatDateToDB(endDate);
+  //           }
+  //         }
+  
+  //         if (tag) {
+  //           query["tag"] = newtag;
+  //         }
+  
+  //         if (statusOption && statusOption !== "All") {
+  //           let callStatus;
+  //           switch (statusOption.toLowerCase()) {
+  //             case "call-connected":
+  //               callStatus = callstatusenum.CALLED;
+  //               break;
+  //             case "not-called":
+  //               callStatus = callstatusenum.NOT_CALLED;
+  //               break;
+  //             case "called-na-vm":
+  //               callStatus = callstatusenum.VOICEMAIL;
+  //               break;
+  //             case "call-failed":
+  //               callStatus = callstatusenum.FAILED;
+  //               break;
+  //             default:
+  //               return [];
+  //           }
+  //           query["status"] = callStatus;
+  //         }
+  
+  //         return await contactModel.find(query).populate("referenceToCallId");
+  //       };
+  
+  //       let allResults: any[] = [];
+  
+  //       for (const term of searchTerms) {
+  //         const results = await searchForTerm(term, firstTermIsEmail, firstTermIsPhone);
+  //         allResults = allResults.concat(results);
+  //       }
+  
+  //       let sentimentStatus:
+  //         | "uninterested"
+  //         | "call-back"
+  //         | "interested"
+  //         | "appt-scheduled"
+  //         | "connected-voicemail"
+  //         | "incomplete-call"
+  //         | undefined;
+  
+  //       switch (sentimentOption?.toLowerCase()) {
+  //         case "uninterested":
+  //           sentimentStatus = "uninterested";
+  //           break;
+  //         case "interested":
+  //           sentimentStatus = "interested";
+  //           break;
+  //         case "scheduled":
+  //           sentimentStatus = "appt-scheduled";
+  //           break;
+  //         case "voicemail":
+  //           sentimentStatus = "connected-voicemail";
+  //           break;
+  //         case "incomplete-call":
+  //           sentimentStatus = "incomplete-call";
+  //           break;
+  //         case "call-back":
+  //           sentimentStatus = "call-back";
+  //           break;
+  //       }
+  
+  //       if (sentimentStatus) {
+  //         const filteredResults = allResults.filter((contact) => {
+  //           const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+  //           return analyzedTranscript === sentimentStatus;
+  //         });
+  //         res.json(filteredResults);
+  //       } else {
+  //         res.json(allResults);
+  //       }
+  //     } catch (error) {
+  //       console.log(error);
+  //       res.status(500).json({ error: "Internal server error" });
+  //     }
+  //   });
+  // }
+  
   batchDeleteUser() {
     this.app.post(
       "/batch-delete-users",
@@ -1738,85 +1897,6 @@ export class Server {
       },
     );
   }
-  // loginUser() {
-  //   this.app.post("/user/login", async (req: Request, res: Response) => {
-  //     try {
-  //       const { username, password } = req.body;
-  //       if (!username || !password) {
-  //         return res.status(400).json({ message: "Provide the login details" });
-  //       }
-
-  //       const userInDb = await userModel.findOne(
-  //         { username },
-  //         {
-  //           "agents.agentId": 1,
-  //           passwordHash: 1,
-  //           isAdmin: 1,
-  //           username: 1,
-  //           group: 1,
-  //           name: 1,
-  //         },
-  //       );
-
-  //       if (!userInDb) {
-  //         return res.status(400).json({ message: "Invalid login credentials" });
-  //       }
-
-  //       const verifyPassword = await argon2.verify(
-  //         userInDb.passwordHash,
-  //         password,
-  //       );
-  //       if (!verifyPassword) {
-  //         return res.status(400).json({ message: "Incorrect password" });
-  //       }
-
-  //       let result;
-  //       if (userInDb.isAdmin === true) {
-  //         const payload = await userModel.aggregate([
-  //           {
-  //             $project: { agents: 1 },
-  //           },
-  //           {
-  //             $unwind: "$agents",
-  //           },
-  //           {
-  //             $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } },
-  //           },
-  //           {
-  //             $project: { _id: 0, allAgentIds: 1 },
-  //           },
-  //         ]);
-  //         result = payload.length > 0 ? payload[0].allAgentIds : [];
-  //       } else {
-  //         result = userInDb?.agents?.map((agent) => agent.agentId) || [];
-  //       }
-
-  //       const token = jwt.sign(
-  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-  //         process.env.JWT_SECRET,
-  //         { expiresIn: "1d" },
-  //       );
-
-  //       console.log(userInDb);
-
-  //       res.json({
-  //         payload: {
-  //           message: "Logged in successfully",
-  //           token,
-  //           username: userInDb.username,
-  //           userId: userInDb._id,
-  //           group: userInDb.group,
-  //           name: userInDb.name,
-  //           agentIds: result,
-  //         },
-  //       });
-  //     } catch (error) {
-  //       console.log(error);
-  //       return res.status(500).json({ message: "Error happened during login" });
-  //     }
-  //   });
-  // }
-
   loginUser() {
     this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
@@ -1932,76 +2012,6 @@ export class Server {
       }
     });
   }
-
-  // loginAdmin() {
-  //   this.app.post("/admin/login", async (req: Request, res: Response) => {
-  //     try {
-  //       const { username, password } = req.body;
-  //       if (!username || !password) {
-  //         return res.status(400).json({ message: "Provide the login details" });
-  //       }
-  //       const userInDb = await userModel.findOne({ username });
-  //       if (!userInDb) {
-  //         return res.status(400).json({ message: "Invalid login credentials" });
-  //       }
-  //       const verifyPassword = await argon2.verify(
-  //         userInDb.passwordHash,
-  //         password,
-  //       );
-  //       if (!verifyPassword) {
-  //         return res.status(400).json({ message: "Incorrect password" });
-  //       }
-  //       if (userInDb.isAdmin === false) {
-  //         return res.status(401).json("Only admins can access here");
-  //       }
-  //       const token = jwt.sign(
-  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-  //         process.env.JWT_SECRET,
-  //         { expiresIn: "1d" },
-  //       );
-  //       const result = await userModel.aggregate([
-  //         {
-  //           // Project only the agents field, which contains the agentId
-  //           $project: {
-  //             agents: 1,
-  //           },
-  //         },
-  //         {
-  //           // Unwind the agents array to have individual documents for each agent
-  //           $unwind: "$agents",
-  //         },
-  //         {
-  //           // Group all the agentId values into one array
-  //           $group: {
-  //             _id: null, // Single group
-  //             allAgentIds: { $push: "$agents.agentId" },
-  //           },
-  //         },
-  //         {
-  //           // Optionally, remove the _id field from the result
-  //           $project: {
-  //             _id: 0,
-  //             allAgentIds: 1,
-  //           },
-  //         },
-  //       ]);
-
-  //       return res.status(200).json({
-  //         payload: {
-  //           message: "Logged in succefully",
-  //           token,
-  //           username: userInDb.username,
-  //           userId: userInDb._id,
-  //           group: userInDb.group,
-  //           agentId: result,
-  //         },
-  //       });
-  //     } catch (error) {
-  //       console.log(error);
-  //       return res.status(500).json({ message: "Error happened during login" });
-  //     }
-  //   });
-  // }
 
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
@@ -2148,24 +2158,24 @@ export class Server {
     });
   }
 
-  async deleteContactsByEmail(emails: any) {
-    try {
-      // Split the input string containing comma-separated emails into an array
-      const emailArray = emails.split(",");
-      console.log(emailArray);
+  // async deleteContactsByEmail(emails: any) {
+  //   try {
+  //     // Split the input string containing comma-separated emails into an array
+  //     const emailArray = emails.split(",");
+  //     console.log(emailArray);
 
-      // Use Mongoose's deleteMany function to remove documents with matching emails
-      const result = await contactModel.deleteMany({
-        email: { $in: emailArray },
-      });
+  //     // Use Mongoose's deleteMany function to remove documents with matching emails
+  //     const result = await contactModel.deleteMany({
+  //       email: { $in: emailArray },
+  //     });
 
-      console.log(`${result.deletedCount} contacts deleted.`);
-      return result;
-    } catch (error) {
-      console.error("Error deleting contacts:", error);
-      throw error; // Forwarding the error for handling in upper layers
-    }
-  }
+  //     console.log(`${result.deletedCount} contacts deleted.`);
+  //     return result;
+  //   } catch (error) {
+  //     console.error("Error deleting contacts:", error);
+  //     throw error; // Forwarding the error for handling in upper layers
+  //   }
+  // }
 
   testingMake() {
     this.app.post("/make", async (req: Request, res: Response) => {
