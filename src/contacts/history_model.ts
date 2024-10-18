@@ -68,13 +68,6 @@ const CallDataSchema = new Schema<ICallData>({
     llmModel: { type: String, required: true },
     voiceProvider: { type: String, required: true },
   },
-  callCost: {
-    productCosts: { type: [Object] },
-    totalDurationUnitPrice: { type: Number,  },
-    totalDurationSeconds: { type: Number,  },
-    totalOneTimePrice: { type: Number, },
-    combinedCost: { type: Number, required: true },
-  },
   callType: { type: String, required: true },
   fromNumber: { type: String, required: true },
   toNumber: { type: String, required: true },

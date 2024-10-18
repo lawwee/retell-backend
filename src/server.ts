@@ -1026,7 +1026,7 @@ export class Server {
       publicLogUrl: public_log_url || null,
       callType: payload.data.call_type || null,
       costMetadata: cost_metadata || {},
-      callCost: call_cost || {},
+      
       callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
       optOutSensitiveDataStorage:
         payload.data.opt_out_sensitive_data_storage || false,
@@ -2959,7 +2959,7 @@ export class Server {
         const skip = (page - 1) * pageSize;
 
         const callHistories = await callHistoryModel
-          .find({})
+          .find({}, {callId: 0})
           .sort({ startTimestamp: -1 })
           .skip(skip)
           .limit(pageSize);
