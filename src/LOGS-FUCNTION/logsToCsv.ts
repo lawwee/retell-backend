@@ -1,24 +1,34 @@
 import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
-import { callstatusenum } from "../types"; 
-import { differenceInDays, addDays } from "date-fns"; 
+import { callstatusenum } from "../types";
+import { differenceInDays, addDays } from "date-fns";
+ 
 
 export const logsToCsv = async (
   agentId: string,
-  newlimit: number,
+  newlimit?: number, 
   startDate?: string,
   endDate?: string,
   statusOption?: "Called" | "notCalled" | "vm" | "Failed" | "All",
-  sentimentOption?: "Not-Interested" | "Scheduled" | "Call-Back" | "Incomplete" | "Interested" | "Voicemail" | "All"
+  sentimentOption?:
+    | "Not-Interested"
+    | "Scheduled"
+    | "Call-Back"
+    | "Incomplete"
+    | "Interested"
+    | "Voicemail"
+    | "All",
 ) => {
   try {
     let query: any = {
-      agentId,
       isDeleted: false,
     };
 
-    // Handle status option
+    if (agentId) {
+      query.agentId = agentId;
+    }
+
     if (statusOption && statusOption !== "All") {
       let callStatus;
       if (statusOption === "Called") {
@@ -32,7 +42,7 @@ export const logsToCsv = async (
       }
       query.status = callStatus;
     }
-  
+
     const formattedStartDate = startDate
       ? new Date(startDate).toISOString().split("T")[0]
       : null;
@@ -54,61 +64,74 @@ export const logsToCsv = async (
 
     // Filter by date range
     if (formattedStartDate && formattedEndDate) {
-      const datesInRange = getDatesInRange(formattedStartDate, formattedEndDate);
+      const datesInRange = getDatesInRange(
+        formattedStartDate,
+        formattedEndDate,
+      );
       query["datesCalled"] = { $in: datesInRange };
     } else if (formattedStartDate) {
-      query["datesCalled"] = formattedStartDate; // Single start date without range
+      query["datesCalled"] = formattedStartDate;
     }
-
-    console.log(query)
-    const foundContacts = await contactModel
+    
+    let contactQuery = contactModel
       .find(query)
       .sort({ createdAt: "desc" })
-      .populate("referenceToCallId")
-      .limit(newlimit);
+      .select("firstname lastname email phone status referenceToCallId datesCalled")
+      .populate("referenceToCallId", "transcript analyzedTranscript recordingUrl")
+
+    // Conditionally add limit if provided
+    if (newlimit && Number.isInteger(newlimit) && newlimit > 0) {
+      contactQuery = contactQuery.limit(newlimit);
+    }
+
+    const foundContacts = await contactQuery.exec();
 
 
-    // Combine mapping and filtering for efficiency
     const contactsData = await Promise.all(
-      foundContacts.filter((contact) => {
-        // Filter based on sentiment option
-        if (sentimentOption) {
-          switch (sentimentOption) {
-            case "Not-Interested":
-              return contact.status === "call-connected" && contact.referenceToCallId?.analyzedTranscript === "Not-Interested";
-            case "Scheduled":
-              return contact.referenceToCallId?.analyzedTranscript === "Scheduled";
-            case "Call-Back":
-              return contact.referenceToCallId?.analyzedTranscript === "Call-Back";
-            case "Incomplete":
-              return contact.referenceToCallId?.analyzedTranscript === "Incomplete";
-            case "Interested":
-              return contact.referenceToCallId?.analyzedTranscript === "Interested" && contact.status !== "connected-voicemail";
-            case "Voicemail":
-              return contact.status === "connected-voicemail";
-            default:
-              return true;
+      foundContacts
+        .filter((contact) => {
+          if (sentimentOption) {
+            switch (sentimentOption) {
+              case "Not-Interested":
+                return contact.referenceToCallId?.analyzedTranscript === "Not-Interested";
+              case "Scheduled":
+                return contact.referenceToCallId?.analyzedTranscript === "Scheduled";
+              case "Call-Back":
+                return contact.referenceToCallId?.analyzedTranscript === "Call-Back";
+              case "Incomplete":
+                return contact.referenceToCallId?.analyzedTranscript === "Incomplete";
+              case "Interested":
+                return (
+                  contact.referenceToCallId?.analyzedTranscript === "Interested" &&
+                  contact.status !== "connected-voicemail"
+                );
+              case "Voicemail":
+                return contact.status === "connected-voicemail";
+              default:
+                return true;
+            }
           }
-        }
-        return true; // Return all if no sentiment filter
-      }).map(async (contact) => {
-        const transcript = contact.referenceToCallId?.transcript;
-        const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
-        const lastDateCalled = contact.datesCalled?.length > 0 
-          ? contact.datesCalled[contact.datesCalled.length - 1] 
-          : null; 
-        return {
-          firstname: contact.firstname,
-          lastname: contact.lastname,
-          email: contact.email,
-          phone: contact.phone,
-          status: contact.status,
-          transcript: transcript,
-          analyzedTranscript: analyzedTranscript,
-          call_recording_url: contact.referenceToCallId?.recordingUrl,
-          last_date_called: lastDateCalled
-        };
-      })
+          return true; 
+        })
+        .map(async (contact) => {
+          const transcript = contact.referenceToCallId?.transcript;
+          const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
+          const lastDateCalled =
+            contact.datesCalled?.length > 0
+              ? contact.datesCalled[contact.datesCalled.length - 1]
+              : null;
+          return {
+            firstname: contact.firstname,
+            lastname: contact.lastname,
+            email: contact.email,
+            phone: contact.phone,
+            status: contact.status,
+            transcript: transcript,
+            analyzedTranscript: analyzedTranscript,
+            call_recording_url: contact.referenceToCallId?.recordingUrl,
+            last_date_called: lastDateCalled,
+          };
+        }),
     );
 
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
@@ -127,16 +150,12 @@ export const logsToCsv = async (
         { id: "last_date_called", title: "last_date_called" },
       ],
     });
+    console.log(contactsData)
     await csvWriter.writeRecords(contactsData);
     console.log("CSV file logs.csv has been written successfully");
     return filePath;
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Error generating CSV: ${error.message}`);
-      return { error: error.message };
-    } else {
-      console.error("Unknown error occurred.");
-      return { error: "An unknown error occurred." };
-    }
+    console.error(`Error generating CSV: ${error instanceof Error ? error.message : "Unknown error"}`);
+    return { error: error instanceof Error ? error.message : "An unknown error occurred." };
   }
 };
