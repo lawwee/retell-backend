@@ -125,6 +125,7 @@ export class Server {
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
+    this.secondScript()
     // this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
@@ -2982,4 +2983,100 @@ export class Server {
       }
     });
   }
+  // secondScript() {
+  //   this.app.post("/script2", async (req: Request, res: Response) => {
+  //     try {
+  //       // Find contacts where phone number does not start with '+1'
+  //       console.log("1")
+  //       const contacts = await contactModel.find({
+  //         phone: { $not: { $regex: /^\+1/ } },isDeleted:false
+  //       });
+  //       console.log("2")
+  //       if (!contacts || contacts.length === 0) {
+  //         return res.status(200).json({ message: 'No contacts found that need updating.' });
+  //       }
+  
+  //       let updatedCount = 0;
+  
+  //       // Loop through each contact to normalize phone numbers
+  //       for (const contact of contacts) {
+  //         console.log("3")
+  //         let phone = contact.phone;
+  
+  //         // Log the original phone number before formatting
+  //         console.log(`Original phone number: ${contact.firstname} ${contact.lastname} - ${phone}`);
+  
+  //         // Remove any non-numeric characters
+  //         phone = phone.replace(/\D/g, '');
+  
+  //         // If the phone number is 10 digits, prepend '+1'
+  //         if (phone.length === 10) {
+  //           phone = `+1${phone}`;
+  //           contact.phone = phone;
+  
+  //           // Save the updated contact
+  //           await contact.save();
+  //           updatedCount++;
+  
+  //           // Log the updated contact details
+  //           console.log(`Updated contact: ${contact.firstname} ${contact.lastname} - ${contact.phone}`);
+  //         }
+  //       }
+  
+  //       res.status(200).json({
+  //         message: `Successfully updated ${updatedCount} contact(s).`,
+  //       });
+  //     } catch (error) {
+  //       console.error('Error normalizing phone numbers:', error);
+  //       res.status(500).json({ error: 'An error occurred while normalizing phone numbers' });
+  //     }
+  //   });
+  // }
+  
+  secondScript() {
+    this.app.post("/script2", async (req: Request, res: Response) => {
+      try {
+        // Find contacts where phone number does not start with '+1'
+        const contacts = await contactModel.find({
+          phone: { $not: { $regex: /^\+1/ } },isDeleted:false
+        });
+  
+        if (!contacts || contacts.length === 0) {
+          return res.status(200).json({ message: 'No contacts found that need updating.' });
+        }
+  
+        // Create an array of update operations
+        const bulkOperations = contacts.map((contact) => {
+          let phone = contact.phone;
+  
+          // Remove any non-numeric characters
+          phone = phone.replace(/\D/g, '');
+  
+          // If the phone number is 10 digits, prepend '+1'
+          if (phone.length === 10) {
+            phone = `+1${phone}`;
+          }
+  
+          // Return a bulk write operation to update the contact's phone number
+          return {
+            updateOne: {
+              filter: { _id: contact._id },
+              update: { $set: { phone } },
+            },
+          };
+        });
+  
+        // Execute bulk write to update all contacts in one operation
+        const result = await contactModel.bulkWrite(bulkOperations);
+  
+        res.status(200).json({
+          message: `Successfully updated ${result.modifiedCount} contact(s).`,
+        });
+      } catch (error) {
+        console.error('Error normalizing phone numbers:', error);
+        res.status(500).json({ error: 'An error occurred while normalizing phone numbers' });
+      }
+    });
+  }
+  
 }
