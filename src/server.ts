@@ -161,6 +161,7 @@ export class Server {
     this.checkAvailabiltyWithZoom();
     this.resetPassword();
     this.testingZap();
+    this.getCallHistory()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -2964,7 +2965,7 @@ export class Server {
           .skip(skip)
           .limit(pageSize);
 
-        const totalCount = await EventModel.countDocuments();
+        const totalCount = await callHistoryModel.countDocuments();
         const totalPages = Math.ceil(totalCount / pageSize);
         res.json({
           success: true,
