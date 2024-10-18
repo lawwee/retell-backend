@@ -74,6 +74,7 @@ import {
   getUserId,
   scheduleMeeting,
 } from "./helper-fuction/zoom";
+import callHistoryModel from "./contacts/history_model";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -635,7 +636,7 @@ export class Server {
             header: true,
             complete: async (results: any) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              
+
               let headers = results.meta.fields;
               headers = headers.map((header: string) => header.trim());
               const requiredHeaders = [
@@ -985,17 +986,59 @@ export class Server {
   async handleCallEndedOrAnalyzed(payload: any, todayString: any) {
     const {
       call_id,
-      transcript,
-      recording_url,
       agent_id,
       disconnection_reason,
+      start_timestamp,
+      end_timestamp,
+      transcript,
+      recording_url,
+      public_log_url,
+      cost_metadata,
+      call_cost,
       call_analysis,
+      retell_llm_dynamic_variables,
+      from_number,
+      to_number,
+      direction,
     } = payload.data;
-
     let analyzedTranscript;
     let callStatus;
     let statsUpdate: any = { $inc: {} };
 
+    const callData = {
+      callId: call_id,
+      agentId: agent_id,
+      userFirstname: retell_llm_dynamic_variables?.user_firstname || null,
+      userLastname: retell_llm_dynamic_variables?.user_lastname || null,
+      userEmail: retell_llm_dynamic_variables?.user_email || null,
+      recordingUrl: recording_url || null,
+      disconnectionReason: disconnection_reason || null,
+      callStatus:
+        payload.event === "call_analyzed"
+          ? call_analysis?.user_sentiment
+          : null,
+      startTimestamp: start_timestamp || null,
+      endTimestamp: end_timestamp || null,
+      durationMs: end_timestamp - start_timestamp || 0,
+      transcript: transcript || null,
+      transcriptObject: payload.data.transcript_object || [],
+      transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
+      publicLogUrl: public_log_url || null,
+      callType: payload.data.call_type || null,
+      costMetadata: cost_metadata || {},
+      callCost: call_cost || {},
+      callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
+      optOutSensitiveDataStorage:
+        payload.data.opt_out_sensitive_data_storage || false,
+      fromNumber: from_number || null,
+      toNumber: to_number || null,
+      direction: direction || null,
+    };
+    await callHistoryModel.findOneAndUpdate(
+      { callId: call_id, agentId: agent_id },
+      { $set: callData },
+      { upsert: true, returnOriginal: false },
+    );
     if (payload.event === "call_ended") {
       const isCallFailed = disconnection_reason === "dial_failed";
       const isCallTransferred = disconnection_reason === "call_transfer";
@@ -1004,10 +1047,11 @@ export class Server {
       const isCallAnswered =
         disconnection_reason === "user_hangup" ||
         disconnection_reason === "agent_hangup";
-     
-//.
+
+      //.
       analyzedTranscript = await reviewTranscript(transcript);
-      const isCallScheduled =  analyzedTranscript.message.content === "Scheduled"
+      const isCallScheduled =
+        analyzedTranscript.message.content === "Scheduled";
       const callEndedUpdateData = {
         callId: call_id,
         agentId: payload.call.agent_id,
@@ -1039,9 +1083,9 @@ export class Server {
       } else if (isCallAnswered) {
         statsUpdate.$inc.totalCallAnswered = 1;
         callStatus = callstatusenum.CALLED;
-      } else if (isCallScheduled){
+      } else if (isCallScheduled) {
         statsUpdate.$inc.totalAppointment = 1;
-        callStatus = callstatusenum.SCHEDULED
+        callStatus = callstatusenum.SCHEDULED;
       }
 
       const statsResults = await DailyStatsModel.findOneAndUpdate(
@@ -1063,11 +1107,13 @@ export class Server {
       if (analyzedTranscript.message.content === "Scheduled") {
         const data = {
           firstname: resultForUserUpdate.firstname,
-          lastname: resultForUserUpdate.lastname ? resultForUserUpdate.lastname : "None",
+          lastname: resultForUserUpdate.lastname
+            ? resultForUserUpdate.lastname
+            : "None",
           email: resultForUserUpdate.email,
           phone: resultForUserUpdate.phone,
         };
-         axios.post(
+        axios.post(
           "https://hooks.zapier.com/hooks/catch/20371605/21yedgz/",
           data,
         );
@@ -1520,7 +1566,7 @@ export class Server {
           const formatDateToDB = (dateString: any) => {
             const date = new Date(dateString);
             const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, "0"); 
+            const month = String(date.getUTCMonth() + 1).padStart(2, "0");
             const day = String(date.getUTCDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
           };
@@ -1528,9 +1574,8 @@ export class Server {
           if (startDate || endDate) {
             query["datesCalled"] = {};
             if (startDate && !endDate) {
-            
               const formattedStartDate = formatDateToDB(startDate);
-              query["datesCalled"]["$eq"] = formattedStartDate; 
+              query["datesCalled"]["$eq"] = formattedStartDate;
             } else if (startDate && endDate) {
               // If both dates are provided, filter by range
               query["datesCalled"]["$gte"] = formatDateToDB(startDate);
@@ -1696,29 +1741,29 @@ export class Server {
   //       agentId,
   //       tag,
   //     } = req.body;
-  
+
   //     if (!agentId) {
   //       return res.status(400).json({ error: "Search term or agent Id is required" });
   //     }
-  
+
   //     try {
   //       const isValidEmail = (email: string) => {
   //         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   //         return emailRegex.test(email.trim());
   //       };
-  
+
   //       const isValidPhone = (phone: string) => {
   //         const phoneRegex = /^\+\d{10,15}$/; // Check if phone is in international format
   //         return phoneRegex.test(phone.trim());
   //       };
-  
+
   //       const searchTerms = searchTerm.split(",").map((term: string) => term.trim());
   //       const firstTerm = searchTerms[0];
   //       const firstTermIsEmail = isValidEmail(firstTerm);
   //       const firstTermIsPhone = isValidPhone(firstTerm);
-  
+
   //       const newtag = tag ? tag.toLowerCase() : "";
-  
+
   //       const searchForTerm = async (term: string, searchByEmail: boolean, searchByPhone: boolean) => {
   //         const query: any = {
   //           agentId,
@@ -1734,7 +1779,7 @@ export class Server {
   //                   { email: { $regex: term, $options: "i" } },
   //                 ],
   //         };
-  
+
   //         const formatDateToDB = (dateString: any) => {
   //           const date = new Date(dateString);
   //           const year = date.getUTCFullYear();
@@ -1742,7 +1787,7 @@ export class Server {
   //           const day = String(date.getUTCDate()).padStart(2, "0");
   //           return `${year}-${month}-${day}`;
   //         };
-  
+
   //         if (startDate || endDate) {
   //           query["datesCalled"] = {};
   //           if (startDate && !endDate) {
@@ -1753,11 +1798,11 @@ export class Server {
   //             query["datesCalled"]["$lte"] = formatDateToDB(endDate);
   //           }
   //         }
-  
+
   //         if (tag) {
   //           query["tag"] = newtag;
   //         }
-  
+
   //         if (statusOption && statusOption !== "All") {
   //           let callStatus;
   //           switch (statusOption.toLowerCase()) {
@@ -1778,17 +1823,17 @@ export class Server {
   //           }
   //           query["status"] = callStatus;
   //         }
-  
+
   //         return await contactModel.find(query).populate("referenceToCallId");
   //       };
-  
+
   //       let allResults: any[] = [];
-  
+
   //       for (const term of searchTerms) {
   //         const results = await searchForTerm(term, firstTermIsEmail, firstTermIsPhone);
   //         allResults = allResults.concat(results);
   //       }
-  
+
   //       let sentimentStatus:
   //         | "uninterested"
   //         | "call-back"
@@ -1797,7 +1842,7 @@ export class Server {
   //         | "connected-voicemail"
   //         | "incomplete-call"
   //         | undefined;
-  
+
   //       switch (sentimentOption?.toLowerCase()) {
   //         case "uninterested":
   //           sentimentStatus = "uninterested";
@@ -1818,7 +1863,7 @@ export class Server {
   //           sentimentStatus = "call-back";
   //           break;
   //       }
-  
+
   //       if (sentimentStatus) {
   //         const filteredResults = allResults.filter((contact) => {
   //           const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
@@ -1834,7 +1879,7 @@ export class Server {
   //     }
   //   });
   // }
-  
+
   batchDeleteUser() {
     this.app.post(
       "/batch-delete-users",
@@ -2576,7 +2621,7 @@ export class Server {
           phone: string;
           [key: string]: string;
         }
-  
+
         async function processCSV(
           mainCSV: string,
           dncCSV: string,
@@ -2586,7 +2631,7 @@ export class Server {
           return new Promise((resolve, reject) => {
             const mainContacts: Contact[] = [];
             const dncContacts: Contact[] = [];
-  
+
             fs.createReadStream(mainCSV)
               .pipe(csv())
               .on("data", (data: Contact) => mainContacts.push(data))
@@ -2599,22 +2644,21 @@ export class Server {
                       // Create a set of both email and phone from the DNC list
                       const dncSet = new Set(
                         dncContacts.map(
-                          (contact) =>
-                            `${contact.email}-${contact.phone}`,
+                          (contact) => `${contact.email}-${contact.phone}`,
                         ),
                       );
-  
+
                       // Filter non-duplicate contacts (not in DNC list)
                       const nonDuplicateContacts = mainContacts.filter(
                         (contact) =>
                           !dncSet.has(`${contact.email}-${contact.phone}`),
                       );
-  
+
                       // Filter duplicate contacts (in DNC list)
                       const duplicateContacts = mainContacts.filter((contact) =>
                         dncSet.has(`${contact.email}-${contact.phone}`),
                       );
-  
+
                       if (nonDuplicateContacts.length > 0) {
                         const nonDuplicateWriter = createObjectCsvWriter({
                           path: nonDuplicateCSV,
@@ -2634,7 +2678,7 @@ export class Server {
                       } else {
                         console.log("No non-duplicate contacts to write.");
                       }
-  
+
                       if (duplicateContacts.length > 0) {
                         const duplicateWriter = createObjectCsvWriter({
                           path: duplicateCSV,
@@ -2652,7 +2696,7 @@ export class Server {
                       } else {
                         console.log("No duplicate contacts to write.");
                       }
-  
+
                       resolve();
                     } catch (err) {
                       console.error("Error writing CSV:", err);
@@ -2664,7 +2708,7 @@ export class Server {
               .on("error", (err) => reject(err));
           });
         }
-  
+
         // Paths to CSV files in the public folder
         const mainCSVPath = path.join(__dirname, "../public", "main.csv");
         const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
@@ -2678,7 +2722,7 @@ export class Server {
           "../public",
           "duplicate_main.csv",
         );
-  
+
         // Call the function to process the CSV files
         await processCSV(
           mainCSVPath,
@@ -2686,7 +2730,7 @@ export class Server {
           nonDuplicateCSVPath,
           duplicateCSVPath,
         );
-  
+
         res.status(200).json({
           message: "Contacts have been filtered and saved successfully",
         });
@@ -2697,7 +2741,7 @@ export class Server {
       }
     });
   }
-  
+
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       const { agentId, dateOption, status } = req.body;
@@ -2902,6 +2946,38 @@ export class Server {
         res.send("done");
       } catch (error) {
         console.log(error);
+      }
+    });
+  }
+
+  getCallHistory() {
+    this.app.post("/call-history", async (req: Request, res: Response) => {
+      try {
+        const page = parseInt(req.body.page) || 1;
+        const pageSize = 20;
+
+        const skip = (page - 1) * pageSize;
+
+        const callHistories = await callHistoryModel
+          .find({})
+          .sort({ startTimestamp: -1 })
+          .skip(skip)
+          .limit(pageSize);
+
+        const totalCount = await EventModel.countDocuments();
+        const totalPages = Math.ceil(totalCount / pageSize);
+        res.json({
+          success: true,
+          page,
+          totalPages,
+          totalCount,
+          callHistories,
+        });
+      } catch (error) {
+        console.error("Error fetching call history:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
       }
     });
   }
