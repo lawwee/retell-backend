@@ -2894,21 +2894,28 @@ export class Server {
               .populate("referenceToCallId");
             break;
 
+
+            
           case "appointment":
             result = await contactModel
               .find({
                 agentId,
                 isDeleted: false,
                 status: callstatusenum.SCHEDULED,
+                ...dateFilter,
               })
               .populate("referenceToCallId");
             break;
 
           default:
-            return res.status(400).send("Invalid status option.");
+            result = await contactModel
+            .find({
+              agentId,
+              isDeleted: false,
+              ...dateFilter,
+            })
+            .populate("referenceToCallId");
         }
-
-        // Send the response
         res.json(result);
       } catch (error) {
         console.error("Error in populateUserGet:", error);
