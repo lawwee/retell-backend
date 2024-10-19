@@ -125,7 +125,7 @@ export class Server {
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
-    this.secondScript()
+    // this.secondScript();
     // this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
@@ -162,7 +162,7 @@ export class Server {
     this.checkAvailabiltyWithZoom();
     this.resetPassword();
     this.testingZap();
-    this.getCallHistory()
+    this.getCallHistory();
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -673,16 +673,23 @@ export class Server {
               }[] = [];
 
               function formatPhoneNumber(phoneNumber: string) {
-                let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+                let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
 
-                if (phoneNumber.startsWith("+1")) {
-                  return `${digitsOnly}`;
+                if (digitsOnly.startsWith("+1")) {
+                  return digitsOnly;
                 }
-                if (phoneNumber.startsWith("1")) {
+
+                if (digitsOnly.startsWith("1")) {
                   return `+${digitsOnly}`;
                 }
+
+                if (digitsOnly.startsWith("+") && digitsOnly[1] !== "1") {
+                  return `+1${digitsOnly.slice(1)}`;
+                }
+
                 return `+1${digitsOnly}`;
               }
+
               const emailsAndAgentIds = jsonArrayObj.map((user) => ({
                 email: user.email,
                 agentId: agentId,
@@ -978,148 +985,155 @@ export class Server {
   }
 
   async handleCallStarted(data: any) {
-    const { call_id, agent_id } = data;
-    await contactModel.findOneAndUpdate(
-      { callId: call_id, agentId: agent_id },
-      { status: callstatusenum.IN_PROGRESS },
-    );
+    try {
+      const { call_id, agent_id } = data;
+      await contactModel.findOneAndUpdate(
+        { callId: call_id, agentId: agent_id },
+        { status: callstatusenum.IN_PROGRESS },
+      );
+    } catch (error) {
+      console.error("Error in handleCallStarted:", error);
+
+    }
   }
 
   async handleCallEndedOrAnalyzed(payload: any, todayString: any) {
-    const {
-      call_id,
-      agent_id,
-      disconnection_reason,
-      start_timestamp,
-      end_timestamp,
-      transcript,
-      recording_url,
-      public_log_url,
-      cost_metadata,
-      call_cost,
-      call_analysis,
-      retell_llm_dynamic_variables,
-      from_number,
-      to_number,
-      direction,
-    } = payload.data;
-    let analyzedTranscript;
-    let callStatus;
-    let statsUpdate: any = { $inc: {} };
+    try {
+      const {
+        call_id,
+        agent_id,
+        disconnection_reason,
+        start_timestamp,
+        end_timestamp,
+        transcript,
+        recording_url,
+        public_log_url,
+        cost_metadata,
+        call_cost,
+        call_analysis,
+        retell_llm_dynamic_variables,
+        from_number,
+        to_number,
+        direction,
+      } = payload.data;
+      let analyzedTranscript;
+      let callStatus;
+      let statsUpdate: any = { $inc: {} };
 
-    const callData = {
-      callId: call_id,
-      agentId: agent_id,
-      userFirstname: retell_llm_dynamic_variables?.user_firstname || null,
-      userLastname: retell_llm_dynamic_variables?.user_lastname || null,
-      userEmail: retell_llm_dynamic_variables?.user_email || null,
-      recordingUrl: recording_url || null,
-      disconnectionReason: disconnection_reason || null,
-      callStatus:
-        payload.event === "call_analyzed"
-          ? call_analysis?.user_sentiment
-          : null,
-      startTimestamp: start_timestamp || null,
-      endTimestamp: end_timestamp || null,
-      durationMs: end_timestamp - start_timestamp || 0,
-      transcript: transcript || null,
-      transcriptObject: payload.data.transcript_object || [],
-      transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
-      publicLogUrl: public_log_url || null,
-      callType: payload.data.call_type || null,
-      costMetadata: cost_metadata || {},
-      
-      callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
-      optOutSensitiveDataStorage:
-        payload.data.opt_out_sensitive_data_storage || false,
-      fromNumber: from_number || null,
-      toNumber: to_number || null,
-      direction: direction || null,
-    };
-    await callHistoryModel.findOneAndUpdate(
-      { callId: call_id, agentId: agent_id },
-      { $set: callData },
-      { upsert: true, returnOriginal: false },
-    );
-    if (payload.event === "call_ended") {
-      const isCallFailed = disconnection_reason === "dial_failed";
-      const isCallTransferred = disconnection_reason === "call_transfer";
-      const isMachine = disconnection_reason === "voicemail_reached";
-      const isDialNoAnswer = disconnection_reason === "dial_no_answer";
-      const isCallAnswered =
-        disconnection_reason === "user_hangup" ||
-        disconnection_reason === "agent_hangup";
-
-      //.
-      analyzedTranscript = await reviewTranscript(transcript);
-      const isCallScheduled =
-        analyzedTranscript.message.content === "Scheduled";
-      const callEndedUpdateData = {
+      const callData = {
         callId: call_id,
-        agentId: payload.call.agent_id,
-        recordingUrl: recording_url,
-        disconnectionReason: disconnection_reason,
-        analyzedTranscript: analyzedTranscript.message.content,
-        ...(transcript && { transcript }),
+        agentId: agent_id,
+        userFirstname: retell_llm_dynamic_variables?.user_firstname || null,
+        userLastname: retell_llm_dynamic_variables?.user_lastname || null,
+        userEmail: retell_llm_dynamic_variables?.user_email || null,
+        recordingUrl: recording_url || null,
+        disconnectionReason: disconnection_reason || null,
+        callStatus:
+          payload.event === "call_analyzed"
+            ? call_analysis?.user_sentiment
+            : null,
+        startTimestamp: start_timestamp || null,
+        endTimestamp: end_timestamp || null,
+        durationMs: end_timestamp - start_timestamp || 0,
+        transcript: transcript || null,
+        transcriptObject: payload.data.transcript_object || [],
+        transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
+        publicLogUrl: public_log_url || null,
+        callType: payload.data.call_type || null,
+        costMetadata: cost_metadata || {},
+
+        callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
+        optOutSensitiveDataStorage:
+          payload.data.opt_out_sensitive_data_storage || false,
+        fromNumber: from_number || null,
+        toNumber: to_number || null,
+        direction: direction || null,
       };
-
-      const results = await EventModel.findOneAndUpdate(
-        { callId: call_id, agentId: payload.call.agent_id },
-        { $set: callEndedUpdateData },
+      await callHistoryModel.findOneAndUpdate(
+        { callId: call_id, agentId: agent_id },
+        { $set: callData },
         { upsert: true, returnOriginal: false },
       );
+      if (payload.event === "call_ended") {
+        const isCallFailed = disconnection_reason === "dial_failed";
+        const isCallTransferred = disconnection_reason === "call_transfer";
+        const isMachine = disconnection_reason === "voicemail_reached";
+        const isDialNoAnswer = disconnection_reason === "dial_no_answer";
+        const isCallAnswered =
+          disconnection_reason === "user_hangup" ||
+          disconnection_reason === "agent_hangup";
 
-      statsUpdate.$inc.totalCalls = 1;
-
-      if (isMachine) {
-        statsUpdate.$inc.totalAnsweredByVm = 1;
-        callStatus = callstatusenum.VOICEMAIL;
-      } else if (isCallFailed) {
-        statsUpdate.$inc.totalFailed = 1;
-        callStatus = callstatusenum.FAILED;
-      } else if (isCallTransferred) {
-        statsUpdate.$inc.totalTransffered = 1;
-        callStatus = callstatusenum.TRANSFERRED;
-      } else if (isDialNoAnswer) {
-        callStatus = callstatusenum.NO_ANSWER;
-      } else if (isCallAnswered) {
-        statsUpdate.$inc.totalCallAnswered = 1;
-        callStatus = callstatusenum.CALLED;
-      } else if (isCallScheduled) {
-        statsUpdate.$inc.totalAppointment = 1;
-        callStatus = callstatusenum.SCHEDULED;
-      }
-
-      const statsResults = await DailyStatsModel.findOneAndUpdate(
-        { day: todayString, agentId: agent_id },
-        statsUpdate,
-        { upsert: true, returnOriginal: false },
-      );
-
-      const linkToCallLogModelId = statsResults ? statsResults._id : null;
-      const resultForUserUpdate = await contactModel.findOneAndUpdate(
-        { callId: call_id, agentId: payload.call.agent_id },
-        {
-          status: callStatus,
-          $push: { datesCalled: todayString },
-          referenceToCallId: results._id,
-          linktocallLogModel: linkToCallLogModelId,
-        },
-      );
-      if (analyzedTranscript.message.content === "Scheduled") {
-        const data = {
-          firstname: resultForUserUpdate.firstname,
-          lastname: resultForUserUpdate.lastname
-            ? resultForUserUpdate.lastname
-            : "None",
-          email: resultForUserUpdate.email,
-          phone: resultForUserUpdate.phone,
+        //.
+        analyzedTranscript = await reviewTranscript(transcript);
+        const isCallScheduled =
+          analyzedTranscript.message.content === "Scheduled";
+        const callEndedUpdateData = {
+          callId: call_id,
+          agentId: payload.call.agent_id,
+          recordingUrl: recording_url,
+          disconnectionReason: disconnection_reason,
+          analyzedTranscript: analyzedTranscript.message.content,
+          ...(transcript && { transcript }),
         };
-        axios.post(
-          "https://hooks.zapier.com/hooks/catch/20371605/21yedgz/",
-          data,
+
+        const results = await EventModel.findOneAndUpdate(
+          { callId: call_id, agentId: payload.call.agent_id },
+          { $set: callEndedUpdateData },
+          { upsert: true, returnOriginal: false },
         );
+
+        statsUpdate.$inc.totalCalls = 1;
+
+        if (isMachine) {
+          statsUpdate.$inc.totalAnsweredByVm = 1;
+          callStatus = callstatusenum.VOICEMAIL;
+        } else if (isCallFailed) {
+          statsUpdate.$inc.totalFailed = 1;
+          callStatus = callstatusenum.FAILED;
+        } else if (isCallTransferred) {
+          statsUpdate.$inc.totalTransffered = 1;
+          callStatus = callstatusenum.TRANSFERRED;
+        } else if (isDialNoAnswer) {
+          callStatus = callstatusenum.NO_ANSWER;
+        } else if (isCallAnswered) {
+          statsUpdate.$inc.totalCallAnswered = 1;
+          callStatus = callstatusenum.CALLED;
+        } else if (isCallScheduled) {
+          statsUpdate.$inc.totalAppointment = 1;
+          callStatus = callstatusenum.SCHEDULED;
+        }
+
+        const statsResults = await DailyStatsModel.findOneAndUpdate(
+          { day: todayString, agentId: agent_id },
+          statsUpdate,
+          { upsert: true, returnOriginal: false },
+        );
+
+        const linkToCallLogModelId = statsResults ? statsResults._id : null;
+        const resultForUserUpdate = await contactModel.findOneAndUpdate(
+          { callId: call_id, agentId: payload.call.agent_id },
+          {
+            status: callStatus,
+            $push: { datesCalled: todayString },
+            referenceToCallId: results._id,
+            linktocallLogModel: linkToCallLogModelId,
+          },
+        );
+        // if (analyzedTranscript.message.content === "Scheduled") {
+        //   const data = {
+        //     firstname: resultForUserUpdate.firstname,
+        //     lastname: resultForUserUpdate.lastname
+        //       ? resultForUserUpdate.lastname
+        //       : "None",
+        //     email: resultForUserUpdate.email,
+        //     phone: resultForUserUpdate.phone,
+        //   };
+        //   axios.post(process.env.ZAP_URL, data);
+        // }
       }
+    } catch (error) {
+      console.error("Error in handleCallAnalyyzedOrEnded:", error);
+     
     }
   }
 
@@ -2746,151 +2760,160 @@ export class Server {
 
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
-      const { agentId, dateOption, status } = req.body;
-      const timeZone = "America/Los_Angeles"; // PST time zone
-      const now = new Date();
-      const zonedNow = toZonedTime(now, timeZone);
-      const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
-      let dateFilter = {};
+      try {
+        const { agentId, dateOption, status } = req.body;
+        const timeZone = "America/Los_Angeles"; // PST time zone
+        const now = new Date();
+        const zonedNow = toZonedTime(now, timeZone);
+        const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+        let dateFilter = {};
 
-      switch (dateOption) {
-        case DateOption.Today:
-          dateFilter = { datesCalled: today };
-          break;
-        case DateOption.Yesterday:
-          const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-          const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-          dateFilter = { datesCalled: yesterday };
-          break;
-        case DateOption.ThisWeek:
-          const pastDays = [];
-          for (let i = 1; pastDays.length < 5; i++) {
-            const day = subDays(now, i);
-            const dayOfWeek = day.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-              pastDays.push(
-                format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
-              );
+        switch (dateOption) {
+          case DateOption.Today:
+            dateFilter = { datesCalled: today };
+            break;
+          case DateOption.Yesterday:
+            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+              timeZone,
+            });
+            dateFilter = { datesCalled: yesterday };
+            break;
+          case DateOption.ThisWeek:
+            const pastDays = [];
+            for (let i = 1; pastDays.length < 5; i++) {
+              const day = subDays(now, i);
+              const dayOfWeek = day.getDay();
+              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                pastDays.push(
+                  format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
+                    timeZone,
+                  }),
+                );
+              }
             }
-          }
-          dateFilter = {
-            datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
-          };
-          break;
-        case DateOption.ThisMonth:
-          const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-          const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-            timeZone,
-          });
-          dateFilter = { datesCalled: { $gte: startOfMonthDate } };
-          break;
-        case DateOption.Total:
-          dateFilter = {};
-          break;
-        case DateOption.LAST_SCHEDULE:
-          const recentJob = await jobModel
-            .findOne({})
-            .sort({ createdAt: -1 })
-            .lean();
-          if (!recentJob)
-            return res.status(404).send("No jobs found for today's filter.");
-          const dateToCheck = recentJob.scheduledTime.split("T")[0];
-          dateFilter = { datesCalled: { $gte: dateToCheck } };
-          break;
-        default:
-          const recentJob1 = await jobModel
-            .findOne({})
-            .sort({ createdAt: -1 })
-            .lean();
-          if (!recentJob1)
-            return res.status(404).send("No jobs found for today's filter.");
-          const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-          dateFilter = { datesCalled: { $gte: dateToCheck1 } };
-          break;
+            dateFilter = {
+              datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
+            };
+            break;
+          case DateOption.ThisMonth:
+            const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
+            const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+              timeZone,
+            });
+            dateFilter = { datesCalled: { $gte: startOfMonthDate } };
+            break;
+          case DateOption.Total:
+            dateFilter = {};
+            break;
+          case DateOption.LAST_SCHEDULE:
+            const recentJob = await jobModel
+              .findOne({})
+              .sort({ createdAt: -1 })
+              .lean();
+            if (!recentJob)
+              return res.status(404).send("No jobs found for today's filter.");
+            const dateToCheck = recentJob.scheduledTime.split("T")[0];
+            dateFilter = { datesCalled: { $gte: dateToCheck } };
+            break;
+          default:
+            const recentJob1 = await jobModel
+              .findOne({})
+              .sort({ createdAt: -1 })
+              .lean();
+            if (!recentJob1)
+              return res.status(404).send("No jobs found for today's filter.");
+            const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+            dateFilter = { datesCalled: { $gte: dateToCheck1 } };
+            break;
+        }
+        let result;
+        switch (status) {
+          case "failed":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: callstatusenum.FAILED,
+                ...dateFilter,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          case "called":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: { $ne: callstatusenum.NOT_CALLED },
+                ...dateFilter,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          case "not-called":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: callstatusenum.NOT_CALLED,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          case "answered":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: callstatusenum.CALLED,
+                ...dateFilter,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          case "transferred":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: callstatusenum.TRANSFERRED,
+                ...dateFilter,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          case "voicemail":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: callstatusenum.VOICEMAIL,
+                ...dateFilter,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          case "appointment":
+            result = await contactModel
+              .find({
+                agentId,
+                isDeleted: false,
+                status: callstatusenum.SCHEDULED,
+              })
+              .populate("referenceToCallId");
+            break;
+
+          default:
+            return res.status(400).send("Invalid status option.");
+        }
+
+        // Send the response
+        res.json(result);
+      } catch (error) {
+        console.error("Error in populateUserGet:", error);
+        res.status(500).send("An error occurred while processing the request.");
       }
-      let result;
-      switch (status) {
-        case "failed":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: callstatusenum.FAILED,
-              ...dateFilter,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        case "called":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: { $ne: callstatusenum.NOT_CALLED },
-              ...dateFilter,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        case "not-called":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: callstatusenum.NOT_CALLED,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        case "answered":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: callstatusenum.CALLED,
-              ...dateFilter,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        case "transferred":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: callstatusenum.TRANSFERRED,
-              ...dateFilter,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        case "voicemail":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: callstatusenum.VOICEMAIL,
-              ...dateFilter,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        case "appointment":
-          result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              status: callstatusenum.SCHEDULED,
-            })
-            .populate("referenceToCallId");
-          break;
-
-        default:
-          return res.status(400).send("Invalid status option.");
-      }
-
-      // Send the response
-      res.json(result);
     });
   }
   resetPassword() {
@@ -2940,11 +2963,8 @@ export class Server {
           email: "info@ixperience.io",
           phone: "+1727262723",
         };
-        const result = axios.post(
-          "https://hooks.zapier.com/hooks/catch/20310592/212r5cy/",
-          data,
-        );
-        console.log("don");
+        const result = axios.post(process.env.ZAP_URL, data);
+        console.log("don3");
         res.send("done");
       } catch (error) {
         console.log(error);
@@ -2961,7 +2981,7 @@ export class Server {
         const skip = (page - 1) * pageSize;
 
         const callHistories = await callHistoryModel
-          .find({}, {callId: 0})
+          .find({}, { callId: 0 })
           .sort({ startTimestamp: -1 })
           .skip(skip)
           .limit(pageSize);
@@ -2983,100 +3003,4 @@ export class Server {
       }
     });
   }
-  // secondScript() {
-  //   this.app.post("/script2", async (req: Request, res: Response) => {
-  //     try {
-  //       // Find contacts where phone number does not start with '+1'
-  //       console.log("1")
-  //       const contacts = await contactModel.find({
-  //         phone: { $not: { $regex: /^\+1/ } },isDeleted:false
-  //       });
-  //       console.log("2")
-  //       if (!contacts || contacts.length === 0) {
-  //         return res.status(200).json({ message: 'No contacts found that need updating.' });
-  //       }
-  
-  //       let updatedCount = 0;
-  
-  //       // Loop through each contact to normalize phone numbers
-  //       for (const contact of contacts) {
-  //         console.log("3")
-  //         let phone = contact.phone;
-  
-  //         // Log the original phone number before formatting
-  //         console.log(`Original phone number: ${contact.firstname} ${contact.lastname} - ${phone}`);
-  
-  //         // Remove any non-numeric characters
-  //         phone = phone.replace(/\D/g, '');
-  
-  //         // If the phone number is 10 digits, prepend '+1'
-  //         if (phone.length === 10) {
-  //           phone = `+1${phone}`;
-  //           contact.phone = phone;
-  
-  //           // Save the updated contact
-  //           await contact.save();
-  //           updatedCount++;
-  
-  //           // Log the updated contact details
-  //           console.log(`Updated contact: ${contact.firstname} ${contact.lastname} - ${contact.phone}`);
-  //         }
-  //       }
-  
-  //       res.status(200).json({
-  //         message: `Successfully updated ${updatedCount} contact(s).`,
-  //       });
-  //     } catch (error) {
-  //       console.error('Error normalizing phone numbers:', error);
-  //       res.status(500).json({ error: 'An error occurred while normalizing phone numbers' });
-  //     }
-  //   });
-  // }
-  
-  secondScript() {
-    this.app.post("/script2", async (req: Request, res: Response) => {
-      try {
-        // Find contacts where phone number does not start with '+1'
-        const contacts = await contactModel.find({
-          phone: { $not: { $regex: /^\+1/ } },isDeleted:false
-        });
-  
-        if (!contacts || contacts.length === 0) {
-          return res.status(200).json({ message: 'No contacts found that need updating.' });
-        }
-  
-        // Create an array of update operations
-        const bulkOperations = contacts.map((contact) => {
-          let phone = contact.phone;
-  
-          // Remove any non-numeric characters
-          phone = phone.replace(/\D/g, '');
-  
-          // If the phone number is 10 digits, prepend '+1'
-          if (phone.length === 10) {
-            phone = `+1${phone}`;
-          }
-  
-          // Return a bulk write operation to update the contact's phone number
-          return {
-            updateOne: {
-              filter: { _id: contact._id },
-              update: { $set: { phone } },
-            },
-          };
-        });
-  
-        // Execute bulk write to update all contacts in one operation
-        const result = await contactModel.bulkWrite(bulkOperations);
-  
-        res.status(200).json({
-          message: `Successfully updated ${result.modifiedCount} contact(s).`,
-        });
-      } catch (error) {
-        console.error('Error normalizing phone numbers:', error);
-        res.status(500).json({ error: 'An error occurred while normalizing phone numbers' });
-      }
-    });
-  }
-  
 }

@@ -20,16 +20,23 @@ export const scheduleCronJob = async (
 ) => {
   const jobId = uuidv4();
 
-  // function formatPhoneNumber(phoneNumber: string) {
-  //   let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
-  //   if (phoneNumber.startsWith("+1")) {
-  //     return `${digitsOnly}`;
-  //   }
-  //   if (phoneNumber.startsWith("1")) {
-  //     return `+${digitsOnly}`;
-  //   }
-  //   return `+1${digitsOnly}`;
-  // }
+  function formatPhoneNumber(phoneNumber: string) {
+    let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
+
+    if (digitsOnly.startsWith("+1")) {
+      return digitsOnly;
+    }
+
+    if (digitsOnly.startsWith("1")) {
+      return `+${digitsOnly}`;
+    }
+
+    if (digitsOnly.startsWith("+") && digitsOnly[1] !== "1") {
+      return `+1${digitsOnly.slice(1)}`;
+    }
+
+    return `+1${digitsOnly}`;
+  }
 
   try {
     await jobModel.create({
@@ -105,7 +112,7 @@ export const scheduleCronJob = async (
 
             const registerCallResponse2 = await retellClient.call.create({
               from_number: fromNumber,
-              to_number: postdata.toNumber,
+              to_number: formatPhoneNumber(postdata.toNumber),
               override_agent_id: agentId,
               drop_call_if_machine_detected: true,
               retell_llm_dynamic_variables: {
@@ -144,7 +151,7 @@ export const scheduleCronJob = async (
 
               const retryCallResponse = await retellClient.call.create({
                 from_number: fromNumber,
-                to_number: postdata.toNumber,
+                to_number:formatPhoneNumber( postdata.toNumber),
                 override_agent_id: agentId,
                 drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {

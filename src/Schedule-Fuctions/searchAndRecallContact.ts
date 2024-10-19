@@ -60,10 +60,18 @@ export const searchAndRecallContacts = async (
           agentId,
         };
         function formatPhoneNumber(phoneNumber: string) {
-          let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
+          let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
 
-          if (phoneNumber.startsWith("+1")) {
+          if (digitsOnly.startsWith("+1")) {
+            return digitsOnly;
+          }
+
+          if (digitsOnly.startsWith("1")) {
             return `+${digitsOnly}`;
+          }
+
+          if (digitsOnly.startsWith("+") && digitsOnly[1] !== "1") {
+            return `+1${digitsOnly.slice(1)}`;
           }
 
           return `+1${digitsOnly}`;
