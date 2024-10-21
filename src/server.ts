@@ -1094,6 +1094,7 @@ export class Server {
           statsUpdate.$inc.totalTransffered = 1;
           callStatus = callstatusenum.TRANSFERRED;
         } else if (isDialNoAnswer) {
+          statsUpdate.$inc.totalDialNoAnswer = 1;
           callStatus = callstatusenum.NO_ANSWER;
         } else if (isCallAnswered) {
           statsUpdate.$inc.totalCallAnswered = 1;
@@ -1104,7 +1105,7 @@ export class Server {
         }
 
         const statsResults = await DailyStatsModel.findOneAndUpdate(
-          { day: todayString, agentId: agent_id },
+          { day: todayString, agentId: agent_id, jobProcessedBy: retell_llm_dynamic_variables.job_id},
           statsUpdate,
           { upsert: true, returnOriginal: false },
         );

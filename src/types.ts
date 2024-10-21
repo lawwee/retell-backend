@@ -80,6 +80,7 @@ export interface Ijob {
   agentId: string;
   scheduledTime: string;
   shouldContinueProcessing: boolean;
+  tagProcessedFor:string
 }
 
 export interface Ilogs {
@@ -91,6 +92,8 @@ export interface Ilogs {
   totalFailed:number
   totalAppointment:number
   totalCallAnswered: number
+  jobProcessedBy:String
+  totalDialNoAnswer:number
 }
 
 // Retell -> Your Server Events

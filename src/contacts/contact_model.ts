@@ -99,6 +99,7 @@ const jobschema = new Schema<Ijob>(
     },
     scheduledTime: { type: String },
     shouldContinueProcessing: { type: Boolean, default: true },
+    tagProcessedFor:{type:String}
   },
   { timestamps: true },
 );

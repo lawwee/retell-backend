@@ -9,7 +9,9 @@ const dailyStatsSchema = new Schema<Ilogs>(
     totalFailed: {type:Number},
     totalAppointment:{type: Number},
     totalCallAnswered:{type:Number},
-    agentId:{type:String}
+    agentId:{type:String},
+    jobProcessedBy:{type:String},
+    totalDialNoAnswer:{type: Number}
 
   },
   { timestamps: true },

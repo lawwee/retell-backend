@@ -5,6 +5,7 @@ import schedule from "node-schedule";
 import Retell from "retell-sdk";
 import moment from "moment-timezone";
 import { searchAndRecallContacts } from "./searchAndRecallContact";
+import { DailyStatsModel } from "../contacts/call_log";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -19,6 +20,9 @@ export const scheduleCronJob = async (
   lowerCaseTag?: string,
 ) => {
   const jobId = uuidv4();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayString = today.toISOString().split("T")[0];
 
   function formatPhoneNumber(phoneNumber: string) {
     let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
@@ -39,12 +43,29 @@ export const scheduleCronJob = async (
   }
 
   try {
+    await DailyStatsModel.create({
+      day: todayString,
+      agentId: agentId,
+      jobProcessedBy: jobId,
+    });
+    const existingJob = await jobModel.findOne({
+      agentId,
+      tagProcessedFor: lowerCaseTag,
+      callstatus: { $in: [jobstatus.ON_CALL, jobstatus.QUEUED] },
+      shouldContinueProcessing: true,
+    });
+  
+    if (existingJob) {
+      console.log(`A job is already running for agent: ${agentId} and tag: ${lowerCaseTag}.`);
+      return { message: "Job already running", jobId: existingJob.jobId };
+    }
     await jobModel.create({
       callstatus: jobstatus.QUEUED,
       jobId,
       agentId,
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
+      tagProcessedFor:lowerCaseTag
     });
 
     const contactLimit = parseInt(limit);
@@ -119,6 +140,7 @@ export const scheduleCronJob = async (
                 user_firstname: contact.firstname,
                 user_email: contact.email,
                 user_lasname: contact.lastname,
+                job_id: jobId,
               },
             });
 
@@ -132,7 +154,6 @@ export const scheduleCronJob = async (
               { jobId },
               { $inc: { processedContacts: 1 } },
             );
-
             console.log(`Call successful for contact: ${contact.firstname}`);
 
             // Wait for 2 seconds between calls
@@ -151,7 +172,7 @@ export const scheduleCronJob = async (
 
               const retryCallResponse = await retellClient.call.create({
                 from_number: fromNumber,
-                to_number:formatPhoneNumber( postdata.toNumber),
+                to_number: formatPhoneNumber(postdata.toNumber),
                 override_agent_id: agentId,
                 drop_call_if_machine_detected: true,
                 retell_llm_dynamic_variables: {
@@ -176,7 +197,7 @@ export const scheduleCronJob = async (
             console.log("Error during call processing:", error);
           }
 
-          // Wait for 4 seconds before processing the next contact
+        
           await new Promise((resolve) => setTimeout(resolve, 4000));
         }
 
