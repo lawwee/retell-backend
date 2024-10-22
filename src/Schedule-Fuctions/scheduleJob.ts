@@ -6,6 +6,7 @@ import Retell from "retell-sdk";
 import moment from "moment-timezone";
 import { searchAndRecallContacts } from "./searchAndRecallContact";
 import { DailyStatsModel } from "../contacts/call_log";
+import { formatPhoneNumber } from "../helper-fuction/formatter";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -23,24 +24,6 @@ export const scheduleCronJob = async (
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayString = today.toISOString().split("T")[0];
-
-  function formatPhoneNumber(phoneNumber: string) {
-    let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
-
-    if (digitsOnly.startsWith("+1")) {
-      return digitsOnly;
-    }
-
-    if (digitsOnly.startsWith("1")) {
-      return `+${digitsOnly}`;
-    }
-
-    if (digitsOnly.startsWith("+") && digitsOnly[1] !== "1") {
-      return `+1${digitsOnly.slice(1)}`;
-    }
-
-    return `+1${digitsOnly}`;
-  }
 
   try {
     await DailyStatsModel.create({

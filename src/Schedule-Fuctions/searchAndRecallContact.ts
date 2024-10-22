@@ -3,6 +3,7 @@ import Retell from "retell-sdk";
 // import { TwilioClient } from "../twilio_api";
 import { callstatusenum, jobstatus } from "../types";
 import moment from "moment-timezone";
+import { formatPhoneNumber } from "../helper-fuction/formatter";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -59,23 +60,7 @@ export const searchAndRecallContacts = async (
           userId: contact._id.toString(),
           agentId,
         };
-        function formatPhoneNumber(phoneNumber: string) {
-          let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
-
-          if (digitsOnly.startsWith("+1")) {
-            return digitsOnly;
-          }
-
-          if (digitsOnly.startsWith("1")) {
-            return `+${digitsOnly}`;
-          }
-
-          if (digitsOnly.startsWith("+") && digitsOnly[1] !== "1") {
-            return `+1${digitsOnly.slice(1)}`;
-          }
-
-          return `+1${digitsOnly}`;
-        }
+        
         const newToNumber = formatPhoneNumber(postdata.toNumber);
         if (!contact.lastname || contact.lastname.trim() === '') {
           contact.lastname = '.';

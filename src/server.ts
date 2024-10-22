@@ -75,6 +75,7 @@ import {
   scheduleMeeting,
 } from "./helper-fuction/zoom";
 import callHistoryModel from "./contacts/history_model";
+import { formatPhoneNumber } from "./helper-fuction/formatter";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -629,7 +630,7 @@ export class Server {
             return res.status(400).json({ message: "No file uploaded" });
           }
           const csvFile = req.file;
-          const day = req.query.day;
+          const day: any = req.query.day;
           const tag = req.query.tag;
           const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
@@ -670,57 +671,24 @@ export class Server {
                 email: string;
                 firstname: string;
                 phone: string;
+                agentId: string;
+                tag: string;
+                dayToBeProcessed: string | undefined;
               }[] = [];
 
-              function formatPhoneNumber(phoneNumber: string) {
-                let digitsOnly = phoneNumber.replace(/[^\d+]/g, "");
-
-                if (digitsOnly.startsWith("+1")) {
-                  return digitsOnly;
-                }
-
-                if (digitsOnly.startsWith("1")) {
-                  return `+${digitsOnly}`;
-                }
-
-                if (digitsOnly.startsWith("+") && digitsOnly[1] !== "1") {
-                  return `+1${digitsOnly.slice(1)}`;
-                }
-
-                return `+1${digitsOnly}`;
-              }
-
-              const emailsAndAgentIds = jsonArrayObj.map((user) => ({
-                email: user.email,
-                agentId: agentId,
-              }));
-
-              const existingUsers = await contactModel
-                .find({
-                  $or: emailsAndAgentIds.map((emailAndAgentId) => ({
-                    email: emailAndAgentId.email,
-                    agentId: emailAndAgentId.agentId,
-                  })),
-                  isDeleted: false,
-                })
-                .select("email agentId")
-                .session(session);
-              const existingUsersSet = new Set(
-                existingUsers.map((user) => `${user.email}-${user.agentId}`),
-              );
-
+              const seenNumbers = new Set<string>();
               for (const user of jsonArrayObj) {
                 if (user.firstname && user.phone && user.email) {
-                  const userKey = `${user.email}-${agentId}`;
-                  if (!existingUsersSet.has(userKey)) {
-                    const userWithAgentId = {
+                  const formattedPhone = formatPhoneNumber(user.phone);
+                  if (!seenNumbers.has(formattedPhone)) {
+                    seenNumbers.add(formattedPhone);
+                    successfulUsers.push({
                       ...user,
-                      phone: formatPhoneNumber(user.phone),
+                      phone: formattedPhone,
                       dayToBeProcessed: day,
                       agentId,
                       tag: lowerCaseTag,
-                    };
-                    successfulUsers.push(userWithAgentId);
+                    });
                     uploadedNumber++;
                   } else {
                     duplicateCount++;
@@ -735,15 +703,45 @@ export class Server {
               }
 
               if (successfulUsers.length > 0) {
-                await contactModel.insertMany(successfulUsers, { session });
+                const emailsAndAgentIds = successfulUsers.map((user) => ({
+                  email: user.email,
+                  agentId: agentId,
+                }));
 
-                await userModel.updateOne(
-                  { "agents.agentId": agentId },
-                  {
-                    $addToSet: { "agents.$.tag": lowerCaseTag },
-                  },
-                  { session },
+                const existingUsers = await contactModel
+                  .find({
+                    $or: emailsAndAgentIds.map((emailAndAgentId) => ({
+                      email: emailAndAgentId.email,
+                      agentId: emailAndAgentId.agentId,
+                    })),
+                    isDeleted: false,
+                  })
+                  .select("email agentId")
+                  .session(session);
+
+                const existingUsersSet = new Set(
+                  existingUsers.map((user) => `${user.email}-${user.agentId}`),
                 );
+
+                const uniqueUsersToInsert = successfulUsers.filter((user) => {
+                  const userKey = `${user.email}-${agentId}`;
+                  return !existingUsersSet.has(userKey);
+                });
+
+                if (uniqueUsersToInsert.length > 0) {
+                  console.log(uniqueUsersToInsert);
+                  await contactModel.insertMany(uniqueUsersToInsert, {
+                    session,
+                  });
+
+                  await userModel.updateOne(
+                    { "agents.agentId": agentId },
+                    {
+                      $addToSet: { "agents.$.tag": lowerCaseTag },
+                    },
+                    { session },
+                  );
+                }
               }
               await session.commitTransaction();
               session.endSession();
@@ -993,7 +991,6 @@ export class Server {
       );
     } catch (error) {
       console.error("Error in handleCallStarted:", error);
-
     }
   }
 
@@ -1105,7 +1102,11 @@ export class Server {
         }
 
         const statsResults = await DailyStatsModel.findOneAndUpdate(
-          { day: todayString, agentId: agent_id, jobProcessedBy: retell_llm_dynamic_variables.job_id},
+          {
+            day: todayString,
+            agentId: agent_id,
+            jobProcessedBy: retell_llm_dynamic_variables.job_id,
+          },
           statsUpdate,
           { upsert: true, returnOriginal: false },
         );
@@ -1134,7 +1135,6 @@ export class Server {
       }
     } catch (error) {
       console.error("Error in handleCallAnalyyzedOrEnded:", error);
-     
     }
   }
 
@@ -2895,8 +2895,6 @@ export class Server {
               .populate("referenceToCallId");
             break;
 
-
-            
           case "appointment":
             result = await contactModel
               .find({
@@ -2910,12 +2908,12 @@ export class Server {
 
           default:
             result = await contactModel
-            .find({
-              agentId,
-              isDeleted: false,
-              ...dateFilter,
-            })
-            .populate("referenceToCallId");
+              .find({
+                agentId,
+                isDeleted: false,
+                ...dateFilter,
+              })
+              .populate("referenceToCallId");
         }
         res.json(result);
       } catch (error) {
