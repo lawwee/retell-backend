@@ -1,13 +1,14 @@
 import { contactModel, jobModel } from "../contacts/contact_model";
 import Retell from "retell-sdk";
-import { TwilioClient } from "../twilio_api";
-import { jobstatus } from "../types";
+// import { TwilioClient } from "../twilio_api";
+import { callstatusenum, jobstatus } from "../types";
 import moment from "moment-timezone";
+import { formatPhoneNumber } from "../helper-fuction/formatter";
 
 const retellClient = new Retell({
   apiKey: process.env.RETELL_API_KEY,
 });
-const twilioClient = new TwilioClient(retellClient);
+// const twilioClient = new TwilioClient(retellClient);
 export const searchAndRecallContacts = async (
   contactLimit: number,
   agentId: string,
@@ -16,13 +17,16 @@ export const searchAndRecallContacts = async (
   lowerCaseTag?: string,
 ) => {
   try {
-    let contactStatusArray = ["called-NA-VM", "ringing", "on call"];
+    let contactStatusArray = [
+      "ringing",
+      "on call",
+    ];
     const contacts = await contactModel
       .find({
         agentId,
         status: { $in: contactStatusArray },
         isDeleted: { $ne: true },
-        tag:lowerCaseTag ? lowerCaseTag : ""
+        tag: lowerCaseTag ? lowerCaseTag : "",
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });
@@ -49,25 +53,18 @@ export const searchAndRecallContacts = async (
           console.log("Job processing stopped.");
           break;
         }
+        
         const postdata = {
           fromNumber,
           toNumber: contact.phone,
           userId: contact._id.toString(),
           agentId,
         };
-        function formatPhoneNumber(phoneNumber: string) {
-
-          let digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
-          
-
-          if (phoneNumber.startsWith('+1')) {
-              return `+${digitsOnly}`
-          }
-          
-       
-          return `+1${digitsOnly}`
-      }
-      const newToNumber = formatPhoneNumber(postdata.toNumber)
+        
+        const newToNumber = formatPhoneNumber(postdata.toNumber);
+        if (!contact.lastname || contact.lastname.trim() === '') {
+          contact.lastname = '.';
+        }
         // await twilioClient.RegisterPhoneAgent(fromNumber, agentId, postdata.userId);
         // await twilioClient.CreatePhoneCall(
         //   postdata.fromNumber,
@@ -76,6 +73,7 @@ export const searchAndRecallContacts = async (
         //   postdata.userId,
         // );
         try {
+         
           const callRegister = await retellClient.call.register({
             agent_id: agentId,
             audio_encoding: "s16le",
@@ -91,16 +89,15 @@ export const searchAndRecallContacts = async (
             retell_llm_dynamic_variables: {
               user_firstname: contact.firstname,
               user_email: contact.email,
+              user_lastname: contact.lastname,
+              job_id: jobId
             },
           });
           await contactModel.findByIdAndUpdate(contact._id, {
             callId: registerCallResponse2.call_id,
           });
         } catch (error) {
-          console.log("This is the error:", error);
-          await contactModel.findByIdAndUpdate(postdata.userId, {
-            status: "call-failed",
-          });
+          console.log("This is the error:", error)
         }
 
         console.log(
@@ -120,7 +117,7 @@ export const searchAndRecallContacts = async (
     }
     await jobModel.findOneAndUpdate(
       { jobId },
-      { callstatus: jobstatus.CALLED },
+      { callstatus: jobstatus.CALLED, shouldContinueProcessing: false },
     );
     console.log("Recalled contacts finished processing");
   } catch (error) {

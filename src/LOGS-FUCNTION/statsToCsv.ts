@@ -1,12 +1,14 @@
 import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
-import { reviewTranscript } from "../helper-fuction/transcript-review";
-import { callstatusenum } from "../types";
 
-export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]) => {
+export const statsToCsv = async (
+  startDate: string,
+  endDate: string,
+  agentIds: [],
+) => {
   try {
-     const dailyStats = await contactModel
+    const dailyStats = await contactModel
       .find({
         $and: [
           { agentId: { $in: agentIds } },
@@ -14,32 +16,40 @@ export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]
           {
             $and: [
               {
-                "datesCalled": { $gte: startDate }
+                datesCalled: { $gte: startDate },
               },
               {
-                "datesCalled": { $lte: endDate }
-              }
-            ]
-          }
+                datesCalled: { $lte: endDate },
+              },
+            ],
+          },
         ],
       })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId");
 
-    const contactsData = await Promise.all(dailyStats.map(async (contact) => {
-      const transcript = contact.referenceToCallId?.transcript;
-      const analyzedTranscript = await reviewTranscript(transcript);
-      return {
-        firstname: contact.firstname,
-        lastname:contact.lastname,
-        email: contact.email,
-        phone: contact.phone,
-        status: contact.status,
-        transcript: transcript,
-        analyzedTranscript: analyzedTranscript?.message.content,
-        call_recording_url: contact.referenceToCallId?.recordingUrl,
-      };
-    }));
+    const contactsData = await Promise.all(
+      dailyStats.map(async (contact) => {
+        const transcript = contact.referenceToCallId?.transcript;
+        const analyzedTranscript =
+          contact.referenceToCallId?.analyzedTranscript;
+        const lastDateCalled =
+          contact.datesCalled?.length > 0
+            ? contact.datesCalled[contact.datesCalled.length - 1]
+            : null;
+        return {
+          firstname: contact.firstname,
+          lastname: contact.lastname,
+          email: contact.email,
+          phone: contact.phone,
+          status: contact.status,
+          transcript: transcript,
+          analyzedTranscript: analyzedTranscript,
+          call_recording_url: contact.referenceToCallId?.recordingUrl,
+          last_date_called: lastDateCalled,
+        };
+      }),
+    );
 
     // Write contacts data to CSV file
     const filePath = path.join(__dirname, "..", "..", "public", "stats.csv");
@@ -53,9 +63,11 @@ export const statsToCsv = async (startDate: string, endDate: string, agentIds:[]
         { id: "status", title: "Status" },
         { id: "transcript", title: "transcript" },
         { id: "call_recording_url", title: "call_recording_url" },
-        { id: "analyzedTranscript", title: "" },
+        { id: "analyzedTranscript", title: "analyzedTranscript" },
+        { id: "last_date_called", title: "last_date_called" },
       ],
     });
+    
 
     await csvWriter.writeRecords(contactsData);
     console.log("CSV file stats.csv has been written successfully");

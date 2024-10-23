@@ -1,12 +1,14 @@
 import { populate } from "dotenv";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
 import { DateOption, IContact, callstatusenum } from "../types";
-import { contactModel, jobModel } from "./contact_model";
-import { Document } from "mongoose";
+import { contactModel, EventModel, jobModel } from "./contact_model";
+import mongoose, { Document } from "mongoose";
 import axios from "axios";
 import Retell from "retell-sdk";
 import { subDays, startOfMonth, startOfWeek } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
+import { DailyStatsModel } from "./call_log";
+
 const retell = new Retell({
   apiKey: process.env.RETELL_API_KEY,
 });
@@ -48,7 +50,7 @@ export const createContact = async (
   }
 };
 
-type ContactDocument = Omit<Document & IContact, "_id">;
+export type ContactDocument = Omit<Document & IContact, "_id">;
 
 export const getAllContact = async (
   agentId: string,
@@ -66,7 +68,7 @@ export const getAllContact = async (
       totalAppointment: any;
       totalCallsTransffered: any;
       totalCalls: number;
-      totalFailedCalls: number
+      totalFailedCalls: number;
     }
   | string
 > => {
@@ -74,6 +76,7 @@ export const getAllContact = async (
     const skip = (page - 1) * limit;
 
     let dateFilter = {};
+    let dateFilter1 = {};
 
     const timeZone = "America/Los_Angeles"; // PST time zone
     const now = new Date();
@@ -101,7 +104,6 @@ export const getAllContact = async (
             );
           }
         }
-        console.log(pastDays);
         dateFilter = {
           datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
         };
@@ -115,7 +117,7 @@ export const getAllContact = async (
         dateFilter = { datesCalled: { $gte: startOfMonthDate } };
         break;
       case DateOption.Total:
-        dateFilter = {}; // No date filter
+        dateFilter = {};
         break;
       case DateOption.LAST_SCHEDULE:
         const recentJob = await jobModel
@@ -130,7 +132,7 @@ export const getAllContact = async (
         break;
       default:
         const recentJob1 = await jobModel
-          .findOne({})
+          .findOne({agentId})
           .sort({ createdAt: -1 })
           .lean();
         if (!recentJob1) {
@@ -138,6 +140,66 @@ export const getAllContact = async (
         }
         const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
         dateFilter = { datesCalled: { $gte: dateToCheck1 } };
+        break;
+    }
+
+    switch (dateOption) {
+      case DateOption.Today:
+        dateFilter1 = { day: today };
+        break;
+      case DateOption.Yesterday:
+        const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+        const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+        dateFilter1 = { day: yesterday };
+        break;
+      case DateOption.ThisWeek:
+        const pastDays = [];
+        for (let i = 1; pastDays.length < 5; i++) {
+          const day = subDays(now, i);
+          const dayOfWeek = day.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            // Exclude weekends
+            pastDays.push(
+              format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
+            );
+          }
+        }
+        dateFilter1 = {
+          day: { $gte: pastDays[pastDays.length - 1], $lte: today },
+        };
+        break;
+
+      case DateOption.ThisMonth:
+        const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
+        const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+          timeZone,
+        });
+        dateFilter1 = { day: { $gte: startOfMonthDate } };
+        break;
+      case DateOption.Total:
+        dateFilter1 = {};
+        break;
+      case DateOption.LAST_SCHEDULE:
+        const recentJob = await jobModel
+          .findOne({})
+          .sort({ createdAt: -1 })
+          .lean();
+        if (!recentJob) {
+          return "No jobs found for today's filter.";
+        }
+        const dateToCheck = recentJob.scheduledTime.split("T")[0];
+        dateFilter1 = { day: { $gte: dateToCheck } };
+        break;
+      default:
+        const recentJob1 = await jobModel
+          .findOne({agentId})
+          .sort({ createdAt: -1 })
+          .lean();
+        if (!recentJob1) {
+          return "No jobs found for today's filter.";
+        }
+        const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+        dateFilter1 = { day: { $gte: dateToCheck1 } };
         break;
     }
 
@@ -151,11 +213,15 @@ export const getAllContact = async (
     const totalCount = await contactModel.countDocuments({
       agentId,
       isDeleted: { $ne: true },
-
     });
     const totalContactForAgent = await contactModel.countDocuments({
       agentId,
       isDeleted: false,
+    });
+    const totalNotCalledForAgent = await contactModel.countDocuments({
+      agentId,
+      isDeleted: false,
+      status: callstatusenum.NOT_CALLED,
     });
     const totalAnsweredCalls = await contactModel.countDocuments({
       agentId,
@@ -163,49 +229,21 @@ export const getAllContact = async (
       status: callstatusenum.CALLED,
       ...dateFilter,
     });
-    const totalNotCalledForAgent = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.NOT_CALLED,
-    });
-    const totalAnsweredByVm = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.VOICEMAIL,
-      ...dateFilter,
-    });
-    const totalCallsTransffered = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.TRANSFERRED,
-      ...dateFilter,
-    });
-    const totalFailedCalls = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.FAILED,
-      ...dateFilter,
-    });
-    const totalAppointment = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.SCHEDULED,
-      ...dateFilter,
-    });
-    const totalCalls = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: {
-        $in: [
-          callstatusenum.CALLED,
-          callstatusenum.VOICEMAIL,
-          callstatusenum.FAILED,
-          callstatusenum.TRANSFERRED,
-          callstatusenum.SCHEDULED,
-        ],
+
+
+    const stats = await DailyStatsModel.aggregate([
+      { $match: { agentId, ...dateFilter1 } },
+      {
+        $group: {
+          _id: null,
+          totalCalls: { $sum: "$totalCalls" },
+          totalAnsweredByVm: { $sum: "$totalAnsweredByVm" },
+          totalAppointment: { $sum: "$totalAppointment" },
+          totalCallsTransffered: { $sum: "$totalTransffered" },
+          totalFailedCalls: { $sum: "$totalFailed" },
+        },
       },
-      ...dateFilter,
-    });
+    ]);
 
     const totalPages = Math.ceil(totalCount / limit);
 
@@ -224,14 +262,14 @@ export const getAllContact = async (
     return {
       totalContactForAgent,
       totalAnsweredCalls,
+      totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
+      totalAppointment: stats[0]?.totalAppointment || 0,
+      totalCallsTransffered: stats[0]?.totalCallsTransffered || 0,
       totalNotCalledForAgent,
+      totalCalls: stats[0]?.totalCalls || 0,
+      totalFailedCalls: stats[0]?.totalFailedCalls || 0,
       totalPages,
-      totalAnsweredByVm,
-      totalAppointment,
-      totalCallsTransffered,
-      totalCalls,
-      totalFailedCalls,
-      contacts: statsWithTranscripts,
+      contacts: statsWithTranscripts
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
@@ -267,3 +305,41 @@ export const updateOneContact = async (id: string, updateFields: object) => {
   }
 };
 
+export const updateContactAndTranscript = async (
+  updates: any,
+): Promise<any> => {
+  try {
+    for (const update of updates) {
+      if (update.id) {
+        await contactModel.findOneAndUpdate(
+          {
+            _id: new mongoose.Types.ObjectId(update.id),
+            isDeleted: { $ne: true },
+          },
+          { $set: update.updateFields },
+          { new: true },
+        );
+      }
+
+      if (
+        update.updateFields.referencetocallid &&
+        update.updateFields.referencetocallid.id
+      ) {
+        await EventModel.findOneAndUpdate(
+          {
+            _id: new mongoose.Types.ObjectId(
+              update.updateFields.referencetocallid.id,
+            ),
+          },
+          { $set: update.updateFields.referencetocallid.updateFields },
+          { new: true },
+        );
+      }
+    }
+
+    return "Update successful";
+  } catch (error) {
+    console.error("Error updating contact and transcript:", error);
+    return "Could not update contact and transcript";
+  }
+};

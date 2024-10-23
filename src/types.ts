@@ -50,14 +50,15 @@ export enum callstatusenum {
   QUEUED = "queued",
   RINGING = "ringing",
   IN_PROGRESS = "on call",
-  CALLED = "call-connected",
+  CALLED = "connected-user",
   BUSY = "busy",
   FAILED = "call-failed",
-  VOICEMAIL = "called-NA-VM",
+  VOICEMAIL = "connected-voicemail",
   CANCELED = "canceled",
-  NOT_CALLED = "not called",
-  TRANSFERRED = "call-transferred",
-  SCHEDULED = "scheduled"
+  NOT_CALLED = "not-called",
+  TRANSFERRED = "connected-transferred",
+  SCHEDULED = "appt-scheduled",
+  NO_ANSWER = "not-answered"
 }
 
 export interface Itranscript {
@@ -79,6 +80,7 @@ export interface Ijob {
   agentId: string;
   scheduledTime: string;
   shouldContinueProcessing: boolean;
+  tagProcessedFor:string
 }
 
 export interface Ilogs {
@@ -88,7 +90,10 @@ export interface Ilogs {
   totalAnsweredByVm: number;
   agentId: String;
   totalFailed:number
-  totalAppointment:Number
+  totalAppointment:number
+  totalCallAnswered: number
+  jobProcessedBy:String
+  totalDialNoAnswer:number
 }
 
 // Retell -> Your Server Events

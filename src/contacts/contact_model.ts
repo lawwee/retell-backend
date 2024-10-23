@@ -1,23 +1,29 @@
 import { Schema, model } from "mongoose";
 import mongoose from "mongoose";
-import { DaysToBeProcessedEnum, IContact, Ijob, callstatusenum, jobstatus } from "../types";
+import {
+  DaysToBeProcessedEnum,
+  IContact,
+  Ijob,
+  callstatusenum,
+  jobstatus,
+} from "../types";
 
 const ContactSchema = new Schema<IContact>(
   {
     firstname: {
       type: String,
-      required: true
+      required: true,
     },
     email: {
       type: String,
-      required: true
+      required: true,
     },
     lastname: {
       type: String,
     },
     phone: {
       type: String,
-      required: true
+      required: true,
     },
     isusercalled: {
       type: Boolean,
@@ -32,7 +38,7 @@ const ContactSchema = new Schema<IContact>(
     },
     agentId: {
       type: String,
-      required: true
+      required: true,
     },
     status: {
       type: String,
@@ -49,22 +55,24 @@ const ContactSchema = new Schema<IContact>(
     },
     datesCalled: {
       type: [String],
+      default: [],
     },
     answeredByVM: {
       type: Boolean,
       default: false,
     },
-    dayToBeProcessed:{
-      type:String,
-      enum: Object.values(DaysToBeProcessedEnum)
-
+    dayToBeProcessed: {
+      type: String,
+      enum: Object.values(DaysToBeProcessedEnum),
     },
-    tag:{
-      type: String
-    }, jobProcessedWithId:{
-      type: [String]
-    }
-  }, 
+    tag: {
+      type: String,
+    },
+    jobProcessedWithId: {
+      type: [String],
+      default: [],
+    },
+  },
   { timestamps: true },
 );
 
@@ -90,24 +98,28 @@ const jobschema = new Schema<Ijob>(
       type: String,
     },
     scheduledTime: { type: String },
-    shouldContinueProcessing: { type: Boolean, default: true }
+    shouldContinueProcessing: { type: Boolean, default: true },
+    tagProcessedFor:{type:String}
   },
   { timestamps: true },
 );
 
-const transcriptSchema = new Schema({
-  callId: {
-    type: String,
+const transcriptSchema = new Schema(
+  {
+    callId: {
+      type: String,
+    },
+    transcript: { type: String },
+    recordingUrl: { type: String },
+    retellCallSummary: { type: String },
+    userSentiment: { type: String },
+    agentSemtiment: { type: String },
+    disconnectionReason: { type: String },
+    analyzedTranscript: { type: String },
+    agentId:{type:String}
   },
-  transcript: { type: String },
-  recordingUrl: { type: String },
-  retellCallSummary: {type: String},
-  userSentiment:{type: String},
-  agentSemtiment:{type: String},
-  disconnectionReason:{ type: String},
-  analyzedTranscript:{type:String}
-}, {timestamps: true});
-
+  { timestamps: true },
+);
 
 export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);
