@@ -1093,13 +1093,13 @@ export class Server {
         } else if (isDialNoAnswer) {
           statsUpdate.$inc.totalDialNoAnswer = 1;
           callStatus = callstatusenum.NO_ANSWER;
+         } else if (isCallScheduled) {
+            statsUpdate.$inc.totalAppointment = 1;
+            callStatus = callstatusenum.SCHEDULED;
         } else if (isCallAnswered) {
           statsUpdate.$inc.totalCallAnswered = 1;
           callStatus = callstatusenum.CALLED;
-        } else if (isCallScheduled) {
-          statsUpdate.$inc.totalAppointment = 1;
-          callStatus = callstatusenum.SCHEDULED;
-        }
+        } 
 
         const statsResults = await DailyStatsModel.findOneAndUpdate(
           {
@@ -2629,6 +2629,136 @@ export class Server {
       res.send("Schduled");
     });
   }
+  // script() {
+  //   this.app.post("/script", async (req: Request, res: Response) => {
+  //     try {
+  //       interface Contact {
+  //         email: string;
+  //         firstname: string;
+  //         phone: string;
+  //         [key: string]: string;
+  //       }
+
+  //       async function processCSV(
+  //         mainCSV: string,
+  //         dncCSV: string,
+  //         nonDuplicateCSV: string,
+  //         duplicateCSV: string,
+  //       ): Promise<void> {
+  //         return new Promise((resolve, reject) => {
+  //           const mainContacts: Contact[] = [];
+  //           const dncContacts: Contact[] = [];
+
+           
+  //           fs.createReadStream(mainCSV)
+  //             .pipe(csv())
+  //             .on("data", (data: Contact) => mainContacts.push(data))
+  //             .on("end", () => {
+  //               fs.createReadStream(dncCSV)
+  //                 .pipe(csv())
+  //                 .on("data", (data: Contact) => dncContacts.push(data))
+  //                 .on("end", async () => {
+  //                   try {
+  //                     // Create a set of both email and phone from the DNC list
+  //                     const dncSet = new Set(
+  //                       dncContacts.map(
+  //                         (contact) => `${contact.email}-${formatPhoneNumber(contact.phone)}`,
+  //                       ),
+  //                     );
+
+  //                     // Filter non-duplicate contacts (not in DNC list)
+  //                     const nonDuplicateContacts = mainContacts.filter(
+  //                       (contact) =>
+  //                         !dncSet.has(`${contact.email}-${formatPhoneNumber(contact.phone)}`),
+  //                     );
+
+  //                     // Filter duplicate contacts (in DNC list)
+  //                     const duplicateContacts = mainContacts.filter((contact) =>
+  //                       dncSet.has(`${contact.email}-${formatPhoneNumber(contact.phone)}`),
+  //                     );
+
+  //                     if (nonDuplicateContacts.length > 0) {
+  //                       const nonDuplicateWriter = createObjectCsvWriter({
+  //                         path: nonDuplicateCSV,
+  //                         header: Object.keys(nonDuplicateContacts[0]).map(
+  //                           (key) => ({
+  //                             id: key,
+  //                             title: key,
+  //                           }),
+  //                         ),
+  //                       });
+  //                       await nonDuplicateWriter.writeRecords(
+  //                         nonDuplicateContacts,
+  //                       );
+  //                       console.log(
+  //                         `Non-duplicate contacts saved to ${nonDuplicateCSV}`,
+  //                       );
+  //                     } else {
+  //                       console.log("No non-duplicate contacts to write.");
+  //                     }
+
+  //                     if (duplicateContacts.length > 0) {
+  //                       const duplicateWriter = createObjectCsvWriter({
+  //                         path: duplicateCSV,
+  //                         header: Object.keys(duplicateContacts[0]).map(
+  //                           (key) => ({
+  //                             id: key,
+  //                             title: key,
+  //                           }),
+  //                         ),
+  //                       });
+  //                       await duplicateWriter.writeRecords(duplicateContacts);
+  //                       console.log(
+  //                         `Duplicate contacts saved to ${duplicateCSV}`,
+  //                       );
+  //                     } else {
+  //                       console.log("No duplicate contacts to write.");
+  //                     }
+
+  //                     resolve();
+  //                   } catch (err) {
+  //                     console.error("Error writing CSV:", err);
+  //                     reject(err);
+  //                   }
+  //                 })
+  //                 .on("error", (err) => reject(err));
+  //             })
+  //             .on("error", (err) => reject(err));
+  //         });
+  //       }
+
+  //       // Paths to CSV files in the public folder
+  //       const mainCSVPath = path.join(__dirname, "../public", "main.csv");
+  //       const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
+  //       const nonDuplicateCSVPath = path.join(
+  //         __dirname,
+  //         "../public",
+  //         "non_duplicate_main.csv",
+  //       );
+  //       const duplicateCSVPath = path.join(
+  //         __dirname,
+  //         "../public",
+  //         "duplicate_main.csv",
+  //       );
+
+  //       // Call the function to process the CSV files
+  //       await processCSV(
+  //         mainCSVPath,
+  //         dncCSVPath,
+  //         nonDuplicateCSVPath,
+  //         duplicateCSVPath,
+  //       );
+
+  //       res.status(200).json({
+  //         message: "Contacts have been filtered and saved successfully",
+  //       });
+  //     } catch (error) {
+  //       res.status(500).json({
+  //         message: "An error occurred while updating phone numbers",
+  //       });
+  //     }
+  //   });
+  // }
   script() {
     this.app.post("/script", async (req: Request, res: Response) => {
       try {
@@ -2638,82 +2768,85 @@ export class Server {
           phone: string;
           [key: string]: string;
         }
-
+  
         async function processCSV(
           mainCSV: string,
-          dncCSV: string,
+          compareCSV: string,
           nonDuplicateCSV: string,
-          duplicateCSV: string,
+          duplicateCSV: string
         ): Promise<void> {
           return new Promise((resolve, reject) => {
             const mainContacts: Contact[] = [];
-            const dncContacts: Contact[] = [];
-
+            const compareContacts: Contact[] = [];
+  
+            // Read the main CSV (main contacts)
             fs.createReadStream(mainCSV)
               .pipe(csv())
               .on("data", (data: Contact) => mainContacts.push(data))
               .on("end", () => {
-                fs.createReadStream(dncCSV)
+                // Read the compare CSV (DNC or similar contacts)
+                fs.createReadStream(compareCSV)
                   .pipe(csv())
-                  .on("data", (data: Contact) => dncContacts.push(data))
+                  .on("data", (data: Contact) => compareContacts.push(data))
                   .on("end", async () => {
                     try {
-                      // Create a set of both email and phone from the DNC list
-                      const dncSet = new Set(
-                        dncContacts.map(
-                          (contact) => `${contact.email}-${contact.phone}`,
-                        ),
+                      // Create a set of email and phone from the main list
+                      const mainSet = new Set(
+                        mainContacts.map((contact) =>
+                          contact.phone
+                            ? `${contact.email}-${formatPhoneNumber(contact.phone)}`
+                            : `${contact.email}-${contact.firstname}`
+                        )
                       );
-
-                      // Filter non-duplicate contacts (not in DNC list)
-                      const nonDuplicateContacts = mainContacts.filter(
+  
+                      // Filter compare contacts based on the main set
+                      const duplicateContacts = compareContacts.filter((contact) =>
+                        mainSet.has(
+                          contact.phone
+                            ? `${contact.email}-${formatPhoneNumber(contact.phone)}`
+                            : `${contact.email}-${contact.firstname}`
+                        )
+                      );
+  
+                      const nonDuplicateContacts = compareContacts.filter(
                         (contact) =>
-                          !dncSet.has(`${contact.email}-${contact.phone}`),
+                          !mainSet.has(
+                            contact.phone
+                              ? `${contact.email}-${formatPhoneNumber(contact.phone)}`
+                              : `${contact.email}-${contact.firstname}`
+                          )
                       );
-
-                      // Filter duplicate contacts (in DNC list)
-                      const duplicateContacts = mainContacts.filter((contact) =>
-                        dncSet.has(`${contact.email}-${contact.phone}`),
-                      );
-
+  
+                      // Write non-duplicate contacts to a CSV
                       if (nonDuplicateContacts.length > 0) {
                         const nonDuplicateWriter = createObjectCsvWriter({
                           path: nonDuplicateCSV,
-                          header: Object.keys(nonDuplicateContacts[0]).map(
-                            (key) => ({
-                              id: key,
-                              title: key,
-                            }),
-                          ),
+                          header: Object.keys(nonDuplicateContacts[0]).map((key) => ({
+                            id: key,
+                            title: key,
+                          })),
                         });
-                        await nonDuplicateWriter.writeRecords(
-                          nonDuplicateContacts,
-                        );
-                        console.log(
-                          `Non-duplicate contacts saved to ${nonDuplicateCSV}`,
-                        );
+                        await nonDuplicateWriter.writeRecords(nonDuplicateContacts);
+                        console.log(`Non-duplicate contacts saved to ${nonDuplicateCSV}`);
                       } else {
                         console.log("No non-duplicate contacts to write.");
                       }
-
+  
+                      // Write duplicate contacts to a CSV
                       if (duplicateContacts.length > 0) {
                         const duplicateWriter = createObjectCsvWriter({
                           path: duplicateCSV,
-                          header: Object.keys(duplicateContacts[0]).map(
-                            (key) => ({
-                              id: key,
-                              title: key,
-                            }),
-                          ),
+                          header: Object.keys(duplicateContacts[0]).map((key) => ({
+                            id: key,
+                            title: key,
+                          })),
                         });
                         await duplicateWriter.writeRecords(duplicateContacts);
-                        console.log(
-                          `Duplicate contacts saved to ${duplicateCSV}`,
-                        );
+                        console.log(`Duplicate contacts saved to ${duplicateCSV}`);
                       } else {
                         console.log("No duplicate contacts to write.");
                       }
-
+  
                       resolve();
                     } catch (err) {
                       console.error("Error writing CSV:", err);
@@ -2725,40 +2858,28 @@ export class Server {
               .on("error", (err) => reject(err));
           });
         }
-
-        // Paths to CSV files in the public folder
+  
+        // Paths to CSV files
         const mainCSVPath = path.join(__dirname, "../public", "main.csv");
-        const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
-        const nonDuplicateCSVPath = path.join(
-          __dirname,
-          "../public",
-          "non_duplicate_main.csv",
-        );
-        const duplicateCSVPath = path.join(
-          __dirname,
-          "../public",
-          "duplicate_main.csv",
-        );
-
+        const compareCSVPath = path.join(__dirname, "../public", "compare.csv");
+        const nonDuplicateCSVPath = path.join(__dirname, "../public", "non_duplicate.csv");
+        const duplicateCSVPath = path.join(__dirname, "../public", "duplicate.csv");
+  
         // Call the function to process the CSV files
-        await processCSV(
-          mainCSVPath,
-          dncCSVPath,
-          nonDuplicateCSVPath,
-          duplicateCSVPath,
-        );
-
+        await processCSV(mainCSVPath, compareCSVPath, nonDuplicateCSVPath, duplicateCSVPath);
+  
         res.status(200).json({
           message: "Contacts have been filtered and saved successfully",
         });
       } catch (error) {
         res.status(500).json({
-          message: "An error occurred while updating phone numbers",
+          message: "An error occurred while processing the CSVs",
         });
       }
     });
   }
-
+  
+  
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {
