@@ -20,6 +20,7 @@ import {
 } from "./contacts/contact_controller";
 import { readFileSync } from "fs";
 import csv from "csv-parser";
+
 import {
   connectDb,
   contactModel,
@@ -37,7 +38,12 @@ import {
   DaysToBeProcessedEnum,
   Ilogs,
 } from "./utils/types";
-import { IContact, RetellRequest, callstatusenum, jobstatus } from "./utils/types";
+import {
+  IContact,
+  RetellRequest,
+  callstatusenum,
+  jobstatus,
+} from "./utils/types";
 import * as Papa from "papaparse";
 import { subDays, startOfMonth, startOfWeek } from "date-fns";
 import fs from "fs";
@@ -118,12 +124,12 @@ export class Server {
     });
 
     this.getFullStat();
-   // this.handleRetellLlmWebSocket();
+    // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
-    // this.secondScript();
+   // this.secondscript();
     // this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
@@ -1667,46 +1673,47 @@ export class Server {
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
+          console.log(allResults)
         }
         let sentimentStatus:
-          | "uninterested"
-          | "call-back"
-          | "interested"
-          | "appt-scheduled"
-          | "connected-voicemail"
-          | "incomplete-call"
+          | "Not-Interested"
+          | "Call-Back"
+          | "Interested"
+          | "Scheduled"
+          | "Voicemail"
+          | "Incomplete"
           | undefined;
 
         if (
           sentimentOption === "Uninterested" ||
           sentimentOption === "uninterested"
         ) {
-          sentimentStatus = "uninterested";
+          sentimentStatus = "Not-Interested";
         } else if (
           sentimentOption === "Interested" ||
           sentimentOption === "interested"
         ) {
-          sentimentStatus = "interested";
+          sentimentStatus = "Interested";
         } else if (
           sentimentOption === "Scheduled" ||
           sentimentOption === "scheduled"
         ) {
-          sentimentStatus = "appt-scheduled";
+          sentimentStatus = "Scheduled";
         } else if (
           sentimentOption === "Voicemail" ||
           sentimentOption === "voicemail"
         ) {
-          sentimentStatus = "connected-voicemail";
+          sentimentStatus = "Voicemail";
         } else if (
           sentimentOption === "incomplete-call" ||
           sentimentOption === "Incomplete-Call"
         ) {
-          sentimentStatus = "incomplete-call";
+          sentimentStatus = "Incomplete";
         } else if (
           sentimentOption === "call-back" ||
           sentimentOption === "Call-Back"
         ) {
-          sentimentStatus = "call-back";
+          sentimentStatus = "Call-Back";
         }
         if (
           sentimentOption &&
@@ -2846,4 +2853,5 @@ export class Server {
       }
     });
   }
+  
 }
