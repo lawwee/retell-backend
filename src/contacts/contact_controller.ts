@@ -1,6 +1,6 @@
 import { populate } from "dotenv";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
-import { DateOption, IContact, callstatusenum } from "../types";
+import { DateOption, IContact, callstatusenum } from "../utils/types";
 import { contactModel, EventModel, jobModel } from "./contact_model";
 import mongoose, { Document } from "mongoose";
 import axios from "axios";

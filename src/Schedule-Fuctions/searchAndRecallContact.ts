@@ -1,7 +1,7 @@
 import { contactModel, jobModel } from "../contacts/contact_model";
 import Retell from "retell-sdk";
 // import { TwilioClient } from "../twilio_api";
-import { callstatusenum, jobstatus } from "../types";
+import { callstatusenum, jobstatus } from "../utils/types";
 import moment from "moment-timezone";
 import { formatPhoneNumber } from "../helper-fuction/formatter";
 

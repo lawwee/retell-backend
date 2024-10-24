@@ -1,7 +1,7 @@
 import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
-import { callstatusenum } from "../types";
+import { callstatusenum } from "../utils/types";
 import { differenceInDays, addDays } from "date-fns";
  
 

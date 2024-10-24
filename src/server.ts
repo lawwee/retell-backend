@@ -36,16 +36,14 @@ import {
   DateOption,
   DaysToBeProcessedEnum,
   Ilogs,
-} from "./types";
-import { IContact, RetellRequest, callstatusenum, jobstatus } from "./types";
+} from "./utils/types";
+import { IContact, RetellRequest, callstatusenum, jobstatus } from "./utils/types";
 import * as Papa from "papaparse";
 import { subDays, startOfMonth, startOfWeek } from "date-fns";
 import fs from "fs";
 import multer from "multer";
 import moment from "moment-timezone";
-import { chloeDemoLlmClient } from "./VA-GROUP-LLM/chloe_llm_openai";
-import { ethanDemoLlmClient } from "./VA-GROUP-LLM/ethan_llm_openai";
-import { danielDemoLlmClient } from "./VA-GROUP-LLM/daniel_llm-openai";
+
 import schedule from "node-schedule";
 import path from "path";
 import SmeeClient from "smee-client";
@@ -54,13 +52,12 @@ import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
-import { testDemoLlmClient } from "./TEST-LLM/llm_openai_func_call";
+
 import {
   reviewCallback,
   reviewTranscript,
 } from "./helper-fuction/transcript-review";
 import jwt from "jsonwebtoken";
-import { unknownagent } from "./TVAG-LLM/unknowagent";
 import { redisClient, redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
@@ -121,7 +118,7 @@ export class Server {
     });
 
     this.getFullStat();
-    this.handleRetellLlmWebSocket();
+   // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
     this.handleContactSaving();
     this.handlecontactDelete();
@@ -176,229 +173,229 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
-  handleRetellLlmWebSocket() {
-    this.app.ws(
-      "/llm-websocket/:call_id",
-      async (ws: WebSocket, req: Request) => {
-        const callId = req.params.call_id;
-        const user = await contactModel.findOne({ callId });
-        const config: CustomLlmResponse = {
-          response_type: "config",
-          config: {
-            auto_reconnect: true,
-            call_details: true,
-          },
-        };
-        ws.send(JSON.stringify(config));
-        if (user.agentId === "214e92da684138edf44368d371da764c") {
-          console.log("Call started with ethan/ olivia");
-          const client = new ethanDemoLlmClient();
-          client.BeginMessage(ws, user.firstname, user.email);
-          ws.on("error", (err) => {
-            console.error("Error received in LLM websocket client: ", err);
-          });
-          ws.on("close", async (err) => {
-            console.error("Closing llm ws for: ", callId);
-          });
-          ws.on("message", async (data: RawData, isBinary: boolean) => {
-            await contactModel.findOneAndUpdate(
-              { callId },
-              { status: "on call" },
-            );
-            if (isBinary) {
-              console.error("Got binary message instead of text in websocket.");
-              ws.close(1002, "Cannot find corresponding Retell LLM.");
-            }
-            const request: CustomLlmRequest = JSON.parse(data.toString());
-            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-            // Not all of them need to be handled, only response_required and reminder_required.
-            if (request.interaction_type === "ping_pong") {
-              let pingpongResponse: CustomLlmResponse = {
-                response_type: "ping_pong",
-                timestamp: request.timestamp,
-              };
-              ws.send(JSON.stringify(pingpongResponse));
-            } else if (request.interaction_type === "call_details") {
-              // print call detailes
-            } else if (request.interaction_type === "update_only") {
-              // process live transcript update if needed
-            } else if (
-              request.interaction_type === "reminder_required" ||
-              request.interaction_type === "response_required"
-            ) {
-              client.DraftResponse(request, ws);
-            }
-          });
-        }
+  // handleRetellLlmWebSocket() {
+  //   this.app.ws(
+  //     "/llm-websocket/:call_id",
+  //     async (ws: WebSocket, req: Request) => {
+  //       const callId = req.params.call_id;
+  //       const user = await contactModel.findOne({ callId });
+  //       const config: CustomLlmResponse = {
+  //         response_type: "config",
+  //         config: {
+  //           auto_reconnect: true,
+  //           call_details: true,
+  //         },
+  //       };
+  //       ws.send(JSON.stringify(config));
+  //       if (user.agentId === "214e92da684138edf44368d371da764c") {
+  //         console.log("Call started with ethan/ olivia");
+  //         const client = new ethanDemoLlmClient();
+  //         client.BeginMessage(ws, user.firstname, user.email);
+  //         ws.on("error", (err) => {
+  //           console.error("Error received in LLM websocket client: ", err);
+  //         });
+  //         ws.on("close", async (err) => {
+  //           console.error("Closing llm ws for: ", callId);
+  //         });
+  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
+  //           await contactModel.findOneAndUpdate(
+  //             { callId },
+  //             { status: "on call" },
+  //           );
+  //           if (isBinary) {
+  //             console.error("Got binary message instead of text in websocket.");
+  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
+  //           }
+  //           const request: CustomLlmRequest = JSON.parse(data.toString());
+  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+  //           // Not all of them need to be handled, only response_required and reminder_required.
+  //           if (request.interaction_type === "ping_pong") {
+  //             let pingpongResponse: CustomLlmResponse = {
+  //               response_type: "ping_pong",
+  //               timestamp: request.timestamp,
+  //             };
+  //             ws.send(JSON.stringify(pingpongResponse));
+  //           } else if (request.interaction_type === "call_details") {
+  //             // print call detailes
+  //           } else if (request.interaction_type === "update_only") {
+  //             // process live transcript update if needed
+  //           } else if (
+  //             request.interaction_type === "reminder_required" ||
+  //             request.interaction_type === "response_required"
+  //           ) {
+  //             client.DraftResponse(request, ws);
+  //           }
+  //         });
+  //       }
 
-        if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
-          console.log("Call started with chloe");
-          const client = new chloeDemoLlmClient();
-          client.BeginMessage(ws, user.firstname, user.email);
-          ws.on("error", (err) => {
-            console.error("Error received in LLM websocket client: ", err);
-          });
-          ws.on("close", async (err) => {
-            console.error("Closing llm ws for: ", callId);
-          });
-          ws.on("message", async (data: RawData, isBinary: boolean) => {
-            await contactModel.findOneAndUpdate(
-              { callId },
-              { status: "on call" },
-            );
-            if (isBinary) {
-              console.error("Got binary message instead of text in websocket.");
-              ws.close(1002, "Cannot find corresponding Retell LLM.");
-            }
-            const request: CustomLlmRequest = JSON.parse(data.toString());
-            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-            // Not all of them need to be handled, only response_required and reminder_required.
-            if (request.interaction_type === "ping_pong") {
-              let pingpongResponse: CustomLlmResponse = {
-                response_type: "ping_pong",
-                timestamp: request.timestamp,
-              };
-              ws.send(JSON.stringify(pingpongResponse));
-            } else if (request.interaction_type === "call_details") {
-              // print call detailes
-            } else if (request.interaction_type === "update_only") {
-              // process live transcript update if needed
-            } else if (
-              request.interaction_type === "reminder_required" ||
-              request.interaction_type === "response_required"
-            ) {
-              client.DraftResponse(request, ws);
-            }
-          });
-        }
+  //       if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
+  //         console.log("Call started with chloe");
+  //         const client = new chloeDemoLlmClient();
+  //         client.BeginMessage(ws, user.firstname, user.email);
+  //         ws.on("error", (err) => {
+  //           console.error("Error received in LLM websocket client: ", err);
+  //         });
+  //         ws.on("close", async (err) => {
+  //           console.error("Closing llm ws for: ", callId);
+  //         });
+  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
+  //           await contactModel.findOneAndUpdate(
+  //             { callId },
+  //             { status: "on call" },
+  //           );
+  //           if (isBinary) {
+  //             console.error("Got binary message instead of text in websocket.");
+  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
+  //           }
+  //           const request: CustomLlmRequest = JSON.parse(data.toString());
+  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+  //           // Not all of them need to be handled, only response_required and reminder_required.
+  //           if (request.interaction_type === "ping_pong") {
+  //             let pingpongResponse: CustomLlmResponse = {
+  //               response_type: "ping_pong",
+  //               timestamp: request.timestamp,
+  //             };
+  //             ws.send(JSON.stringify(pingpongResponse));
+  //           } else if (request.interaction_type === "call_details") {
+  //             // print call detailes
+  //           } else if (request.interaction_type === "update_only") {
+  //             // process live transcript update if needed
+  //           } else if (
+  //             request.interaction_type === "reminder_required" ||
+  //             request.interaction_type === "response_required"
+  //           ) {
+  //             client.DraftResponse(request, ws);
+  //           }
+  //         });
+  //       }
 
-        if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
-          console.log("Call started with daniel/emily");
-          const client = new danielDemoLlmClient();
-          client.BeginMessage(ws, user.firstname, user.email);
-          ws.on("error", (err) => {
-            console.error("Error received in LLM websocket client: ", err);
-          });
-          ws.on("close", async (err) => {
-            console.error("Closing llm ws for: ", callId);
-          });
-          ws.on("message", async (data: RawData, isBinary: boolean) => {
-            await contactModel.findOneAndUpdate(
-              { callId },
-              { status: "on call" },
-            );
+  //       if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
+  //         console.log("Call started with daniel/emily");
+  //         const client = new danielDemoLlmClient();
+  //         client.BeginMessage(ws, user.firstname, user.email);
+  //         ws.on("error", (err) => {
+  //           console.error("Error received in LLM websocket client: ", err);
+  //         });
+  //         ws.on("close", async (err) => {
+  //           console.error("Closing llm ws for: ", callId);
+  //         });
+  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
+  //           await contactModel.findOneAndUpdate(
+  //             { callId },
+  //             { status: "on call" },
+  //           );
 
-            if (isBinary) {
-              console.error("Got binary message instead of text in websocket.");
-              ws.close(1002, "Cannot find corresponding Retell LLM.");
-            }
-            const request: CustomLlmRequest = JSON.parse(data.toString());
-            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-            // Not all of them need to be handled, only response_required and reminder_required.
-            if (request.interaction_type === "ping_pong") {
-              let pingpongResponse: CustomLlmResponse = {
-                response_type: "ping_pong",
-                timestamp: request.timestamp,
-              };
-              ws.send(JSON.stringify(pingpongResponse));
-            } else if (request.interaction_type === "call_details") {
-              // print call detailes
-            } else if (request.interaction_type === "update_only") {
-              // process live transcript update if needed
-            } else if (
-              request.interaction_type === "reminder_required" ||
-              request.interaction_type === "response_required"
-            ) {
-              client.DraftResponse(request, ws);
-            }
-          });
-        }
+  //           if (isBinary) {
+  //             console.error("Got binary message instead of text in websocket.");
+  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
+  //           }
+  //           const request: CustomLlmRequest = JSON.parse(data.toString());
+  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+  //           // Not all of them need to be handled, only response_required and reminder_required.
+  //           if (request.interaction_type === "ping_pong") {
+  //             let pingpongResponse: CustomLlmResponse = {
+  //               response_type: "ping_pong",
+  //               timestamp: request.timestamp,
+  //             };
+  //             ws.send(JSON.stringify(pingpongResponse));
+  //           } else if (request.interaction_type === "call_details") {
+  //             // print call detailes
+  //           } else if (request.interaction_type === "update_only") {
+  //             // process live transcript update if needed
+  //           } else if (
+  //             request.interaction_type === "reminder_required" ||
+  //             request.interaction_type === "response_required"
+  //           ) {
+  //             client.DraftResponse(request, ws);
+  //           }
+  //         });
+  //       }
 
-        if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
-          console.log("Call started with kathrine");
-          const client = new danielDemoLlmClient();
-          client.BeginMessage(ws, user.firstname, user.email);
-          ws.on("error", (err) => {
-            console.error("Error received in LLM websocket client: ", err);
-          });
-          ws.on("close", async (err) => {
-            console.error("Closing llm ws for: ", callId);
-          });
-          ws.on("message", async (data: RawData, isBinary: boolean) => {
-            await contactModel.findOneAndUpdate(
-              { callId },
-              { status: "on call" },
-            );
+  //       if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
+  //         console.log("Call started with kathrine");
+  //         const client = new danielDemoLlmClient();
+  //         client.BeginMessage(ws, user.firstname, user.email);
+  //         ws.on("error", (err) => {
+  //           console.error("Error received in LLM websocket client: ", err);
+  //         });
+  //         ws.on("close", async (err) => {
+  //           console.error("Closing llm ws for: ", callId);
+  //         });
+  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
+  //           await contactModel.findOneAndUpdate(
+  //             { callId },
+  //             { status: "on call" },
+  //           );
 
-            if (isBinary) {
-              console.error("Got binary message instead of text in websocket.");
-              ws.close(1002, "Cannot find corresponding Retell LLM.");
-            }
-            const request: CustomLlmRequest = JSON.parse(data.toString());
-            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-            // Not all of them need to be handled, only response_required and reminder_required.
-            if (request.interaction_type === "ping_pong") {
-              let pingpongResponse: CustomLlmResponse = {
-                response_type: "ping_pong",
-                timestamp: request.timestamp,
-              };
-              ws.send(JSON.stringify(pingpongResponse));
-            } else if (request.interaction_type === "call_details") {
-              // print call detailes
-            } else if (request.interaction_type === "update_only") {
-              // process live transcript update if needed
-            } else if (
-              request.interaction_type === "reminder_required" ||
-              request.interaction_type === "response_required"
-            ) {
-              client.DraftResponse(request, ws);
-            }
-          });
-        }
+  //           if (isBinary) {
+  //             console.error("Got binary message instead of text in websocket.");
+  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
+  //           }
+  //           const request: CustomLlmRequest = JSON.parse(data.toString());
+  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+  //           // Not all of them need to be handled, only response_required and reminder_required.
+  //           if (request.interaction_type === "ping_pong") {
+  //             let pingpongResponse: CustomLlmResponse = {
+  //               response_type: "ping_pong",
+  //               timestamp: request.timestamp,
+  //             };
+  //             ws.send(JSON.stringify(pingpongResponse));
+  //           } else if (request.interaction_type === "call_details") {
+  //             // print call detailes
+  //           } else if (request.interaction_type === "update_only") {
+  //             // process live transcript update if needed
+  //           } else if (
+  //             request.interaction_type === "reminder_required" ||
+  //             request.interaction_type === "response_required"
+  //           ) {
+  //             client.DraftResponse(request, ws);
+  //           }
+  //         });
+  //       }
 
-        if (user.agentId === "1000") {
-          console.log("Call started with new agent");
-          const client = new unknownagent();
-          client.BeginMessage(ws, user.firstname, user.email);
-          ws.on("error", (err) => {
-            console.error("Error received in LLM websocket client: ", err);
-          });
-          ws.on("close", async (err) => {
-            console.error("Closing llm ws for: ", callId);
-          });
-          ws.on("message", async (data: RawData, isBinary: boolean) => {
-            await contactModel.findOneAndUpdate(
-              { callId },
-              { status: "on call" },
-            );
-            if (isBinary) {
-              console.error("Got binary message instead of text in websocket.");
-              ws.close(1002, "Cannot find corresponding Retell LLM.");
-            }
-            const request: CustomLlmRequest = JSON.parse(data.toString());
-            // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-            // Not all of them need to be handled, only response_required and reminder_required.
-            if (request.interaction_type === "ping_pong") {
-              let pingpongResponse: CustomLlmResponse = {
-                response_type: "ping_pong",
-                timestamp: request.timestamp,
-              };
-              ws.send(JSON.stringify(pingpongResponse));
-            } else if (request.interaction_type === "call_details") {
-              // print call detailes
-            } else if (request.interaction_type === "update_only") {
-              // process live transcript update if needed
-            } else if (
-              request.interaction_type === "reminder_required" ||
-              request.interaction_type === "response_required"
-            ) {
-              client.DraftResponse(request, ws);
-            }
-          });
-        }
-      },
-    );
-  }
+  //       if (user.agentId === "1000") {
+  //         console.log("Call started with new agent");
+  //         const client = new unknownagent();
+  //         client.BeginMessage(ws, user.firstname, user.email);
+  //         ws.on("error", (err) => {
+  //           console.error("Error received in LLM websocket client: ", err);
+  //         });
+  //         ws.on("close", async (err) => {
+  //           console.error("Closing llm ws for: ", callId);
+  //         });
+  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
+  //           await contactModel.findOneAndUpdate(
+  //             { callId },
+  //             { status: "on call" },
+  //           );
+  //           if (isBinary) {
+  //             console.error("Got binary message instead of text in websocket.");
+  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
+  //           }
+  //           const request: CustomLlmRequest = JSON.parse(data.toString());
+  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
+  //           // Not all of them need to be handled, only response_required and reminder_required.
+  //           if (request.interaction_type === "ping_pong") {
+  //             let pingpongResponse: CustomLlmResponse = {
+  //               response_type: "ping_pong",
+  //               timestamp: request.timestamp,
+  //             };
+  //             ws.send(JSON.stringify(pingpongResponse));
+  //           } else if (request.interaction_type === "call_details") {
+  //             // print call detailes
+  //           } else if (request.interaction_type === "update_only") {
+  //             // process live transcript update if needed
+  //           } else if (
+  //             request.interaction_type === "reminder_required" ||
+  //             request.interaction_type === "response_required"
+  //           ) {
+  //             client.DraftResponse(request, ws);
+  //           }
+  //         });
+  //       }
+  //     },
+  //   );
+  // }
   createPhoneCall2() {
     this.app.post(
       "/create-llm-phone-call",
@@ -919,7 +916,6 @@ export class Server {
       },
     );
   }
-
   getAllJob() {
     this.app.get(
       "/get-jobs",
@@ -937,7 +933,6 @@ export class Server {
       },
     );
   }
-
   getCallLogs() {
     this.app.post(
       "/call-logs",
@@ -949,7 +944,6 @@ export class Server {
       },
     );
   }
-
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
@@ -981,7 +975,6 @@ export class Server {
       }
     });
   }
-
   async handleCallStarted(data: any) {
     try {
       const { call_id, agent_id } = data;
@@ -993,7 +986,6 @@ export class Server {
       console.error("Error in handleCallStarted:", error);
     }
   }
-
   async handleCallEndedOrAnalyzed(payload: any, todayString: any) {
     try {
       const {
@@ -1093,13 +1085,13 @@ export class Server {
         } else if (isDialNoAnswer) {
           statsUpdate.$inc.totalDialNoAnswer = 1;
           callStatus = callstatusenum.NO_ANSWER;
-         } else if (isCallScheduled) {
-            statsUpdate.$inc.totalAppointment = 1;
-            callStatus = callstatusenum.SCHEDULED;
+        } else if (isCallScheduled) {
+          statsUpdate.$inc.totalAppointment = 1;
+          callStatus = callstatusenum.SCHEDULED;
         } else if (isCallAnswered) {
           statsUpdate.$inc.totalCallAnswered = 1;
           callStatus = callstatusenum.CALLED;
-        } 
+        }
 
         const statsResults = await DailyStatsModel.findOneAndUpdate(
           {
@@ -1137,7 +1129,6 @@ export class Server {
       console.error("Error in handleCallAnalyyzedOrEnded:", error);
     }
   }
-
   deleteAll() {
     this.app.patch(
       "/deleteAll",
@@ -1153,7 +1144,6 @@ export class Server {
       },
     );
   }
-
   adminSideLogsToCsv() {
     this.app.post("/call-logs-csv", async (req: Request, res: Response) => {
       try {
@@ -1198,7 +1188,6 @@ export class Server {
       }
     });
   }
-
   statsForAgent() {
     this.app.post("/get-stats", async (req: Request, res: Response) => {
       const { agentIds, dateOption, limit, page, startDate, endDate } =
@@ -1746,157 +1735,6 @@ export class Server {
       }
     });
   }
-
-  // searchForAdmin() {
-  //   this.app.post("/search", async (req: Request, res: Response) => {
-  //     const {
-  //       searchTerm = "",
-  //       startDate,
-  //       endDate,
-  //       statusOption,
-  //       sentimentOption,
-  //       agentId,
-  //       tag,
-  //     } = req.body;
-
-  //     if (!agentId) {
-  //       return res.status(400).json({ error: "Search term or agent Id is required" });
-  //     }
-
-  //     try {
-  //       const isValidEmail = (email: string) => {
-  //         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  //         return emailRegex.test(email.trim());
-  //       };
-
-  //       const isValidPhone = (phone: string) => {
-  //         const phoneRegex = /^\+\d{10,15}$/; // Check if phone is in international format
-  //         return phoneRegex.test(phone.trim());
-  //       };
-
-  //       const searchTerms = searchTerm.split(",").map((term: string) => term.trim());
-  //       const firstTerm = searchTerms[0];
-  //       const firstTermIsEmail = isValidEmail(firstTerm);
-  //       const firstTermIsPhone = isValidPhone(firstTerm);
-
-  //       const newtag = tag ? tag.toLowerCase() : "";
-
-  //       const searchForTerm = async (term: string, searchByEmail: boolean, searchByPhone: boolean) => {
-  //         const query: any = {
-  //           agentId,
-  //           isDeleted: false,
-  //           $or: searchByEmail
-  //             ? [{ email: { $regex: term, $options: "i" } }]
-  //             : searchByPhone
-  //               ? [{ phone: { $regex: term, $options: "i" } }]
-  //               : [
-  //                   { firstname: { $regex: term, $options: "i" } },
-  //                   { lastname: { $regex: term, $options: "i" } },
-  //                   { phone: { $regex: term, $options: "i" } },
-  //                   { email: { $regex: term, $options: "i" } },
-  //                 ],
-  //         };
-
-  //         const formatDateToDB = (dateString: any) => {
-  //           const date = new Date(dateString);
-  //           const year = date.getUTCFullYear();
-  //           const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  //           const day = String(date.getUTCDate()).padStart(2, "0");
-  //           return `${year}-${month}-${day}`;
-  //         };
-
-  //         if (startDate || endDate) {
-  //           query["datesCalled"] = {};
-  //           if (startDate && !endDate) {
-  //             const formattedStartDate = formatDateToDB(startDate);
-  //             query["datesCalled"]["$eq"] = formattedStartDate;
-  //           } else if (startDate && endDate) {
-  //             query["datesCalled"]["$gte"] = formatDateToDB(startDate);
-  //             query["datesCalled"]["$lte"] = formatDateToDB(endDate);
-  //           }
-  //         }
-
-  //         if (tag) {
-  //           query["tag"] = newtag;
-  //         }
-
-  //         if (statusOption && statusOption !== "All") {
-  //           let callStatus;
-  //           switch (statusOption.toLowerCase()) {
-  //             case "call-connected":
-  //               callStatus = callstatusenum.CALLED;
-  //               break;
-  //             case "not-called":
-  //               callStatus = callstatusenum.NOT_CALLED;
-  //               break;
-  //             case "called-na-vm":
-  //               callStatus = callstatusenum.VOICEMAIL;
-  //               break;
-  //             case "call-failed":
-  //               callStatus = callstatusenum.FAILED;
-  //               break;
-  //             default:
-  //               return [];
-  //           }
-  //           query["status"] = callStatus;
-  //         }
-
-  //         return await contactModel.find(query).populate("referenceToCallId");
-  //       };
-
-  //       let allResults: any[] = [];
-
-  //       for (const term of searchTerms) {
-  //         const results = await searchForTerm(term, firstTermIsEmail, firstTermIsPhone);
-  //         allResults = allResults.concat(results);
-  //       }
-
-  //       let sentimentStatus:
-  //         | "uninterested"
-  //         | "call-back"
-  //         | "interested"
-  //         | "appt-scheduled"
-  //         | "connected-voicemail"
-  //         | "incomplete-call"
-  //         | undefined;
-
-  //       switch (sentimentOption?.toLowerCase()) {
-  //         case "uninterested":
-  //           sentimentStatus = "uninterested";
-  //           break;
-  //         case "interested":
-  //           sentimentStatus = "interested";
-  //           break;
-  //         case "scheduled":
-  //           sentimentStatus = "appt-scheduled";
-  //           break;
-  //         case "voicemail":
-  //           sentimentStatus = "connected-voicemail";
-  //           break;
-  //         case "incomplete-call":
-  //           sentimentStatus = "incomplete-call";
-  //           break;
-  //         case "call-back":
-  //           sentimentStatus = "call-back";
-  //           break;
-  //       }
-
-  //       if (sentimentStatus) {
-  //         const filteredResults = allResults.filter((contact) => {
-  //           const analyzedTranscript = contact.referenceToCallId?.analyzedTranscript;
-  //           return analyzedTranscript === sentimentStatus;
-  //         });
-  //         res.json(filteredResults);
-  //       } else {
-  //         res.json(allResults);
-  //       }
-  //     } catch (error) {
-  //       console.log(error);
-  //       res.status(500).json({ error: "Internal server error" });
-  //     }
-  //   });
-  // }
-
   batchDeleteUser() {
     this.app.post(
       "/batch-delete-users",
@@ -2218,26 +2056,6 @@ export class Server {
       }
     });
   }
-
-  // async deleteContactsByEmail(emails: any) {
-  //   try {
-  //     // Split the input string containing comma-separated emails into an array
-  //     const emailArray = emails.split(",");
-  //     console.log(emailArray);
-
-  //     // Use Mongoose's deleteMany function to remove documents with matching emails
-  //     const result = await contactModel.deleteMany({
-  //       email: { $in: emailArray },
-  //     });
-
-  //     console.log(`${result.deletedCount} contacts deleted.`);
-  //     return result;
-  //   } catch (error) {
-  //     console.error("Error deleting contacts:", error);
-  //     throw error; // Forwarding the error for handling in upper layers
-  //   }
-  // }
-
   testingMake() {
     this.app.post("/make", async (req: Request, res: Response) => {
       const result = await axios.post(
@@ -2629,136 +2447,6 @@ export class Server {
       res.send("Schduled");
     });
   }
-  // script() {
-  //   this.app.post("/script", async (req: Request, res: Response) => {
-  //     try {
-  //       interface Contact {
-  //         email: string;
-  //         firstname: string;
-  //         phone: string;
-  //         [key: string]: string;
-  //       }
-
-  //       async function processCSV(
-  //         mainCSV: string,
-  //         dncCSV: string,
-  //         nonDuplicateCSV: string,
-  //         duplicateCSV: string,
-  //       ): Promise<void> {
-  //         return new Promise((resolve, reject) => {
-  //           const mainContacts: Contact[] = [];
-  //           const dncContacts: Contact[] = [];
-
-           
-  //           fs.createReadStream(mainCSV)
-  //             .pipe(csv())
-  //             .on("data", (data: Contact) => mainContacts.push(data))
-  //             .on("end", () => {
-  //               fs.createReadStream(dncCSV)
-  //                 .pipe(csv())
-  //                 .on("data", (data: Contact) => dncContacts.push(data))
-  //                 .on("end", async () => {
-  //                   try {
-  //                     // Create a set of both email and phone from the DNC list
-  //                     const dncSet = new Set(
-  //                       dncContacts.map(
-  //                         (contact) => `${contact.email}-${formatPhoneNumber(contact.phone)}`,
-  //                       ),
-  //                     );
-
-  //                     // Filter non-duplicate contacts (not in DNC list)
-  //                     const nonDuplicateContacts = mainContacts.filter(
-  //                       (contact) =>
-  //                         !dncSet.has(`${contact.email}-${formatPhoneNumber(contact.phone)}`),
-  //                     );
-
-  //                     // Filter duplicate contacts (in DNC list)
-  //                     const duplicateContacts = mainContacts.filter((contact) =>
-  //                       dncSet.has(`${contact.email}-${formatPhoneNumber(contact.phone)}`),
-  //                     );
-
-  //                     if (nonDuplicateContacts.length > 0) {
-  //                       const nonDuplicateWriter = createObjectCsvWriter({
-  //                         path: nonDuplicateCSV,
-  //                         header: Object.keys(nonDuplicateContacts[0]).map(
-  //                           (key) => ({
-  //                             id: key,
-  //                             title: key,
-  //                           }),
-  //                         ),
-  //                       });
-  //                       await nonDuplicateWriter.writeRecords(
-  //                         nonDuplicateContacts,
-  //                       );
-  //                       console.log(
-  //                         `Non-duplicate contacts saved to ${nonDuplicateCSV}`,
-  //                       );
-  //                     } else {
-  //                       console.log("No non-duplicate contacts to write.");
-  //                     }
-
-  //                     if (duplicateContacts.length > 0) {
-  //                       const duplicateWriter = createObjectCsvWriter({
-  //                         path: duplicateCSV,
-  //                         header: Object.keys(duplicateContacts[0]).map(
-  //                           (key) => ({
-  //                             id: key,
-  //                             title: key,
-  //                           }),
-  //                         ),
-  //                       });
-  //                       await duplicateWriter.writeRecords(duplicateContacts);
-  //                       console.log(
-  //                         `Duplicate contacts saved to ${duplicateCSV}`,
-  //                       );
-  //                     } else {
-  //                       console.log("No duplicate contacts to write.");
-  //                     }
-
-  //                     resolve();
-  //                   } catch (err) {
-  //                     console.error("Error writing CSV:", err);
-  //                     reject(err);
-  //                   }
-  //                 })
-  //                 .on("error", (err) => reject(err));
-  //             })
-  //             .on("error", (err) => reject(err));
-  //         });
-  //       }
-
-  //       // Paths to CSV files in the public folder
-  //       const mainCSVPath = path.join(__dirname, "../public", "main.csv");
-  //       const dncCSVPath = path.join(__dirname, "../public", "compare.csv");
-  //       const nonDuplicateCSVPath = path.join(
-  //         __dirname,
-  //         "../public",
-  //         "non_duplicate_main.csv",
-  //       );
-  //       const duplicateCSVPath = path.join(
-  //         __dirname,
-  //         "../public",
-  //         "duplicate_main.csv",
-  //       );
-
-  //       // Call the function to process the CSV files
-  //       await processCSV(
-  //         mainCSVPath,
-  //         dncCSVPath,
-  //         nonDuplicateCSVPath,
-  //         duplicateCSVPath,
-  //       );
-
-  //       res.status(200).json({
-  //         message: "Contacts have been filtered and saved successfully",
-  //       });
-  //     } catch (error) {
-  //       res.status(500).json({
-  //         message: "An error occurred while updating phone numbers",
-  //       });
-  //     }
-  //   });
-  // }
   script() {
     this.app.post("/script", async (req: Request, res: Response) => {
       try {
@@ -2768,17 +2456,17 @@ export class Server {
           phone: string;
           [key: string]: string;
         }
-  
+
         async function processCSV(
           mainCSV: string,
           compareCSV: string,
           nonDuplicateCSV: string,
-          duplicateCSV: string
+          duplicateCSV: string,
         ): Promise<void> {
           return new Promise((resolve, reject) => {
             const mainContacts: Contact[] = [];
             const compareContacts: Contact[] = [];
-  
+
             // Read the main CSV (main contacts)
             fs.createReadStream(mainCSV)
               .pipe(csv())
@@ -2794,59 +2482,76 @@ export class Server {
                       const mainSet = new Set(
                         mainContacts.map((contact) =>
                           contact.phone
-                            ? `${contact.email}-${formatPhoneNumber(contact.phone)}`
-                            : `${contact.email}-${contact.firstname}`
-                        )
+                            ? `${contact.email}-${formatPhoneNumber(
+                                contact.phone,
+                              )}`
+                            : `${contact.email}-${contact.firstname}`,
+                        ),
                       );
-  
+
                       // Filter compare contacts based on the main set
-                      const duplicateContacts = compareContacts.filter((contact) =>
-                        mainSet.has(
-                          contact.phone
-                            ? `${contact.email}-${formatPhoneNumber(contact.phone)}`
-                            : `${contact.email}-${contact.firstname}`
-                        )
+                      const duplicateContacts = compareContacts.filter(
+                        (contact) =>
+                          mainSet.has(
+                            contact.phone
+                              ? `${contact.email}-${formatPhoneNumber(
+                                  contact.phone,
+                                )}`
+                              : `${contact.email}-${contact.firstname}`,
+                          ),
                       );
-  
+
                       const nonDuplicateContacts = compareContacts.filter(
                         (contact) =>
                           !mainSet.has(
                             contact.phone
-                              ? `${contact.email}-${formatPhoneNumber(contact.phone)}`
-                              : `${contact.email}-${contact.firstname}`
-                          )
+                              ? `${contact.email}-${formatPhoneNumber(
+                                  contact.phone,
+                                )}`
+                              : `${contact.email}-${contact.firstname}`,
+                          ),
                       );
-  
+
                       // Write non-duplicate contacts to a CSV
                       if (nonDuplicateContacts.length > 0) {
                         const nonDuplicateWriter = createObjectCsvWriter({
                           path: nonDuplicateCSV,
-                          header: Object.keys(nonDuplicateContacts[0]).map((key) => ({
-                            id: key,
-                            title: key,
-                          })),
+                          header: Object.keys(nonDuplicateContacts[0]).map(
+                            (key) => ({
+                              id: key,
+                              title: key,
+                            }),
+                          ),
                         });
-                        await nonDuplicateWriter.writeRecords(nonDuplicateContacts);
-                        console.log(`Non-duplicate contacts saved to ${nonDuplicateCSV}`);
+                        await nonDuplicateWriter.writeRecords(
+                          nonDuplicateContacts,
+                        );
+                        console.log(
+                          `Non-duplicate contacts saved to ${nonDuplicateCSV}`,
+                        );
                       } else {
                         console.log("No non-duplicate contacts to write.");
                       }
-  
+
                       // Write duplicate contacts to a CSV
                       if (duplicateContacts.length > 0) {
                         const duplicateWriter = createObjectCsvWriter({
                           path: duplicateCSV,
-                          header: Object.keys(duplicateContacts[0]).map((key) => ({
-                            id: key,
-                            title: key,
-                          })),
+                          header: Object.keys(duplicateContacts[0]).map(
+                            (key) => ({
+                              id: key,
+                              title: key,
+                            }),
+                          ),
                         });
                         await duplicateWriter.writeRecords(duplicateContacts);
-                        console.log(`Duplicate contacts saved to ${duplicateCSV}`);
+                        console.log(
+                          `Duplicate contacts saved to ${duplicateCSV}`,
+                        );
                       } else {
                         console.log("No duplicate contacts to write.");
                       }
-  
+
                       resolve();
                     } catch (err) {
                       console.error("Error writing CSV:", err);
@@ -2858,16 +2563,29 @@ export class Server {
               .on("error", (err) => reject(err));
           });
         }
-  
+
         // Paths to CSV files
         const mainCSVPath = path.join(__dirname, "../public", "main.csv");
         const compareCSVPath = path.join(__dirname, "../public", "compare.csv");
-        const nonDuplicateCSVPath = path.join(__dirname, "../public", "non_duplicate.csv");
-        const duplicateCSVPath = path.join(__dirname, "../public", "duplicate.csv");
-  
+        const nonDuplicateCSVPath = path.join(
+          __dirname,
+          "../public",
+          "non_duplicate.csv",
+        );
+        const duplicateCSVPath = path.join(
+          __dirname,
+          "../public",
+          "duplicate.csv",
+        );
+
         // Call the function to process the CSV files
-        await processCSV(mainCSVPath, compareCSVPath, nonDuplicateCSVPath, duplicateCSVPath);
-  
+        await processCSV(
+          mainCSVPath,
+          compareCSVPath,
+          nonDuplicateCSVPath,
+          duplicateCSVPath,
+        );
+
         res.status(200).json({
           message: "Contacts have been filtered and saved successfully",
         });
@@ -2878,8 +2596,6 @@ export class Server {
       }
     });
   }
-  
-  
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {

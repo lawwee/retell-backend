@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { Ilogs } from "../types";
+import { Ilogs } from "../utils/types";
 const dailyStatsSchema = new Schema<Ilogs>(
   {
     day: { type: String },

@@ -1,6 +1,6 @@
 import { contactModel, jobModel } from "../contacts/contact_model";
 import { v4 as uuidv4 } from "uuid";
-import { jobstatus } from "../types";
+import { jobstatus } from "../utils/types";
 import schedule from "node-schedule";
 import Retell from "retell-sdk";
 import moment from "moment-timezone";

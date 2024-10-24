@@ -6,7 +6,7 @@ import {
   Ijob,
   callstatusenum,
   jobstatus,
-} from "../types";
+} from "../utils/types";
 
 const ContactSchema = new Schema<IContact>(
   {

@@ -7,7 +7,7 @@ import {
   ReminderRequiredRequest,
   ResponseRequiredRequest,
   Utterance,
-} from "../types";
+} from "../../types";
 
 let beginSentence: string;
 let agentPrompt: string;
