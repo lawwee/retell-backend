@@ -1547,22 +1547,26 @@ export class Server {
           .json({ error: "Search term or agent Ids is required" });
       }
 
-      const newSearchTerm = searchTerm ? searchTerm : ""
-      try {
-        const isValidEmail = (email: string) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email.trim());
-        };
-        const isValidPhone = (phone: string) => {
-          const phoneRegex = /^\+\d{10,15}$/;
-          return phoneRegex.test(phone.trim());
-        };
-        const searchTerms = newSearchTerm
-          .split(",")
-          .map((term: string) => term.trim());
-        const firstTermIsEmail = isValidEmail(newSearchTerm[0]);
+        const newSearchTerm = searchTerm ? searchTerm : "";
+        try {
+          const isValidEmail = (email: string) => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return email ? emailRegex.test(email.trim()) : false; 
+          };
+          // const isValidPhone = (phone: string) => {
+          //   const phoneRegex = /^\+\d{10,15}$/;
+          //   return phone ? phoneRegex.test(phone.trim()) : false; 
+          // };
+        
+          const searchTerms = newSearchTerm
+            .split(",")
+            .map((term: string) => term.trim())
+            .filter((term: any) => term); // Filter out any empty terms
+        
+          const firstTermIsEmail = isValidEmail(newSearchTerm);
 
         const newtag = tag ? tag.toLowerCase() : "";
+        console.log(firstTermIsEmail)
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
           const query: any = {
             agentId,
@@ -1577,6 +1581,9 @@ export class Server {
                 ],
           };
 
+          console.log("1.9")
+          console.log(query)
+          console.log("1")
           const formatDateToDB = (dateString: any) => {
             const date = new Date(dateString);
             const year = date.getUTCFullYear();
@@ -1665,8 +1672,9 @@ export class Server {
               query["status"] = callStatus;
             }
           }
-
+          console.log("2")
           console.log(query);
+          console.log("3")
           return await contactModel.find(query).populate("referenceToCallId");
         };
 
@@ -1675,7 +1683,6 @@ export class Server {
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
-          console.log(allResults);
         }
         let sentimentStatus:
           | "not-interested"
