@@ -1532,7 +1532,7 @@ export class Server {
   searchForAdmin() {
     this.app.post("/search", async (req: Request, res: Response) => {
       const {
-        searchTerm = "",
+        searchTerm ,
         startDate,
         endDate,
         statusOption,
@@ -1547,6 +1547,7 @@ export class Server {
           .json({ error: "Search term or agent Ids is required" });
       }
 
+      const newSearchTerm = searchTerm ? searchTerm : ""
       try {
         const isValidEmail = (email: string) => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1556,10 +1557,10 @@ export class Server {
           const phoneRegex = /^\+\d{10,15}$/;
           return phoneRegex.test(phone.trim());
         };
-        const searchTerms = searchTerm
+        const searchTerms = newSearchTerm
           .split(",")
           .map((term: string) => term.trim());
-        const firstTermIsEmail = isValidEmail(searchTerms[0]);
+        const firstTermIsEmail = isValidEmail(newSearchTerm[0]);
 
         const newtag = tag ? tag.toLowerCase() : "";
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
@@ -1684,13 +1685,7 @@ export class Server {
           | "voicemail"
           | "incomplete"
           | undefined;
-
-        if (
-          sentimentOption === "Uninterested" ||
-          sentimentOption === "uninterested"
-        ) {
-          sentimentStatus = callSentimentenum.NOT_INTERESTED;
-        } else if (
+  if (
           sentimentOption === "Interested" ||
           sentimentOption === "interested"
         ) {
@@ -1715,8 +1710,7 @@ export class Server {
           sentimentOption === "Call-Back"
         ) {
           sentimentStatus = callSentimentenum.CALL_BACK;
-        }
-        if (
+        } else if (
           sentimentOption &&
           sentimentOption.toLowerCase() === "uninterested"
         ) {
