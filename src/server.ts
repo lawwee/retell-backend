@@ -1714,13 +1714,7 @@ export class Server {
           sentimentOption &&
           sentimentOption.toLowerCase() === "uninterested"
         ) {
-          const filteredResults = allResults.filter((contact) => {
-            const analyzedTranscript =
-              contact.referenceToCallId?.analyzedTranscript;
-            const callStatus = contact.status === callstatusenum.CALLED;
-            return analyzedTranscript === callSentimentenum.NOT_INTERESTED && callStatus;
-          });
-          res.json(filteredResults);
+          sentimentStatus = callSentimentenum.NOT_INTERESTED
         } else if (!sentimentOption) {
           res.json(allResults);
         } else {
