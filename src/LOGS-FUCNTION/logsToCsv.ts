@@ -72,7 +72,7 @@ export const logsToCsv = async (
       query["datesCalled"] = formattedStartDate;
     }
 
-    console.log(query);
+    
     let contactQuery = contactModel
       .find(query)
       .sort({ createdAt: "desc" })
@@ -90,7 +90,7 @@ export const logsToCsv = async (
     }
 
     const foundContacts = await contactQuery.exec();
-    console.log(foundContacts);
+    
 
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
 
