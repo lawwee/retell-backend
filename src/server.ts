@@ -32,6 +32,7 @@ import argon2 from "argon2";
 // import { TwilioClient } from "./twilio_api";
 import { createClient } from "redis";
 import {
+  callSentimentenum,
   CustomLlmRequest,
   CustomLlmResponse,
   DateOption,
@@ -129,7 +130,7 @@ export class Server {
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
-   // this.secondscript();
+    this.secondscript();
     // this.createPhoneCall();
     this.handleContactUpdate();
     this.uploadcsvToDb();
@@ -1673,47 +1674,47 @@ export class Server {
         for (const term of searchTerms) {
           const results = await searchForTerm(term, firstTermIsEmail);
           allResults = allResults.concat(results);
-          console.log(allResults)
+          console.log(allResults);
         }
         let sentimentStatus:
-          | "Not-Interested"
-          | "Call-Back"
-          | "Interested"
-          | "Scheduled"
-          | "Voicemail"
-          | "Incomplete"
+          | "not-interested"
+          | "call-back"
+          | "interested"
+          | "scheduled"
+          | "voicemail"
+          | "incomplete"
           | undefined;
 
         if (
           sentimentOption === "Uninterested" ||
           sentimentOption === "uninterested"
         ) {
-          sentimentStatus = "Not-Interested";
+          sentimentStatus = callSentimentenum.NOT_INTERESTED;
         } else if (
           sentimentOption === "Interested" ||
           sentimentOption === "interested"
         ) {
-          sentimentStatus = "Interested";
+          sentimentStatus = callSentimentenum.INTERESTED;
         } else if (
           sentimentOption === "Scheduled" ||
           sentimentOption === "scheduled"
         ) {
-          sentimentStatus = "Scheduled";
+          sentimentStatus = callSentimentenum.SCHEDULED;
         } else if (
           sentimentOption === "Voicemail" ||
           sentimentOption === "voicemail"
         ) {
-          sentimentStatus = "Voicemail";
+          sentimentStatus = callSentimentenum.VOICEMAIL;
         } else if (
           sentimentOption === "incomplete-call" ||
           sentimentOption === "Incomplete-Call"
         ) {
-          sentimentStatus = "Incomplete";
+          sentimentStatus = callSentimentenum.INCOMPLETE_CALL;
         } else if (
           sentimentOption === "call-back" ||
           sentimentOption === "Call-Back"
         ) {
-          sentimentStatus = "Call-Back";
+          sentimentStatus = callSentimentenum.CALL_BACK;
         }
         if (
           sentimentOption &&
@@ -1723,7 +1724,7 @@ export class Server {
             const analyzedTranscript =
               contact.referenceToCallId?.analyzedTranscript;
             const callStatus = contact.status === callstatusenum.CALLED;
-            return analyzedTranscript === "uninterested" && callStatus;
+            return analyzedTranscript === callSentimentenum.NOT_INTERESTED && callStatus;
           });
           res.json(filteredResults);
         } else if (!sentimentOption) {
@@ -2853,5 +2854,12 @@ export class Server {
       }
     });
   }
-  
+  secondscript() {
+    this.app.post("/script1", async (req: Request, res: Response) => {
+     
+      
+      // const result = await processCSV()
+      res.send("")
+    });
+  }
 }

@@ -15,17 +15,17 @@ export const reviewTranscript = async (transcript: string) => {
 
 Categories:
 
-Interested: The lead clearly expresses interest, agrees to book an appointment, or continues discussing next steps.
+interested: The lead clearly expresses interest, agrees to book an appointment, or continues discussing next steps.
 
-Not-Interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
+not-interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
 
-Scheduled: The lead confirms a specific time for an appointment or meeting.
+scheduled: The lead confirms a specific time for an appointment or meeting.
 
-Call-Back: The lead requests the agent to call back later or suggests following up in the future.
+call-back: The lead requests the agent to call back later or suggests following up in the future.
 
-Incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
+incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
 
-Voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
+voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
 
 Instructions:
 1. Analyze the transcript below and assign it the most fitting category based on the lead's responses.

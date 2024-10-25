@@ -1,7 +1,7 @@
 import { createObjectCsvWriter } from "csv-writer";
 import { contactModel } from "../contacts/contact_model";
 import path from "path";
-import { callstatusenum } from "../utils/types";
+import { callSentimentenum, callstatusenum } from "../utils/types";
 import { differenceInDays, addDays } from "date-fns";
  
 
@@ -93,20 +93,20 @@ export const logsToCsv = async (
           if (sentimentOption) {
             switch (sentimentOption) {
               case "Not-Interested":
-                return contact.referenceToCallId?.analyzedTranscript === "Not-Interested";
+                return contact.referenceToCallId?.analyzedTranscript === callSentimentenum.NOT_INTERESTED;
               case "Scheduled":
-                return contact.referenceToCallId?.analyzedTranscript === "Scheduled";
+                return contact.referenceToCallId?.analyzedTranscript === callSentimentenum.SCHEDULED;
               case "Call-Back":
-                return contact.referenceToCallId?.analyzedTranscript === "Call-Back";
+                return contact.referenceToCallId?.analyzedTranscript === callSentimentenum.CALL_BACK;
               case "Incomplete":
-                return contact.referenceToCallId?.analyzedTranscript === "Incomplete";
+                return contact.referenceToCallId?.analyzedTranscript === callSentimentenum.INTERESTED;
               case "Interested":
                 return (
-                  contact.referenceToCallId?.analyzedTranscript === "Interested" &&
-                  contact.status !== "connected-voicemail"
+                  contact.referenceToCallId?.analyzedTranscript === callSentimentenum.INTERESTED &&
+                  contact.status !== callstatusenum.VOICEMAIL
                 );
               case "Voicemail":
-                return contact.status === "connected-voicemail";
+                return contact.status === callSentimentenum.VOICEMAIL;
               default:
                 return true;
             }

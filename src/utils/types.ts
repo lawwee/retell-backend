@@ -61,6 +61,15 @@ export enum callstatusenum {
   NO_ANSWER = "not-answered"
 }
 
+export enum callSentimentenum{
+  NOT_INTERESTED = "not-interested",
+  SCHEDULED = "scheduled",
+  CALL_BACK = "call-back",
+  INCOMPLETE_CALL = "incomplete",
+  VOICEMAIL = "voicemail",
+  INTERESTED = "interested"
+}
+
 export interface Itranscript {
   transcript: string;
 }
