@@ -1059,7 +1059,7 @@ export class Server {
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
 
-        //.
+        
         analyzedTranscript = await reviewTranscript(transcript);
         const isCallScheduled =
           analyzedTranscript.message.content === "Scheduled";
@@ -1100,11 +1100,12 @@ export class Server {
           callStatus = callstatusenum.CALLED;
         }
 
+        const jobidfromretell = retell_llm_dynamic_variables.job_id ? retell_llm_dynamic_variables.job_id : null
         const statsResults = await DailyStatsModel.findOneAndUpdate(
           {
             day: todayString,
             agentId: agent_id,
-            jobProcessedBy: retell_llm_dynamic_variables.job_id,
+            jobProcessedBy: jobidfromretell,
           },
           statsUpdate,
           { upsert: true, returnOriginal: false },
