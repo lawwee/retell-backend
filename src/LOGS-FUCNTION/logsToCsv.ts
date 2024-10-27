@@ -9,17 +9,43 @@ export const logsToCsv = async (
   newlimit?: number,
   startDate?: string,
   endDate?: string,
-  statusOption?: "Called" | "notCalled" | "vm" | "Failed" | "All",
+  statusOption?: "called" | "not-called" | "voicemail" | "failed" | "all",
   sentimentOption?:
-    | "Not-Interested"
-    | "Scheduled"
-    | "Call-Back"
-    | "Incomplete"
-    | "Interested"
-    | "Voicemail"
-    | "All",
+    | "not-interested"
+    | "scheduled"
+    | "call-back"
+    | "incomplete"
+    | "interested"
+    | "voicemail"
+    | "all",
 ) => {
   try {
+    const validSentimentOptions = [
+      "not-interested",
+      "scheduled",
+      "call-back",
+      "incomplete",
+      "interested",
+      "voicemail",
+      "all",
+    ];
+
+    if (sentimentOption && !validSentimentOptions.includes(sentimentOption)) {
+      return { status: 400, error: "Invalid sentiment option provided." };
+    }
+
+    const validStatusOptions = [
+      "called",
+      "not-called",
+      "voicemail",
+      "failed",
+      "all",
+    ];
+
+    if (statusOption && !validStatusOptions.includes(statusOption)) {
+      return { status: 400, error: "Invalid status option provided." };
+    }
+
     let query: any = {
       isDeleted: false,
     };
@@ -28,15 +54,15 @@ export const logsToCsv = async (
       query.agentId = agentId;
     }
 
-    if (statusOption && statusOption !== "All") {
+    if (statusOption && statusOption !== "all") {
       let callStatus;
-      if (statusOption === "Called") {
+      if (statusOption === "called") {
         callStatus = callstatusenum.CALLED;
-      } else if (statusOption === "notCalled") {
+      } else if (statusOption === "not-called") {
         callStatus = callstatusenum.NOT_CALLED;
-      } else if (statusOption === "vm") {
+      } else if (statusOption === "voicemail") {
         callStatus = callstatusenum.VOICEMAIL;
-      } else if (statusOption === "Failed") {
+      } else if (statusOption === "failed") {
         callStatus = callstatusenum.FAILED;
       }
       query.status = callStatus;
@@ -72,7 +98,6 @@ export const logsToCsv = async (
       query["datesCalled"] = formattedStartDate;
     }
 
-    
     let contactQuery = contactModel
       .find(query)
       .sort({ createdAt: "desc" })
@@ -90,7 +115,6 @@ export const logsToCsv = async (
     }
 
     const foundContacts = await contactQuery.exec();
-    
 
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
 
@@ -109,17 +133,17 @@ export const logsToCsv = async (
       ],
     });
     let callSentimentStatus: string;
-    if (sentimentOption === "Not-Interested") {
+    if (sentimentOption === "not-interested") {
       callSentimentStatus = callSentimentenum.NOT_INTERESTED;
-    } else if (sentimentOption === "Scheduled") {
+    } else if (sentimentOption === "scheduled") {
       callSentimentStatus = callSentimentenum.SCHEDULED;
-    } else if (sentimentOption === "Call-Back") {
+    } else if (sentimentOption === "call-back") {
       callSentimentStatus = callSentimentenum.CALL_BACK;
-    } else if (sentimentOption === "Interested") {
+    } else if (sentimentOption === "interested") {
       callSentimentStatus = callSentimentenum.INTERESTED;
-    } else if (sentimentOption === "Voicemail") {
+    } else if (sentimentOption === "voicemail") {
       callSentimentStatus = callSentimentenum.VOICEMAIL;
-    } else if (sentimentOption === "Incomplete") {
+    } else if (sentimentOption === "incomplete") {
       callSentimentStatus = callSentimentenum.INCOMPLETE_CALL;
     }
     const contactsData = foundContacts
@@ -137,7 +161,7 @@ export const logsToCsv = async (
       .filter((contact) => {
         // If sentimentOption is provided and not "All", filter by analyzedTranscript
         return (
-          sentimentOption === "All" ||
+          sentimentOption === "all" ||
           contact.analyzedTranscript === callSentimentStatus
         );
       });
