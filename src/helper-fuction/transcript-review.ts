@@ -14,24 +14,18 @@ export const reviewTranscript = async (transcript: string) => {
           content: `You are an expert data analyst specializing in sentiment analysis of call transcripts between AI agents and leads. Your task is to accurately categorize each conversation based on the lead's responses. Please use one of the following categories:
 
 Categories:
-
 interested: The lead clearly expresses interest, agrees to book an appointment, or continues discussing next steps.
-
 not-interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
-
 scheduled: The lead confirms a specific time for an appointment or meeting.
-
 call-back: The lead requests the agent to call back later or suggests following up in the future.
-
 incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
-
 voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
-
 Instructions:
-1. Analyze the transcript below and assign it the most fitting category based on the lead's responses.
-2. If the transcript is empty or missing, respond with N/A.
-3. Catergorize the transcript only according the category and dont use anothing more just the one word of the catergory for each transcript
-Transcript: ${transcript}`,
+
+Analyze the transcript below and assign it the most fitting category based on the lead's responses.
+If the transcript is empty or missing, respond with N/A.
+Respond only with the appropriate category without any additional explanation.
+Transcript: ${transcript}`,
         },
       ],
       // model: "gpt-4-turbo-preview",

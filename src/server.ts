@@ -80,6 +80,7 @@ import {
 } from "./helper-fuction/zoom";
 import callHistoryModel from "./contacts/history_model";
 import { formatPhoneNumber } from "./helper-fuction/formatter";
+import { updateAnalyzedTranscriptForContacts } from "./script";
 connectDb();
 const smee = new SmeeClient({
   source: "https://smee.io/gRkyib7zF2UwwFV",
@@ -2789,8 +2790,8 @@ export class Server {
   }
   secondscript() {
     this.app.post("/script1", async (req: Request, res: Response) => {
-      // const result = await processCSV()
-      res.send("");
+      const result = await updateAnalyzedTranscriptForContacts()
+      res.send(result)
     });
   }
 }

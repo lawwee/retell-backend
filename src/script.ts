@@ -1,59 +1,25 @@
-// import * as fs from 'fs';
-// import * as path from 'path';
-// import csv from 'csv-parser';
-// import { parse } from 'fast-csv';
+import { contactModel, EventModel } from "./contacts/contact_model";
+import { reviewTranscript } from "./helper-fuction/transcript-review";
 
-// interface CSVRow {
-//   analyzedTranscript: string;
-//   [key: string]: string; // Other columns will be dynamic
-// }
-
-
-// // Function to process the CSV file
-// export async function processCSV(): Promise<void> {
+export async function updateAnalyzedTranscriptForContacts(): Promise<void> {
+    try {
     
-//   const groupedData: Record<string, CSVRow[]> = {};
-//   const inputFilePath = path.join(__dirname,"..", "public", "input.csv");
-//   const outputFolderPath = path.join(__dirname,  "output")
-//   // Ensure the output folder exists
-//   if (!fs.existsSync(outputFolderPath)) {
-//     fs.mkdirSync(outputFolderPath);
-//   }
-
-//   // Read and parse the CSV file
-//   fs.createReadStream(inputFilePath)
-//     .pipe(csv())
-//     .on('data', (row: CSVRow) => {
-//       const transcriptType = row.analyzedTranscript || 'Unknown';
-
-//       // Group rows by the `analyzedTranscript`
-//       if (!groupedData[transcriptType]) {
-//         groupedData[transcriptType] = [];
-//       }
-//       groupedData[transcriptType].push(row);
-//     })
-//     .on('end', () => {
-//       console.log('CSV file successfully processed.');
-
-//       // Write grouped data into separate CSV files
-//       Object.keys(groupedData).forEach((transcriptType) => {
-//         const filePath = path.join(outputFolderPath, `${transcriptType}.csv`);
-//         const csvStream = fs.createWriteStream(filePath);
-
-//         // Write CSV headers
-//         csvStream.write(Object.keys(groupedData[transcriptType][0]).join(',') + '\n');
-
-//         // Write each row in the group
-//         groupedData[transcriptType].forEach((row) => {
-//           csvStream.write(Object.values(row).join(',') + '\n');
-//         });
-
-//         csvStream.end();
-//         console.log(`Output written for ${transcriptType}: ${filePath}`);
-//       });
-//     })
-//     .on('error', (error) => {
-//       console.error('Error reading CSV file:', error);
-//     });
-// }
-
+      const contacts = await contactModel.find({ agentId:"agent_7cc8f816b0fd2c020037ec31b5", isDeleted: false })
+        .populate("referenceToCallId")
+        .exec();
+      for (const contact of contacts) {
+        console.log(contact)
+        const referenceToCallId = contact.referenceToCallId as any; 
+        if (referenceToCallId && referenceToCallId.transcript) {
+        
+          const analyzedTranscript = await reviewTranscript(referenceToCallId.transcript);
+          await EventModel.findByIdAndUpdate(referenceToCallId._id, {
+            analyzedTranscript:analyzedTranscript.message.content,
+          });
+        }
+      }
+      console.log("Analyzed transcript updated for all contacts.");
+    } catch (error) {
+      console.error("Error updating analyzed transcript:", error);
+    }
+  }
