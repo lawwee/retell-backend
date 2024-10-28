@@ -30,6 +30,7 @@ voicemail: The call results in leaving a voicemail or the agent reaches the lead
 Instructions:
 1. Analyze the transcript below and assign it the most fitting category based on the lead's responses.
 2. If the transcript is empty or missing, respond with N/A.
+3. Catergorize the transcript only according the category and dont use anothing more just the one word of the catergory for each transcript
 Transcript: ${transcript}`,
         },
       ],
