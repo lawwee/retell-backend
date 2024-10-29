@@ -1063,7 +1063,7 @@ export class Server {
         
         analyzedTranscript = await reviewTranscript(transcript);
         const isCallScheduled =
-          analyzedTranscript.message.content === "Scheduled";
+          analyzedTranscript.message.content === "scheduled";
         const callEndedUpdateData = {
           callId: call_id,
           agentId: payload.call.agent_id,
