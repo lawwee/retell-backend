@@ -37,7 +37,7 @@ const userSchema = new Schema(
     },
     group: {
       type: String,
-      enum: ["BE+WELL", "TVAG", "ARS", "GSA"],
+      enum: ["BE+WELL", "TVAG", "ARS", "GSA", "LQR"],
       required: [true, "provide a group"],
     },
     isAdmin: {
