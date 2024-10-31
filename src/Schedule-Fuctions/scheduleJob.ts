@@ -1,10 +1,10 @@
 import { contactModel, jobModel } from "../contacts/contact_model";
 import { v4 as uuidv4 } from "uuid";
-import { jobstatus } from "../utils/types";
+import { callstatusenum, jobstatus } from "../utils/types";
 import schedule from "node-schedule";
 import Retell from "retell-sdk";
 import moment from "moment-timezone";
-import { searchAndRecallContacts } from "./searchAndRecallContact";
+//import { searchAndRecallContacts } from "./searchAndRecallContact";
 import { DailyStatsModel } from "../contacts/call_log";
 import { formatPhoneNumber } from "../helper-fuction/formatter";
 
@@ -55,8 +55,8 @@ export const scheduleCronJob = async (
     const contacts = await contactModel
       .find({
         agentId,
-        status: "not-called",
-        isDeleted: { $ne: true },
+        status: callstatusenum.NOT_CALLED,
+        isDeleted: false,
         ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
       })
       .limit(contactLimit)
@@ -139,43 +139,43 @@ export const scheduleCronJob = async (
             );
             console.log(`Call successful for contact: ${contact.firstname}`);
 
-            // Wait for 2 seconds between calls
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            // // Wait for 2 seconds between calls
+            // await new Promise((resolve) => setTimeout(resolve, 3000));
 
-            const updatedContact = await contactModel.findOne({
-              $or: [
-                { callId: registerCallResponse2.call_id },
-                { _id: contact._id.toString() },
-              ],
-            });
-            if (updatedContact?.status === "dial_no_answer") {
-              console.log(
-                `User ${contact.firstname} didn't answer, calling again...`,
-              );
+            // const updatedContact = await contactModel.findOne({
+            //   $or: [
+            //     { callId: registerCallResponse2.call_id },
+            //     { _id: contact._id.toString() },
+            //   ],
+            // });
+            // if (updatedContact?.status === "dial_no_answer") {
+            //   console.log(
+            //     `User ${contact.firstname} didn't answer, calling again...`,
+            //   );
 
-              const retryCallResponse = await retellClient.call.create({
-                from_number: fromNumber,
-                to_number: formatPhoneNumber(postdata.toNumber),
-                override_agent_id: agentId,
-                drop_call_if_machine_detected: true,
-                retell_llm_dynamic_variables: {
-                  user_firstname: contact.firstname,
-                  user_email: contact.email,
-                },
-              });
+            //   const retryCallResponse = await retellClient.call.create({
+            //     from_number: fromNumber,
+            //     to_number: formatPhoneNumber(postdata.toNumber),
+            //     override_agent_id: agentId,
+            //     drop_call_if_machine_detected: true,
+            //     retell_llm_dynamic_variables: {
+            //       user_firstname: contact.firstname,
+            //       user_email: contact.email,
+            //     },
+            //   });
 
-              await contactModel.findByIdAndUpdate(contact._id, {
-                callId: retryCallResponse.call_id,
-              });
+            //   await contactModel.findByIdAndUpdate(contact._id, {
+            //     callId: retryCallResponse.call_id,
+            //   });
 
-              console.log(
-                `Retry call initiated for contact: ${contact.firstname}`,
-              );
-            } else {
-              console.log(
-                `User ${contact.firstname} answered or the status changed, skipping recall.`,
-              );
-            }
+            //   console.log(
+            //     `Retry call initiated for contact: ${contact.firstname}`,
+            //   );
+            // } else {
+            //   console.log(
+            //     `User ${contact.firstname} answered or the status changed, skipping recall.`,
+            //   );
+            // }
           } catch (error) {
             console.log("Error during call processing:", error);
           }
@@ -184,14 +184,14 @@ export const scheduleCronJob = async (
           await new Promise((resolve) => setTimeout(resolve, 4000));
         }
 
-        console.log("Contacts processed, starting recall...");
-        await searchAndRecallContacts(
-          contactLimit,
-          agentId,
-          fromNumber,
-          jobId,
-          lowerCaseTag,
-        );
+        // console.log("Contacts processed, starting recall...");
+        // await searchAndRecallContacts(
+        //   contactLimit,
+        //   agentId,
+        //   fromNumber,
+        //   jobId,
+        //   lowerCaseTag,
+        // );
       } catch (error) {
         console.error("Error in job processing:", error);
       }
