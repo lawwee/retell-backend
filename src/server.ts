@@ -153,6 +153,7 @@ export class Server {
     this.getTranscriptAfterCallEnded();
     this.searchForClient();
     this.batchDeleteUser();
+    this.sendReportToClient()
     this.getNotCalledUsersAndDelete();
     this.signUpUser();
     this.loginAdmin();
@@ -1249,6 +1250,22 @@ export class Server {
         //   };
         //   axios.post(process.env.ZAP_URL, data);
         // }
+        try {
+          if (analyzedTranscript.message.content === "call-back") {
+            const callbackdate =await reviewCallback(transcript)
+            const data = {
+              firstname: resultForUserUpdate.firstname,
+              email: resultForUserUpdate.email,
+              phone: resultForUserUpdate.phone,
+              summary: callbackdate ,
+              url:recording_url,
+            };
+            axios.post(process.env.MAKE_URL, data);
+          }
+        } catch (error) {
+         console.log(error) 
+        }
+       
       }
     } catch (error) {
       console.error("Error in handleCallAnalyyzedOrEnded:", error);
@@ -2115,14 +2132,15 @@ export class Server {
     });
   }
   testingMake() {
-    this.app.post("/make", async (req: Request, res: Response) => {
+    this.app.post("/make", async (req: Request, res: Response) => { 
       const result = await axios.post(
-        "https://hook.eu2.make.com/mnod1p5sp4fe1u5cvekmqk807tabs28e",
+        "https://hook.us1.make.com/ygtjngd7ta8bj2mm4sopqk5nmmjazrqr",
         {
-          eventName: "",
-          startDate: "",
-          endDate: "",
-          duration: "",
+         firstname:"nick", 
+        email:"nick@email.com",
+        phone:+12343343232,
+        summary:"a call wa made",
+        url:"http:snwincwcje cai ak ",
         },
       );
       console.log(result);
@@ -2904,6 +2922,55 @@ export class Server {
     this.app.post("/script1", async (req: Request, res: Response) => {
       const result = await script();
       res.send(result);
+    });
+  }
+  sendReportToClient() {
+    this.app.get("/send-report-to-client", async (req: Request, res: Response) => {
+      try {
+        // const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+          const today  = "2024-10-31"
+        const dailyStats = await DailyStatsModel.find({ day: today }).exec();
+      
+        
+        // Transform the data into an object of objects
+        const result: Record<string, Ilogs> = {};
+        
+        dailyStats.forEach(stat => {
+          const agentKey: string = (typeof stat.agentId === 'string' ? stat.agentId : 'unknown');
+  
+          if (!result[agentKey]) {
+            result[agentKey] = {
+              day: today, // Adding required properties
+              agentId: agentKey, // Use the validated agentKey
+              jobProcessedBy: stat.jobProcessedBy || 'unknown',
+              totalCalls: 0,
+              totalTransffered: 0,
+              totalAnsweredByVm: 0,
+              totalFailed: 0,
+              totalAppointment: 0,
+              totalCallAnswered: 0,
+              totalDialNoAnswer: 0,
+            };
+          }
+  
+          result[agentKey].totalCalls += stat.totalCalls || 0;
+          result[agentKey].totalTransffered += stat.totalTransffered || 0;
+          result[agentKey].totalAnsweredByVm += stat.totalAnsweredByVm || 0;
+          result[agentKey].totalFailed += stat.totalFailed || 0;
+          result[agentKey].totalAppointment += stat.totalAppointment || 0;
+          result[agentKey].totalCallAnswered += stat.totalCallAnswered || 0;
+          result[agentKey].totalDialNoAnswer += stat.totalDialNoAnswer || 0;
+        });
+  
+        // Filter results to include only those with totalCalls > 2
+        const filteredResults = Object.values(result).filter(agentStats => agentStats.totalCalls > 2);
+        
+        res.json(filteredResults); // Send the filtered results back to the client
+  
+      } catch (error) {
+        console.error('Error fetching daily stats:', error);
+        res.status(500).send('Internal Server Error'); // Send an error response
+      }
     });
   }
 }

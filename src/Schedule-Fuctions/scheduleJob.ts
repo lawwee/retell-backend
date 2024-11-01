@@ -179,8 +179,6 @@ export const scheduleCronJob = async (
           } catch (error) {
             console.log("Error during call processing:", error);
           }
-
-        
           await new Promise((resolve) => setTimeout(resolve, 4000));
         }
 
@@ -192,6 +190,10 @@ export const scheduleCronJob = async (
         //   jobId,
         //   lowerCaseTag,
         // );
+        await jobModel.findOneAndUpdate(
+                { jobId },
+                { callstatus: jobstatus.CALLED, shouldContinueProcessing: false },
+              );
       } catch (error) {
         console.error("Error in job processing:", error);
       }

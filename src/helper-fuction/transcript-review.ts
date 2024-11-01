@@ -38,6 +38,7 @@ Transcript: ${transcript}`,
     throw new Error("Failed to analyze transcript");
   }
 };
+
 export const reviewCallback = async (transcript: string) => {
   try {
     const currentDate = new Date();
@@ -57,7 +58,7 @@ export const reviewCallback = async (transcript: string) => {
         { role: "system", content: "You are a helpful assistant." },
         {
           role: "user",
-          content: `Review and return only the time the client wishes to be called back at in this transcript. The current date is ${formattedCurrentDate}. If a callback date or time is mentioned. if no date or time is mentioned, return the next immediate Monday. All date should be in the format of the current date format.Return only the call back date. Transcript: ${transcript}`,
+          content: `Review this transcript and return only the time the client wishes to be called back at in this transcript.  If a callback date or time is mentioned. if no date or time is mentioned, return the next immediate Monday.Return only the call back date. Transcript: ${transcript}`,
         },
       ],
       // model: "gpt-4-turbo-preview",
