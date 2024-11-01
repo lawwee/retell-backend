@@ -1250,21 +1250,21 @@ export class Server {
         //   };
         //   axios.post(process.env.ZAP_URL, data);
         // }
-        try {
-          if (analyzedTranscript.message.content === "call-back") {
-            const callbackdate =await reviewCallback(transcript)
-            const data = {
-              firstname: resultForUserUpdate.firstname,
-              email: resultForUserUpdate.email,
-              phone: resultForUserUpdate.phone,
-              summary: callbackdate ,
-              url:recording_url,
-            };
-            axios.post(process.env.MAKE_URL, data);
-          }
-        } catch (error) {
-         console.log(error) 
-        }
+        // try {
+        //   if (analyzedTranscript.message.content === "call-back") {
+        //     const callbackdate =await reviewCallback(transcript)
+        //     const data = {
+        //       firstname: resultForUserUpdate.firstname,
+        //       email: resultForUserUpdate.email,
+        //       phone: resultForUserUpdate.phone,
+        //       summary: callbackdate ,
+        //       url:recording_url,
+        //     };
+        //     axios.post(process.env.MAKE_URL, data);
+        //   }
+        // } catch (error) {
+        //  console.log(error) 
+        // }
        
       }
     } catch (error) {
@@ -2927,8 +2927,8 @@ export class Server {
   sendReportToClient() {
     this.app.get("/send-report-to-client", async (req: Request, res: Response) => {
       try {
-        // const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-          const today  = "2024-10-31"
+        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+          //const today  = "2024-10-31"
         const dailyStats = await DailyStatsModel.find({ day: today }).exec();
       
         
