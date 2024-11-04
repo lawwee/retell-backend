@@ -115,6 +115,7 @@ export const logsToCsv = async (
     }
 
     const foundContacts = await contactQuery.exec();
+    console.log(foundContacts)
 
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
 

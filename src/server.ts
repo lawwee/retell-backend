@@ -1088,11 +1088,13 @@ export class Server {
           console.log(`call started for: ${payload.data.call_id}`);
           await this.handleCallStarted(payload.data);
         } else if (
-          payload.event === "call_ended" ||
-          payload.event === "call_analyzed"
+          payload.event === "call_ended"
         ) {
           await this.handleCallEndedOrAnalyzed(payload, todayString);
-          await redisClient.del(webhookRedisKey);
+          // await redisClient.del(webhookRedisKey);
+        } else if (payload.event === "call_analyzed"){
+          await this.handleCallAnalyzed(payload)
+            await redisClient.del(webhookRedisKey);
         }
       } catch (error) {
         console.log(error);
@@ -1270,6 +1272,16 @@ export class Server {
     } catch (error) {
       console.error("Error in handleCallAnalyyzedOrEnded:", error);
     }
+  }
+  async handleCallAnalyzed (payload:any){
+    const data = {
+      retellCallSummary:payload.call_analysis.call_summary
+    }
+    const results = await EventModel.findOneAndUpdate(
+      { callId: payload.call.call_id, agentId: payload.data.call.agent_id },
+      { $set: data },
+      { upsert: true, returnOriginal: false },
+    );
   }
   deleteAll() {
     this.app.patch(
