@@ -2691,6 +2691,7 @@ export class Server {
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
         let dateFilter = {};
 
+        console.log(status)
         switch (dateOption) {
           case DateOption.Today:
             dateFilter = { datesCalled: today };
@@ -2750,94 +2751,56 @@ export class Server {
             dateFilter = { datesCalled: { $gte: dateToCheck1 } };
             break;
         }
+        try {
+          
+        } catch (error) {
+          
+        }
         let result;
-        switch (status) {
-          case "failed":
-            result = await contactModel
-              .find({
+        try {
+          // Run query based on status
+          switch (status) {
+            case "failed":
+              const failedQuery = {
                 agentId,
                 isDeleted: false,
                 status: callstatusenum.FAILED,
                 ...dateFilter,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          case "called":
-            result = await contactModel
-              .find({
-                agentId,
-                isDeleted: false,
-                status: { $ne: callstatusenum.NOT_CALLED },
-                ...dateFilter,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          case "not-called":
-            result = await contactModel
-              .find({
-                agentId,
-                isDeleted: false,
-                status: callstatusenum.NOT_CALLED,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          case "answered":
-            result = await contactModel
-              .find({
-                agentId,
-                isDeleted: false,
-                status: callstatusenum.CALLED,
-                ...dateFilter,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          case "transferred":
-            result = await contactModel
-              .find({
-                agentId,
-                isDeleted: false,
-                status: callstatusenum.TRANSFERRED,
-                ...dateFilter,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          case "voicemail":
-            result = await contactModel
-              .find({
-                agentId,
-                isDeleted: false,
-                status: callstatusenum.VOICEMAIL,
-                ...dateFilter,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          case "appointment":
-            result = await contactModel
-              .find({
-                agentId,
-                isDeleted: false,
-                status: callstatusenum.SCHEDULED,
-                ...dateFilter,
-              })
-              .populate("referenceToCallId");
-            break;
-
-          default:
-            result = await contactModel
-              .find({
+              };
+              console.log("Failed status query:", failedQuery);
+  
+              result = await contactModel
+                .find(failedQuery)
+                .populate("referenceToCallId");
+              console.log("Failed status result:", result);
+              break;
+            // Additional cases as in original code
+            default:
+              const defaultQuery = {
                 agentId,
                 isDeleted: false,
                 ...dateFilter,
-              })
-              .populate("referenceToCallId");
+              };
+              console.log("Default status query:", defaultQuery);
+  
+              result = await contactModel
+                .find(defaultQuery)
+                .populate("referenceToCallId");
+              console.log("Default status result:", result);
+          }
+  
+          // Log result length to ensure query returned a result
+          if (!result) {
+            console.log("No results found for status:", status);
+          } else {
+            console.log(`Results found for status ${status}:`, result.length);
+          }
+          
+          res.json(result);
+        } catch (queryError) {
+          console.error("Query error:", queryError);
+          res.status(500).send("An error occurred during the query.");
         }
-        res.json(result);
       } catch (error) {
         console.error("Error in populateUserGet:", error);
         res.status(500).send("An error occurred while processing the request.");

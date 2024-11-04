@@ -20,6 +20,7 @@ scheduled: The lead confirms a specific time for an appointment or meeting.
 call-back: The lead requests the agent to call back later or suggests following up in the future.
 incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
 voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
+dnc: The lead explicitly says they never want to be called back again or ask to be removed from the list and not be called again
 Instructions:
 
 Analyze the transcript below and assign it the most fitting category based on the lead's responses.
