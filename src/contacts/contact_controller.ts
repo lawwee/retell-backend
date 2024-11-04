@@ -223,12 +223,12 @@ export const getAllContact = async (
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
     });
-    const totalAnsweredCalls = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.CALLED,
-      ...dateFilter,
-    });
+    // const totalAnsweredCalls = await contactModel.countDocuments({
+    //   agentId,
+    //   isDeleted: false,
+    //   status: callstatusenum.CALLED,
+    //   ...dateFilter,
+    // });
 
 
     const stats = await DailyStatsModel.aggregate([
@@ -241,6 +241,7 @@ export const getAllContact = async (
           totalAppointment: { $sum: "$totalAppointment" },
           totalCallsTransffered: { $sum: "$totalTransffered" },
           totalFailedCalls: { $sum: "$totalFailed" },
+          totalAnsweredCalls:{$sum:"$totalCallAnswered"}
         },
       },
     ]);
