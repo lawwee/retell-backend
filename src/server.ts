@@ -1090,7 +1090,7 @@ export class Server {
         } else if (
           payload.event === "call_ended"
         ) {
-          await this.handleCallEndedOrAnalyzed(payload, todayString);
+          await this.handleCallEnded(payload, todayString);
           // await redisClient.del(webhookRedisKey);
         } else if (payload.event === "call_analyzed"){
           await this.handleCallAnalyzed(payload)
@@ -1112,7 +1112,7 @@ export class Server {
       console.error("Error in handleCallStarted:", error);
     }
   }
-  async handleCallEndedOrAnalyzed(payload: any, todayString: any) {
+  async handleCallEnded(payload: any, todayString: any) {
     try {
       const {
         call_id,
@@ -1274,14 +1274,19 @@ export class Server {
     }
   }
   async handleCallAnalyzed (payload:any){
-    const data = {
-      retellCallSummary:payload.call_analysis.call_summary
+    try {
+      const data = {
+        retellCallSummary:payload.data.call_analysis.call_summary
+      }
+      const results = await EventModel.findOneAndUpdate(
+        { callId: payload.call.call_id, agentId: payload.call.agent_id },
+        { $set: data },
+        { upsert: true, returnOriginal: false },
+      );
+    } catch (error) {
+      console.log(error)
     }
-    const results = await EventModel.findOneAndUpdate(
-      { callId: payload.call.call_id, agentId: payload.data.call.agent_id },
-      { $set: data },
-      { upsert: true, returnOriginal: false },
-    );
+    
   }
   deleteAll() {
     this.app.patch(
@@ -2681,6 +2686,132 @@ export class Server {
       }
     });
   }
+  // populateUserGet() {
+  //   this.app.post("/user/populate", async (req: Request, res: Response) => {
+  //     try {
+  //       const { agentId, dateOption, status } = req.body;
+  //       const timeZone = "America/Los_Angeles"; // PST time zone
+  //       const now = new Date();
+  //       const zonedNow = toZonedTime(now, timeZone);
+  //       const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+  //       let dateFilter = {};
+
+  //       console.log(status)
+  //       switch (dateOption) {
+  //         case DateOption.Today:
+  //           dateFilter = { datesCalled: today };
+  //           break;
+  //         case DateOption.Yesterday:
+  //           const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+  //           const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+  //             timeZone,
+  //           });
+  //           dateFilter = { datesCalled: yesterday };
+  //           break;
+  //         case DateOption.ThisWeek:
+  //           const pastDays = [];
+  //           for (let i = 1; pastDays.length < 5; i++) {
+  //             const day = subDays(now, i);
+  //             const dayOfWeek = day.getDay();
+  //             if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+  //               pastDays.push(
+  //                 format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
+  //                   timeZone,
+  //                 }),
+  //               );
+  //             }
+  //           }
+  //           dateFilter = {
+  //             datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
+  //           };
+  //           break;
+  //         case DateOption.ThisMonth:
+  //           const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
+  //           const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+  //             timeZone,
+  //           });
+  //           dateFilter = { datesCalled: { $gte: startOfMonthDate } };
+  //           break;
+  //         case DateOption.Total:
+  //           dateFilter = {};
+  //           break;
+  //         case DateOption.LAST_SCHEDULE:
+  //           const recentJob = await jobModel
+  //             .findOne({})
+  //             .sort({ createdAt: -1 })
+  //             .lean();
+  //           if (!recentJob)
+  //             return res.status(404).send("No jobs found for today's filter.");
+  //           const dateToCheck = recentJob.scheduledTime.split("T")[0];
+  //           dateFilter = { datesCalled: { $gte: dateToCheck } };
+  //           break;
+  //         default:
+  //           const recentJob1 = await jobModel
+  //             .findOne({})
+  //             .sort({ createdAt: -1 })
+  //             .lean();
+  //           if (!recentJob1)
+  //             return res.status(404).send("No jobs found for today's filter.");
+  //           const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+  //           dateFilter = { datesCalled: { $gte: dateToCheck1 } };
+  //           break;
+  //       }
+  //       try {
+          
+  //       } catch (error) {
+          
+  //       }
+  //       let result;
+  //       try {
+  //         // Run query based on status
+  //         switch (status) {
+  //           case "failed":
+  //             const failedQuery = {
+  //               agentId,
+  //               isDeleted: false,
+  //               status: callstatusenum.FAILED,
+  //               ...dateFilter,
+  //             };
+  //             console.log("Failed status query:", failedQuery);
+  
+  //             result = await contactModel
+  //               .find(failedQuery)
+  //               .populate("referenceToCallId");
+  //             console.log("Failed status result:", result);
+  //             break;
+  //           // Additional cases as in original code
+  //           default:
+  //             const defaultQuery = {
+  //               agentId,
+  //               isDeleted: false,
+  //               ...dateFilter,
+  //             };
+  //             console.log("Default status query:", defaultQuery);
+  
+  //             result = await contactModel
+  //               .find(defaultQuery)
+  //               .populate("referenceToCallId");
+  //             console.log("Default status result:", result);
+  //         }
+  
+  //         // Log result length to ensure query returned a result
+  //         if (!result) {
+  //           console.log("No results found for status:", status);
+  //         } else {
+  //           console.log(`Results found for status ${status}:`, result.length);
+  //         }
+          
+  //         res.json(result);
+  //       } catch (queryError) {
+  //         console.error("Query error:", queryError);
+  //         res.status(500).send("An error occurred during the query.");
+  //       }
+  //     } catch (error) {
+  //       console.error("Error in populateUserGet:", error);
+  //       res.status(500).send("An error occurred while processing the request.");
+  //     }
+  //   });
+  // }
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {
@@ -2690,123 +2821,113 @@ export class Server {
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
         let dateFilter = {};
-
-        console.log(status)
-        switch (dateOption) {
-          case DateOption.Today:
-            dateFilter = { datesCalled: today };
-            break;
-          case DateOption.Yesterday:
-            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
-              timeZone,
-            });
-            dateFilter = { datesCalled: yesterday };
-            break;
-          case DateOption.ThisWeek:
-            const pastDays = [];
-            for (let i = 1; pastDays.length < 5; i++) {
-              const day = subDays(now, i);
-              const dayOfWeek = day.getDay();
-              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                pastDays.push(
-                  format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
-                    timeZone,
-                  }),
-                );
+  
+        console.log("Status received:", status);
+        console.log("Date option received:", dateOption);
+  
+        if (dateOption) { // Only apply dateFilter logic if dateOption is provided
+          switch (dateOption) {
+            case DateOption.Today:
+              dateFilter = { datesCalled: today };
+              break;
+            case DateOption.Yesterday:
+              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+              const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+              dateFilter = { datesCalled: yesterday };
+              break;
+            case DateOption.ThisWeek:
+              const pastDays = [];
+              for (let i = 1; pastDays.length < 5; i++) {
+                const day = subDays(now, i);
+                const dayOfWeek = day.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                  pastDays.push(
+                    format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
+                      timeZone,
+                    }),
+                  );
+                }
               }
-            }
-            dateFilter = {
-              datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
-            };
-            break;
-          case DateOption.ThisMonth:
-            const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-            const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-              timeZone,
-            });
-            dateFilter = { datesCalled: { $gte: startOfMonthDate } };
-            break;
-          case DateOption.Total:
-            dateFilter = {};
-            break;
-          case DateOption.LAST_SCHEDULE:
-            const recentJob = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob)
-              return res.status(404).send("No jobs found for today's filter.");
-            const dateToCheck = recentJob.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck } };
-            break;
-          default:
-            const recentJob1 = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob1)
-              return res.status(404).send("No jobs found for today's filter.");
-            const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck1 } };
-            break;
+              dateFilter = {
+                datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
+              };
+              break;
+            case DateOption.ThisMonth:
+              const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
+              const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+                timeZone,
+              });
+              dateFilter = { datesCalled: { $gte: startOfMonthDate } };
+              break;
+            case DateOption.Total:
+              dateFilter = {};
+              break;
+            case DateOption.LAST_SCHEDULE:
+              const recentJob = await jobModel
+                .findOne({})
+                .sort({ createdAt: -1 })
+                .lean();
+              if (!recentJob)
+                return res.status(404).send("No jobs found for today's filter.");
+              const dateToCheck = recentJob.scheduledTime.split("T")[0];
+              dateFilter = { datesCalled: { $gte: dateToCheck } };
+              break;
+            default:
+              dateFilter = {}; // Ensure default keeps dateFilter empty
+              break;
+          }
         }
-        try {
-          
-        } catch (error) {
-          
-        }
-        let result;
-        try {
-          // Run query based on status
+  
+        // Build query dynamically
+        let query: any = {
+          agentId,
+          isDeleted: false,
+          ...dateFilter,
+        };
+  
+        // Only add status to the query if it's provided
+        if (status) {
           switch (status) {
             case "failed":
-              const failedQuery = {
-                agentId,
-                isDeleted: false,
-                status: callstatusenum.FAILED,
-                ...dateFilter,
-              };
-              console.log("Failed status query:", failedQuery);
-  
-              result = await contactModel
-                .find(failedQuery)
-                .populate("referenceToCallId");
-              console.log("Failed status result:", result);
+              query.status = callstatusenum.FAILED;
               break;
-            // Additional cases as in original code
-            default:
-              const defaultQuery = {
-                agentId,
-                isDeleted: false,
-                ...dateFilter,
-              };
-              console.log("Default status query:", defaultQuery);
-  
-              result = await contactModel
-                .find(defaultQuery)
-                .populate("referenceToCallId");
-              console.log("Default status result:", result);
+            case "called":
+              query.status = { $ne: callstatusenum.NOT_CALLED };
+              break;
+            case "not-called":
+              query.status = callstatusenum.NOT_CALLED;
+              break;
+            case "answered":
+              query.status = callstatusenum.CALLED;
+              break;
+            case "transferred":
+              query.status = callstatusenum.TRANSFERRED;
+              break;
+            case "voicemail":
+              query.status = callstatusenum.VOICEMAIL;
+              break;
+            case "appointment":
+              query.status = callstatusenum.SCHEDULED;
+              break;
           }
-  
-          // Log result length to ensure query returned a result
-          if (!result) {
-            console.log("No results found for status:", status);
-          } else {
-            console.log(`Results found for status ${status}:`, result.length);
-          }
-          
-          res.json(result);
-        } catch (queryError) {
-          console.error("Query error:", queryError);
-          res.status(500).send("An error occurred during the query.");
         }
+  
+        console.log("Final query:", query);
+  
+        const result = await contactModel
+          .find(query)
+          .populate("referenceToCallId");
+  
+      
+        res.json(result);
+  
       } catch (error) {
         console.error("Error in populateUserGet:", error);
         res.status(500).send("An error occurred while processing the request.");
       }
     });
   }
+  
   resetPassword() {
     this.app.post(
       "/user/reset-password",

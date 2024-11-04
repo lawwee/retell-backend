@@ -114,8 +114,9 @@ export const logsToCsv = async (
       contactQuery = contactQuery.limit(newlimit);
     }
 
+    console.log(contactQuery)
     const foundContacts = await contactQuery.exec();
-    console.log(foundContacts)
+   
 
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
 
