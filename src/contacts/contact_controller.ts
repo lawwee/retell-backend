@@ -132,7 +132,7 @@ export const getAllContact = async (
         break;
       default:
         const recentJob1 = await jobModel
-          .findOne({agentId})
+          .findOne({ agentId })
           .sort({ createdAt: -1 })
           .lean();
         if (!recentJob1) {
@@ -192,7 +192,7 @@ export const getAllContact = async (
         break;
       default:
         const recentJob1 = await jobModel
-          .findOne({agentId})
+          .findOne({ agentId })
           .sort({ createdAt: -1 })
           .lean();
         if (!recentJob1) {
@@ -230,7 +230,6 @@ export const getAllContact = async (
     //   ...dateFilter,
     // });
 
-
     const stats = await DailyStatsModel.aggregate([
       { $match: { agentId, ...dateFilter1 } },
       {
@@ -241,7 +240,7 @@ export const getAllContact = async (
           totalAppointment: { $sum: "$totalAppointment" },
           totalCallsTransffered: { $sum: "$totalTransffered" },
           totalFailedCalls: { $sum: "$totalFailed" },
-          totalAnsweredCalls:{$sum:"$totalCallAnswered"}
+          totalAnsweredCalls: { $sum: "$totalCallAnswered" },
         },
       },
     ]);
@@ -262,7 +261,7 @@ export const getAllContact = async (
 
     return {
       totalContactForAgent,
-      totalAnsweredCalls,
+      totalAnsweredCalls: stats[0]?.totalAnsweredCalls || 0,
       totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
       totalAppointment: stats[0]?.totalAppointment || 0,
       totalCallsTransffered: stats[0]?.totalCallsTransffered || 0,
@@ -270,7 +269,7 @@ export const getAllContact = async (
       totalCalls: stats[0]?.totalCalls || 0,
       totalFailedCalls: stats[0]?.totalFailedCalls || 0,
       totalPages,
-      contacts: statsWithTranscripts
+      contacts: statsWithTranscripts,
     };
   } catch (error) {
     console.error("Error fetching all contacts:", error);
