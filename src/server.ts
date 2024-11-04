@@ -1074,15 +1074,6 @@ export class Server {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayString = today.toISOString().split("T")[0];
-      const webhookRedisKey = `${payload.event}_${payload.data.call_id}`;
-      const lockTTL = 300;
-      const lockAcquired = await redisClient.set(webhookRedisKey, "locked", {
-        NX: true,
-        PX: lockTTL,
-      });
-      if (!lockAcquired) {
-        return;
-      }
       try {
         if (payload.event === "call_started") {
           console.log(`call started for: ${payload.data.call_id}`);
@@ -1091,17 +1082,13 @@ export class Server {
           payload.event === "call_ended"
         ) {
           await this.handleCallEnded(payload, todayString);
-         
-          // await redisClient.del(webhookRedisKey);
         } else if (payload.event === "call_analyzed"){
           await this.handleCallAnalyzed(payload)
            
         }
       } catch (error) {
         console.log(error);
-      } finally{
-        await redisClient.del(webhookRedisKey);
-      }
+      } 
     });
   }
   async handleCallStarted(data: any) {

@@ -106,7 +106,7 @@ export const scheduleCronJob = async (
 
           try {
             // const newToNumber = formatPhoneNumber(postdata.toNumber);
-            const callRegister = await retellClient.call.register({
+          await retellClient.call.register({
               agent_id: agentId,
               audio_encoding: "s16le",
               audio_websocket_protocol: "twilio",
