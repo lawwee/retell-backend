@@ -109,12 +109,13 @@ export const logsToCsv = async (
         "transcript analyzedTranscript recordingUrl",
       );
 
+      console.log("Executing MongoDB Query:", JSON.stringify(contactQuery.getQuery(), null, 2));
     // Conditionally add limit if provided
     if (newlimit && Number.isInteger(newlimit) && newlimit > 0) {
       contactQuery = contactQuery.limit(newlimit);
     }
 
-    console.log(contactQuery)
+  
     const foundContacts = await contactQuery.exec();
    
 
@@ -147,26 +148,28 @@ export const logsToCsv = async (
       callSentimentStatus = callSentimentenum.VOICEMAIL;
     } else if (sentimentOption === "incomplete") {
       callSentimentStatus = callSentimentenum.INCOMPLETE_CALL;
+    } else if(sentimentOption === "all"){
+      callSentimentStatus == ""
     }
     const contactsData = foundContacts
-      .map((contact) => ({
-        firstname: contact.firstname,
-        lastname: contact.lastname,
-        email: contact.email,
-        phone: contact.phone,
-        status: contact.status,
-        transcript: contact.referenceToCallId?.transcript,
-        call_recording_url: contact.referenceToCallId?.recordingUrl,
-        analyzedTranscript: contact.referenceToCallId?.analyzedTranscript,
-        last_date_called: contact.datesCalled,
-      }))
-      .filter((contact) => {
-        // If sentimentOption is provided and not "All", filter by analyzedTranscript
-        return (
-          sentimentOption === "all" ||
-          contact.analyzedTranscript === callSentimentStatus
-        );
-      });
+  .map((contact) => ({
+    firstname: contact.firstname,
+    lastname: contact.lastname,
+    email: contact.email,
+    phone: contact.phone,
+    status: contact.status,
+    transcript: contact.referenceToCallId?.transcript,
+    call_recording_url: contact.referenceToCallId?.recordingUrl,
+    analyzedTranscript: contact.referenceToCallId?.analyzedTranscript,
+    last_date_called: contact.datesCalled,
+  }))
+  .filter((contact) => {
+    // If sentimentOption is provided, filter by analyzedTranscript
+    return (
+      !sentimentOption || // Include all contacts if sentimentOption is not provided
+      contact.analyzedTranscript === callSentimentStatus
+    );
+  });
 
     await csvWriter.writeRecords(contactsData);
     console.log("CSV file logs.csv has been written successfully");
