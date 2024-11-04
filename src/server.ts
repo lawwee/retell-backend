@@ -1091,14 +1091,16 @@ export class Server {
           payload.event === "call_ended"
         ) {
           await this.handleCallEnded(payload, todayString);
-          await redisClient.del(webhookRedisKey);
+         
           // await redisClient.del(webhookRedisKey);
         } else if (payload.event === "call_analyzed"){
           await this.handleCallAnalyzed(payload)
-            await redisClient.del(webhookRedisKey);
+           
         }
       } catch (error) {
         console.log(error);
+      } finally{
+        await redisClient.del(webhookRedisKey);
       }
     });
   }
