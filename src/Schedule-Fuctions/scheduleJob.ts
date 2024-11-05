@@ -73,7 +73,17 @@ export const scheduleCronJob = async (
         const currentDate = moment().tz("America/Los_Angeles");
         const currentHour = currentDate.hours();
 
-        for (const contact of contacts) {
+        const contactLimit = parseInt(limit);
+        const contactss = await contactModel
+          .find({
+            agentId,
+            status: callstatusenum.NOT_CALLED,
+            isDeleted: false,
+            ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
+          })
+          .limit(contactLimit)
+          .sort({ createdAt: "desc" });
+        for (const contact of contactss) {
           // Fetch the latest job state in each iteration
           currentJob = await jobModel.findOne({ jobId });
 

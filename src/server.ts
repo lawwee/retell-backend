@@ -84,7 +84,7 @@ import { script } from "./script";
 
 connectDb();
 const smee = new SmeeClient({
-  source: "https://smee.io/gRkyib7zF2UwwFV",
+  source:process.env.SMEE_URL ,
   target: "https://intuitiveagents.ai/webhook",
   logger: console,
 });
