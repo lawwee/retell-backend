@@ -920,9 +920,17 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { agentId } = req.body;
+        const { agentId ,tag} = req.body;
+      
+        const query : any = {
+          agentId
+        }
+        const newtag = tag ? tag.toLowerCase() : "";
+        if(tag){
+          query["tag"] = newtag
+        }
         const result = await contactModel.updateMany(
-          { agentId },
+          query,
           {
             status: callstatusenum.NOT_CALLED,
             answeredByVM: false,
@@ -1710,7 +1718,7 @@ export class Server {
 
         const newtag = tag ? tag.toLowerCase() : "";
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
-          const query: any = {
+        const query: any = {
             agentId,
             isDeleted: false,
           };
@@ -1747,6 +1755,7 @@ export class Server {
           if (tag) {
             query["tag"] = newtag;
           }
+          
 
           const statusMapping: { [key: string]: callstatusenum | undefined } = {
             called: callstatusenum.CALLED,
