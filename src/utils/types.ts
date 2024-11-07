@@ -67,7 +67,8 @@ export enum callSentimentenum{
   CALL_BACK = "call-back",
   INCOMPLETE_CALL = "incomplete",
   VOICEMAIL = "voicemail",
-  INTERESTED = "interested"
+  INTERESTED = "interested",
+  DO_NOT_CALL = "dnc"
 }
 
 export interface Itranscript {
