@@ -948,7 +948,8 @@ export class Server {
   schedulemycall() {
     this.app.post(
       "/schedule",
-    
+      isAdmin,
+      authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber, tag } = req.body;
 
