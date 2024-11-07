@@ -42,6 +42,8 @@ export const scheduleCronJob = async (
       console.log(`A job is already running for agent: ${agentId} and tag: ${lowerCaseTag}.`);
       return { message: "Job already running", jobId: existingJob.jobId };
     }
+    const CUTOFF_HOUR = 10;
+    const CUTOFF_MINUTE = 30;
     await jobModel.create({
       callstatus: jobstatus.QUEUED,
       jobId,
@@ -70,8 +72,7 @@ export const scheduleCronJob = async (
           { new: true },
         );
 
-        const currentDate = moment().tz("America/Los_Angeles");
-        const currentHour = currentDate.hours();
+        
 
         const contactLimit = parseInt(limit);
         const contactss = await contactModel
@@ -88,12 +89,21 @@ export const scheduleCronJob = async (
           currentJob = await jobModel.findOne({ jobId });
 
           // Time constraint check
-          if (currentHour < 8 || currentHour >= 15) {
+          // if (currentHour < 8 || currentHour >= 15) {
+          //   await jobModel.findOneAndUpdate(
+          //     { jobId },
+          //     { callstatus: "cancelled", shouldContinueProcessing: false },
+          //   );
+          //   console.log("Job processing stopped due to time constraints.");
+          //   break;
+          // }
+          const now = moment().tz("America/Los_Angeles");
+          if (now.hour() > CUTOFF_HOUR || (now.hour() === CUTOFF_HOUR && now.minute() >= CUTOFF_MINUTE)) {
+            console.log("Job processing stopped due to time cutoff (9:45 PST).");
             await jobModel.findOneAndUpdate(
               { jobId },
-              { callstatus: "cancelled", shouldContinueProcessing: false },
+              { callstatus: "cancelled", shouldContinueProcessing: false }
             );
-            console.log("Job processing stopped due to time constraints.");
             break;
           }
 
@@ -116,37 +126,37 @@ export const scheduleCronJob = async (
 
           try {
             // const newToNumber = formatPhoneNumber(postdata.toNumber);
-          await retellClient.call.register({
-              agent_id: agentId,
-              audio_encoding: "s16le",
-              audio_websocket_protocol: "twilio",
-              sample_rate: 24000,
-              end_call_after_silence_ms: 15000,
-            });
+          // await retellClient.call.register({
+          //     agent_id: agentId,
+          //     audio_encoding: "s16le",
+          //     audio_websocket_protocol: "twilio",
+          //     sample_rate: 24000,
+          //     end_call_after_silence_ms: 15000,
+          //   });
 
-            const registerCallResponse2 = await retellClient.call.create({
-              from_number: fromNumber,
-              to_number: formatPhoneNumber(postdata.toNumber),
-              override_agent_id: agentId,
-              drop_call_if_machine_detected: true,
-              retell_llm_dynamic_variables: {
-                user_firstname: contact.firstname,
-                user_email: contact.email,
-                user_lasname: contact.lastname,
-                job_id: jobId,
-              },
-            });
+          //   const registerCallResponse2 = await retellClient.call.create({
+          //     from_number: fromNumber,
+          //     to_number: formatPhoneNumber(postdata.toNumber),
+          //     override_agent_id: agentId,
+          //     drop_call_if_machine_detected: true,
+          //     retell_llm_dynamic_variables: {
+          //       user_firstname: contact.firstname,
+          //       user_email: contact.email,
+          //       user_lasname: contact.lastname,
+          //       job_id: jobId,
+          //     },
+          //   });
 
-            await contactModel.findByIdAndUpdate(contact._id, {
-              callId: registerCallResponse2.call_id,
-              $push: { jobProcessedWithId: jobId },
-              isusercalled: true,
-            });
+          //   await contactModel.findByIdAndUpdate(contact._id, {
+          //     callId: registerCallResponse2.call_id,
+          //     $push: { jobProcessedWithId: jobId },
+          //     isusercalled: true,
+          //   });
 
-            await jobModel.findOneAndUpdate(
-              { jobId },
-              { $inc: { processedContacts: 1 } },
-            );
+          //   await jobModel.findOneAndUpdate(
+          //     { jobId },
+          //     { $inc: { processedContacts: 1 } },
+          //   );
             console.log(`Call successful for contact: ${contact.firstname}`);
 
             // // Wait for 2 seconds between calls
@@ -189,8 +199,9 @@ export const scheduleCronJob = async (
           } catch (error) {
             console.log("Error during call processing:", error);
           }
-          await new Promise((resolve) => setTimeout(resolve, 4000));
+          await new Promise((resolve) => setTimeout(resolve, 40000));
         }
+
 
         // console.log("Contacts processed, starting recall...");
         // await searchAndRecallContacts(
