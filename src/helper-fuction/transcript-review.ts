@@ -19,9 +19,10 @@ not-interested: The lead explicitly says they are no longer interested, have fou
 scheduled: The lead confirms a specific time for an appointment or meeting.
 call-back: The lead requests the agent to call back later or suggests following up in the future.
 incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
-voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
+voicemail: Based on the content of this call transcript, identify whether this is an AM/VM (Answering Machine/Voice Mail)
 dnc: The lead explicitly says they never want to be called back again or ask to be removed from the list and not be called again
-Instructions:
+ivr: Based on the content of this call transcript, identify whether this is an IVR (Interactive Voice Response) system.
+Instructions
 
 Analyze the transcript below and assign it the most fitting category based on the lead's responses.
 If the transcript is empty or missing, respond with N/A.
@@ -30,7 +31,7 @@ Transcript: ${transcript}`,
         },
       ],
       // model: "gpt-4-turbo-preview",
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini", 
     });
 
     return completion.choices[0];
