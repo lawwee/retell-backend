@@ -149,6 +149,11 @@ export const getAllContact = async (
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
     });
+    const totalAnsweredByIVR = await contactModel.countDocuments({
+      agentId,
+      isDeleted: false,
+      status: callstatusenum.IVR,
+    });
 
     
     const stats = await DailyStatsModel.aggregate([
@@ -189,6 +194,7 @@ export const getAllContact = async (
       totalNotCalledForAgent,
       totalCalls: stats[0]?.totalCalls || 0,
       totalFailedCalls: stats[0]?.totalFailedCalls || 0,
+      totalAnsweredByIVR,
       totalPages,
       contacts: statsWithTranscripts,
     };

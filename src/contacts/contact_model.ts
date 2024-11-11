@@ -116,7 +116,8 @@ const transcriptSchema = new Schema(
     agentSemtiment: { type: String },
     disconnectionReason: { type: String },
     analyzedTranscript: { type: String },
-    agentId:{type:String}
+    agentId:{type:String},
+    callBackDate:{type: String}
   },
   { timestamps: true },
 );

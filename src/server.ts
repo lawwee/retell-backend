@@ -1013,20 +1013,23 @@ export class Server {
       if (payload.event === "call_ended") {
         const isCallFailed = disconnection_reason === "dial_failed";
         const isCallTransferred = disconnection_reason === "call_transfer";
-        const isMachine = disconnection_reason === "voicemail_reached";
+        // const isMachine = disconnection_reason === "voicemail_reached";
         const isDialNoAnswer = disconnection_reason === "dial_no_answer";
         const isCallAnswered =
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
 
         analyzedTranscript = await reviewTranscript(transcript);
-        const isCallScheduled =
-          analyzedTranscript.message.content === "scheduled";
+        const isCallScheduled = analyzedTranscript.message.content === "scheduled";
+        const isMachine = analyzedTranscript.message.content === "voicemail";
+        const isIVR = analyzedTranscript.message.content === "ivr";
+        const callbackdate = await reviewCallback(transcript)
         const callEndedUpdateData = {
           callId: call_id,
           agentId: payload.call.agent_id,
           recordingUrl: recording_url,
           disconnectionReason: disconnection_reason,
+          callBackDate: callbackdate,
           analyzedTranscript: analyzedTranscript.message.content,
           ...(transcript && { transcript }),
         };
@@ -1042,6 +1045,9 @@ export class Server {
         if (isMachine) {
           statsUpdate.$inc.totalAnsweredByVm = 1;
           callStatus = callstatusenum.VOICEMAIL;
+        } else if(isIVR){
+          statsUpdate.$inc.totalAnsweredByIVR = 1;
+          callStatus = callstatusenum.IVR;
         } else if (isCallFailed) {
           statsUpdate.$inc.totalFailed = 1;
           callStatus = callstatusenum.FAILED;
@@ -1640,6 +1646,7 @@ export class Server {
           scheduled: callSentimentenum.SCHEDULED,
           voicemail: callSentimentenum.VOICEMAIL,
           incomplete: callSentimentenum.INCOMPLETE_CALL,
+
         };
 
         let sentimentStatus = sentimentOption
@@ -2768,6 +2775,7 @@ export class Server {
                 totalAppointment: 0,
                 totalCallAnswered: 0,
                 totalDialNoAnswer: 0,
+                totalAnsweredByIVR:0
               };
             }
 

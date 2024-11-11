@@ -33,6 +33,7 @@ export interface IContact {
   dayToBeProcessed: string
   tag: string
   jobProcessedWithId: string[]
+  callBackDate:string
 }
 
 export enum DaysToBeProcessedEnum{
@@ -58,7 +59,8 @@ export enum callstatusenum {
   NOT_CALLED = "not-called",
   TRANSFERRED = "connected-transferred",
   SCHEDULED = "appt-scheduled",
-  NO_ANSWER = "not-answered"
+  NO_ANSWER = "not-answered",
+  IVR = "connected-ivr"
 }
 
 export enum callSentimentenum{
@@ -68,7 +70,8 @@ export enum callSentimentenum{
   INCOMPLETE_CALL = "incomplete",
   VOICEMAIL = "voicemail",
   INTERESTED = "interested",
-  DO_NOT_CALL = "dnc"
+  DO_NOT_CALL = "dnc",
+  IVR = "ivr"
 }
 
 export interface Itranscript {
@@ -104,6 +107,7 @@ export interface Ilogs {
   totalCallAnswered: number
   jobProcessedBy:String
   totalDialNoAnswer:number
+  totalAnsweredByIVR:number
 }
 
 // Retell -> Your Server Events
