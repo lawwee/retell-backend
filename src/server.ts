@@ -84,7 +84,7 @@ import { script } from "./script";
 
 connectDb();
 const smee = new SmeeClient({
-  source:process.env.SMEE_URL ,
+  source: process.env.SMEE_URL,
   target: "https://intuitiveagents.ai/webhook",
   logger: console,
 });
@@ -135,7 +135,7 @@ export class Server {
     this.secondscript();
     // this.createPhoneCall();
     this.handleContactUpdate();
-    this.uploadcsvToDb();
+    this.uploadcsvToDb(); 
     this.schedulemycall();
     this.getjobstatus();
     this.resetAgentStatus();
@@ -153,7 +153,7 @@ export class Server {
     this.getTranscriptAfterCallEnded();
     this.searchForClient();
     this.batchDeleteUser();
-    this.sendReportToClient()
+    this.sendReportToClient();
     this.getNotCalledUsersAndDelete();
     this.signUpUser();
     this.loginAdmin();
@@ -624,274 +624,120 @@ export class Server {
   //     },
   //   );
   // }
-
-  // uploadcsvToDb() {
-  //   this.app.post(
-  //     "/upload/:agentId",
-  //     this.upload.single("csvFile"),
-  //     async (req: Request, res: Response) => {
-  //       const session = await mongoose.startSession();
-  //       session.startTransaction();
-  //       try {
-  //         if (!req.file) {
-  //           return res.status(400).json({ message: "No file uploaded" });
-  //         }
-  //         const csvFile = req.file;
-  //         const day: any = req.query.day;
-  //         const tag = req.query.tag;
-  //         const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
-  //         const csvData = fs.readFileSync(csvFile.path, "utf8");
-
-  //         Papa.parse(csvData, {
-  //           header: true,
-  //           complete: async (results: any) => {
-  //             const jsonArrayObj: IContact[] = results.data as IContact[];
-
-  //             let headers = results.meta.fields;
-  //             headers = headers.map((header: string) => header.trim());
-  //             const requiredHeaders = [
-  //               "firstname",
-  //               "lastname",
-  //               "phone",
-  //               "email",
-  //             ];
-  //             const missingHeaders = requiredHeaders.filter(
-  //               (header) => !headers.includes(header),
-  //             );
-  //             if (missingHeaders.length > 0) {
-  //               return res.status(400).json({
-  //                 message: `CSV must contain the following headers: ${missingHeaders.join(", ")}`,
-  //               });
-  //             }
-
-  //             const agentId = req.params.agentId;
-  //             let uploadedNumber = 0;
-  //             let duplicateCount = 0;
-  //             const failedUsers: {
-  //               email?: string;
-  //               firstname?: string;
-  //               phone?: string;
-  //             }[] = [];
-  //             const successfulUsers: {
-  //               email: string;
-  //               firstname: string;
-  //               phone: string;
-  //               agentId: string;
-  //               tag: string;
-  //               dayToBeProcessed: string | undefined;
-  //             }[] = [];
-
-  //             const seenNumbers = new Set<string>();
-  //             for (const user of jsonArrayObj) {
-  //               if (user.firstname && user.phone) {
-  //                 const formattedPhone = formatPhoneNumber(user.phone);
-  //                 if (!seenNumbers.has(formattedPhone)) {
-  //                   seenNumbers.add(formattedPhone);
-  //                   successfulUsers.push({
-  //                     ...user,
-  //                     phone: formattedPhone,
-  //                     dayToBeProcessed: day,
-  //                     agentId,
-  //                     tag: lowerCaseTag,
-  //                   });
-  //                   uploadedNumber++;
-  //                 } else {
-  //                   duplicateCount++;
-  //                 }
-  //               } else {
-  //                 failedUsers.push({
-  //                   email: user.email || undefined,
-  //                   firstname: user.firstname || undefined,
-  //                   phone: user.phone || undefined,
-  //                 });
-  //               }
-  //             }
-
-  //             if (successfulUsers.length > 0) {
-  //               // Change from email and agentId to phone and agentId
-  //               const phonesAndAgentIds = successfulUsers.map((user) => ({
-  //                 phone: user.phone,
-  //                 agentId: agentId,
-  //               }));
-
-  //               const existingUsers = await contactModel
-  //                 .find({
-  //                   $or: phonesAndAgentIds.map((phoneAndAgentId) => ({
-  //                     phone: phoneAndAgentId.phone,
-  //                     agentId: phoneAndAgentId.agentId,
-  //                   })),
-  //                   isDeleted: false,
-  //                 })
-  //                 .select("phone agentId")
-  //                 .session(session);
-
-  //               const existingUsersSet = new Set(
-  //                 existingUsers.map((user) => `${user.phone}-${user.agentId}`),
-  //               );
-
-  //               const uniqueUsersToInsert = successfulUsers.filter((user) => {
-  //                 const userKey = `${user.phone}-${agentId}`;
-  //                 return !existingUsersSet.has(userKey);
-  //               });
-
-  //               if (uniqueUsersToInsert.length > 0) {
-  //                 console.log(uniqueUsersToInsert);
-  //                 await contactModel.insertMany(uniqueUsersToInsert, {
-  //                   session,
-  //                 });
-
-  //                 await userModel.updateOne(
-  //                   { "agents.agentId": agentId },
-  //                   {
-  //                     $addToSet: { "agents.$.tag": lowerCaseTag },
-  //                   },
-  //                   { session },
-  //                 );
-  //               }
-  //             }
-  //             await session.commitTransaction();
-  //             session.endSession();
-  //             res.status(200).json({
-  //               message: `Upload successful, contacts uploaded: ${uploadedNumber}, duplicates found: ${duplicateCount}`,
-  //               failedUsers: failedUsers.filter(
-  //                 (user) => user.email || user.firstname || user.phone,
-  //               ),
-  //             });
-  //           },
-  //           error: async (err: Error) => {
-  //             console.error("Error parsing CSV:", err);
-  //             await session.abortTransaction();
-  //             session.endSession();
-  //             res.status(500).json({ message: "Failed to parse CSV data" });
-  //           },
-  //         });
-  //       } catch (err) {
-  //         console.error("Error:", err);
-  //         await session.abortTransaction();
-  //         session.endSession();
-  //         res
-  //           .status(500)
-  //           .json({ message: "Failed to upload CSV data to database" });
-  //       }
-  //     },
-  //   );
-  // }
-
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
       this.upload.single("csvFile"),
       async (req: Request, res: Response) => {
-        const session = await mongoose.startSession();
-        session.startTransaction();
         try {
           if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
           }
-
           const csvFile = req.file;
           const day: any = req.query.day;
           const tag = req.query.tag;
           const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
-
+  
           Papa.parse(csvData, {
             header: true,
             complete: async (results: any) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const headers = results.meta.fields.map((header: string) =>
-                header.trim(),
-              );
-              const requiredHeaders = [
-                "firstname",
-                "lastname",
-                "phone",
-                "email",
-              ];
-              const missingHeaders = requiredHeaders.filter(
-                (header) => !headers.includes(header),
-              );
+              const headers = results.meta.fields.map((header: string) => header.trim());
+              const requiredHeaders = ["firstname", "lastname", "phone", "email"];
+              const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+  
               if (missingHeaders.length > 0) {
                 return res.status(400).json({
-                  message: `CSV must contain the following headers: ${missingHeaders.join(
-                    ", ",
-                  )}`,
+                  message: `CSV must contain the following headers: ${missingHeaders.join(", ")}`,
                 });
               }
-
+  
               const agentId = req.params.agentId;
-              const duplicateKeys = new Set<string>();
+              console.log("agentId:", agentId);
+              
               const uniqueRecordsMap = new Map<string, IContact>();
-
+              const duplicateKeys = new Set<string>();
+              const failedContacts = [];
+  
               for (const user of jsonArrayObj) {
                 if (user.firstname && user.phone) {
                   const formattedPhone = formatPhoneNumber(user.phone);
                   user.phone = formattedPhone;
-
+  
                   if (uniqueRecordsMap.has(formattedPhone)) {
                     duplicateKeys.add(formattedPhone);
+                    failedContacts.push({ user, reason: "duplicate" });
                   } else {
                     uniqueRecordsMap.set(formattedPhone, user);
                   }
-                }
-              }
-
-              const uniqueUsersToInsert = Array.from(uniqueRecordsMap.entries())
-                .filter(([phone]) => !duplicateKeys.has(phone))
-                .map(([, user]) => user); //
-
-              const dbDuplicates = [];
-
-              for (const user of uniqueUsersToInsert) {
-                const existingUser = await contactModel
-                  .findOne({
-                    phone: user.phone,
-                  })
-                  .session(session);
-
-                if (!existingUser) {
-                  uniqueUsersToInsert.push(user);
                 } else {
-                  dbDuplicates.push(existingUser);
+                  failedContacts.push({ user, reason: "missing required fields" });
                 }
               }
+  
+              const uniqueUsersToInsert = Array.from(uniqueRecordsMap.values())
+                .filter(user => !duplicateKeys.has(user.phone));
+  
+              
+              const usersWithAgentId = uniqueUsersToInsert.map(user => ({
+                ...user,
+                agentId: agentId,
+                tag
+              }));
+  
+              // Batch query to find existing users
+              const phoneNumbersToCheck = usersWithAgentId.map(user => user.phone);
+              const existingUsers = await contactModel.find({
+                isDeleted:false,
+                phone: { $in: phoneNumbersToCheck }
+              });
+  
+              const dbDuplicates = existingUsers;
+  
+              const existingPhoneNumbers = new Set(existingUsers.map(user => user.phone));
+  
 
-              if (uniqueUsersToInsert.length > 0) {
-                await contactModel.insertMany(uniqueUsersToInsert, { session });
+              const finalUsersToInsert = usersWithAgentId.filter(user => !existingPhoneNumbers.has(user.phone));
+              
+
+              if (dbDuplicates.length > 0) {
+                dbDuplicates.forEach(existingUser => {
+                  failedContacts.push({ user: existingUser, reason: "already exists in the database" });
+                });
+              }
+  
+              if (finalUsersToInsert.length > 0) {
+                await contactModel.insertMany(finalUsersToInsert);
                 await userModel.updateOne(
                   { "agents.agentId": agentId },
                   { $addToSet: { "agents.$.tag": lowerCaseTag } },
-                  { session },
                 );
               }
-
-              await session.commitTransaction();
-              session.endSession();
-
+  
+            
+              if (failedContacts.length > 0) {
+                console.log("Failed Contacts:", failedContacts);
+              }
+  
               res.status(200).json({
-                message: `Upload successful, contacts uploaded: ${uniqueUsersToInsert.length}, duplicates found: ${dbDuplicates.length}`,
+                message: `Upload successful, contacts uploaded: ${finalUsersToInsert.length}, duplicates found: ${dbDuplicates.length}`,
                 duplicates: dbDuplicates,
+                failedContacts: failedContacts
               });
             },
             error: async (err: Error) => {
               console.error("Error parsing CSV:", err);
-              await session.abortTransaction();
-              session.endSession();
               res.status(500).json({ message: "Failed to parse CSV data" });
             },
           });
         } catch (err) {
           console.error("Error:", err);
-          await session.abortTransaction();
-          session.endSession();
-          res
-            .status(500)
-            .json({ message: "Failed to upload CSV data to database" });
+          res.status(500).json({ message: "Failed to upload CSV data to database" });
         }
-      },
+      }
     );
   }
-
   getjobstatus() {
     this.app.post(
       "/schedules/status",
@@ -920,27 +766,24 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { agentId ,tag} = req.body;
-      
-        const query : any = {
-          isDeleted:false
-        }
+        const { agentId, tag } = req.body;
+
+        const query: any = {
+          isDeleted: false,
+        };
         const newtag = tag ? tag.toLowerCase() : "";
-        if(tag){
-          query["tag"] = newtag
+        if (tag) {
+          query["tag"] = newtag;
         }
-        if(agentId){
-          query["agentId"] = agentId
+        if (agentId) {
+          query["agentId"] = agentId;
         }
-        const result = await contactModel.updateMany(
-          query,
-          {
-            status: callstatusenum.NOT_CALLED,
-            answeredByVM: false,
-            datesCalled: [],
-            isusercalled: false,
-          },
-        );
+        const result = await contactModel.updateMany(query, {
+          status: callstatusenum.NOT_CALLED,
+          answeredByVM: false,
+          datesCalled: [],
+          isusercalled: false,
+        });
         res.json({ result });
       },
     );
@@ -1089,17 +932,14 @@ export class Server {
         if (payload.event === "call_started") {
           console.log(`call started for: ${payload.data.call_id}`);
           await this.handleCallStarted(payload.data);
-        } else if (
-          payload.event === "call_ended"
-        ) {
+        } else if (payload.event === "call_ended") {
           await this.handleCallEnded(payload, todayString);
-        } else if (payload.event === "call_analyzed"){
-          await this.handleCallAnalyzed(payload)
-           
+        } else if (payload.event === "call_analyzed") {
+          await this.handleCallAnalyzed(payload);
         }
       } catch (error) {
         console.log(error);
-      } 
+      }
     });
   }
   async handleCallStarted(data: any) {
@@ -1266,28 +1106,26 @@ export class Server {
         //     axios.post(process.env.MAKE_URL, data);
         //   }
         // } catch (error) {
-        //  console.log(error) 
+        //  console.log(error)
         // }
-       
       }
     } catch (error) {
       console.error("Error in handleCallAnalyyzedOrEnded:", error);
     }
   }
-  async handleCallAnalyzed (payload:any){
+  async handleCallAnalyzed(payload: any) {
     try {
       const data = {
-        retellCallSummary:payload.data.call_analysis.call_summary
-      }
+        retellCallSummary: payload.data.call_analysis.call_summary,
+      };
       const results = await EventModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
         { $set: data },
         { upsert: true, returnOriginal: false },
       );
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
-    
   }
   deleteAll() {
     this.app.patch(
@@ -1314,7 +1152,7 @@ export class Server {
           limit,
           statusOption,
           sentimentOption,
-          dateOption
+          dateOption,
         } = req.body;
 
         const newlimit = parseInt(limit);
@@ -1325,7 +1163,7 @@ export class Server {
           endDate,
           statusOption,
           sentimentOption,
-          dateOption
+          dateOption,
         );
 
         if (typeof result === "object" && result.error) {
@@ -1723,7 +1561,7 @@ export class Server {
 
         const newtag = tag ? tag.toLowerCase() : "";
         const searchForTerm = async (term: string, searchByEmail: boolean) => {
-        const query: any = {
+          const query: any = {
             agentId,
             isDeleted: false,
           };
@@ -1760,7 +1598,6 @@ export class Server {
           if (tag) {
             query["tag"] = newtag;
           }
-          
 
           const statusMapping: { [key: string]: callstatusenum | undefined } = {
             called: callstatusenum.CALLED,
@@ -2153,15 +1990,15 @@ export class Server {
     });
   }
   testingMake() {
-    this.app.post("/make", async (req: Request, res: Response) => { 
+    this.app.post("/make", async (req: Request, res: Response) => {
       const result = await axios.post(
         "https://hook.us1.make.com/ygtjngd7ta8bj2mm4sopqk5nmmjazrqr",
         {
-         firstname:"nick", 
-        email:"nick@email.com",
-        phone:+12343343232,
-        summary:"a call wa made",
-        url:"http:snwincwcje cai ak ",
+          firstname: "nick",
+          email: "nick@email.com",
+          phone: +12343343232,
+          summary: "a call wa made",
+          url: "http:snwincwcje cai ak ",
         },
       );
       console.log(result);
@@ -2591,7 +2428,8 @@ export class Server {
                           const formattedPhone = contact.phone
                             ? formatPhoneNumber(contact.phone)
                             : null;
-                          const key = formattedPhone || contact.email; // Use formatted phone if available, otherwise use email
+                          const key = formattedPhone; // Use formatted phone if available, otherwise use email
+                          console.log(`Checking for duplicate: ${key}`);
                           return mainSet.has(key);
                         },
                       );
@@ -2601,7 +2439,7 @@ export class Server {
                           const formattedPhone = contact.phone
                             ? formatPhoneNumber(contact.phone)
                             : null;
-                          const key = formattedPhone || contact.email; // Use formatted phone if available, otherwise use email
+                          const key = formattedPhone; // Use formatted phone if available, otherwise use email
                           return !mainSet.has(key);
                         },
                       );
@@ -2690,6 +2528,7 @@ export class Server {
       }
     });
   }
+
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {
@@ -2699,70 +2538,75 @@ export class Server {
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
         let dateFilter = {};
-  
-        console.log("Status received:", status);
-        console.log("Date option received:", dateOption);
-  
-        if (dateOption) { // Only apply dateFilter logic if dateOption is provided
-          switch (dateOption) {
-            case DateOption.Today:
-              dateFilter = { datesCalled: today };
-              break;
-            case DateOption.Yesterday:
-              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-              const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-              dateFilter = { datesCalled: yesterday };
-              break;
-            case DateOption.ThisWeek:
-              const pastDays = [];
-              for (let i = 1; pastDays.length < 5; i++) {
-                const day = subDays(now, i);
-                const dayOfWeek = day.getDay();
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                  pastDays.push(
-                    format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
-                      timeZone,
-                    }),
-                  );
-                }
+        let dateFilter1 = {}
+
+        switch (dateOption) {
+          case DateOption.Today:
+            dateFilter = { datesCalled: today };
+            dateFilter1 = { day: today };
+            break;
+          case DateOption.Yesterday:
+            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+            const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+            dateFilter = { datesCalled: yesterday };
+            dateFilter1 = { day: yesterday };
+            break;
+          case DateOption.ThisWeek:
+            const weekdays: string[] = [];
+            for (let i = 1; i <= 7; i++) {
+              const day = subDays(zonedNow, i);
+              const dayOfWeek = day.getDay();
+              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
               }
-              dateFilter = {
-                datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
-              };
-              break;
-            case DateOption.ThisMonth:
-              const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-              const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-                timeZone,
-              });
-              dateFilter = { datesCalled: { $gte: startOfMonthDate } };
-              break;
-            case DateOption.Total:
-              dateFilter = {};
-              break;
-            case DateOption.LAST_SCHEDULE:
-              const recentJob = await jobModel
-                .findOne({})
-                .sort({ createdAt: -1 })
-                .lean();
-              if (!recentJob)
-                return res.status(404).send("No jobs found for today's filter.");
-              const dateToCheck = recentJob.scheduledTime.split("T")[0];
-              dateFilter = { datesCalled: { $gte: dateToCheck } };
-              break;
-            default:
-              dateFilter = {}; // Ensure default keeps dateFilter empty
-              break;
-          }
+            }
+            dateFilter = { datesCalled: { $in: weekdays } };
+            dateFilter1 = { day: { $in: weekdays } };
+            break;
+    
+          case DateOption.ThisMonth:
+            const monthDates: string[] = [];
+            for (let i = 0; i < now.getDate(); i++) {
+              const day = subDays(now, i);
+              monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+            }
+            dateFilter = { datesCalled: { $in: monthDates } };
+            dateFilter1 = { day: { $in: monthDates } };
+            break;
+    
+          case DateOption.Total:
+            dateFilter = {};
+            dateFilter1 = {};
+            break;
+          case DateOption.LAST_SCHEDULE:
+            const recentJob = await jobModel
+              .findOne({})
+              .sort({ createdAt: -1 })
+              .lean();
+            if (!recentJob) return "No jobs found for today's filter.";
+            const dateToCheck = recentJob.scheduledTime.split("T")[0];
+            dateFilter = { datesCalled: { $gte: dateToCheck } };
+            dateFilter1 = { day: { $gte: dateToCheck } };
+            break;
+    
+          default:
+            const recentJob1 = await jobModel
+              .findOne({ agentId })
+              .sort({ createdAt: -1 })
+              .lean();
+            if (!recentJob1) return "No jobs found for today's filter.";
+            const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+            dateFilter = { datesCalled: { $gte: dateToCheck1 } };
+            dateFilter1 = { day: { $gte: dateToCheck1 } };
+            break;
         }
-  
         // Build query dynamically
         let query: any = {
           agentId,
           isDeleted: false,
           ...dateFilter,
         };
-  
+
         // Only add status to the query if it's provided
         if (status) {
           switch (status) {
@@ -2789,23 +2633,21 @@ export class Server {
               break;
           }
         }
-  
+
         console.log("Final query:", query);
-  
+
         const result = await contactModel
           .find(query)
           .populate("referenceToCallId");
-  
-      
+
         res.json(result);
-  
       } catch (error) {
         console.error("Error in populateUserGet:", error);
         res.status(500).send("An error occurred while processing the request.");
       }
     });
   }
-  
+
   resetPassword() {
     this.app.post(
       "/user/reset-password",
@@ -2899,52 +2741,56 @@ export class Server {
     });
   }
   sendReportToClient() {
-    this.app.get("/send-report-to-client", async (req: Request, res: Response) => {
-      try {
-        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    this.app.get(
+      "/send-report-to-client",
+      async (req: Request, res: Response) => {
+        try {
+          const today = new Date().toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
           //const today  = "2024-10-31"
-        const dailyStats = await DailyStatsModel.find({ day: today }).exec();
-      
-        
-        // Transform the data into an object of objects
-        const result: Record<string, Ilogs> = {};
-        
-        dailyStats.forEach(stat => {
-          const agentKey: string = (typeof stat.agentId === 'string' ? stat.agentId : 'unknown');
-  
-          if (!result[agentKey]) {
-            result[agentKey] = {
-              day: today, // Adding required properties
-              agentId: agentKey, // Use the validated agentKey
-              jobProcessedBy: stat.jobProcessedBy || 'unknown',
-              totalCalls: 0,
-              totalTransffered: 0,
-              totalAnsweredByVm: 0,
-              totalFailed: 0,
-              totalAppointment: 0,
-              totalCallAnswered: 0,
-              totalDialNoAnswer: 0,
-            };
-          }
-  
-          result[agentKey].totalCalls += stat.totalCalls || 0;
-          result[agentKey].totalTransffered += stat.totalTransffered || 0;
-          result[agentKey].totalAnsweredByVm += stat.totalAnsweredByVm || 0;
-          result[agentKey].totalFailed += stat.totalFailed || 0;
-          result[agentKey].totalAppointment += stat.totalAppointment || 0;
-          result[agentKey].totalCallAnswered += stat.totalCallAnswered || 0;
-          result[agentKey].totalDialNoAnswer += stat.totalDialNoAnswer || 0;
-        });
-  
-        // Filter results to include only those with totalCalls > 2
-        const filteredResults = Object.values(result).filter(agentStats => agentStats.totalCalls > 2);
-        
-        res.json(filteredResults); // Send the filtered results back to the client
-  
-      } catch (error) {
-        console.error('Error fetching daily stats:', error);
-        res.status(500).send('Internal Server Error'); // Send an error response
-      }
-    });
+          const dailyStats = await DailyStatsModel.find({ day: today }).exec();
+
+          // Transform the data into an object of objects
+          const result: Record<string, Ilogs> = {};
+
+          dailyStats.forEach((stat) => {
+            const agentKey: string =
+              typeof stat.agentId === "string" ? stat.agentId : "unknown";
+
+            if (!result[agentKey]) {
+              result[agentKey] = {
+                day: today, // Adding required properties
+                agentId: agentKey, // Use the validated agentKey
+                jobProcessedBy: stat.jobProcessedBy || "unknown",
+                totalCalls: 0,
+                totalTransffered: 0,
+                totalAnsweredByVm: 0,
+                totalFailed: 0,
+                totalAppointment: 0,
+                totalCallAnswered: 0,
+                totalDialNoAnswer: 0,
+              };
+            }
+
+            result[agentKey].totalCalls += stat.totalCalls || 0;
+            result[agentKey].totalTransffered += stat.totalTransffered || 0;
+            result[agentKey].totalAnsweredByVm += stat.totalAnsweredByVm || 0;
+            result[agentKey].totalFailed += stat.totalFailed || 0;
+            result[agentKey].totalAppointment += stat.totalAppointment || 0;
+            result[agentKey].totalCallAnswered += stat.totalCallAnswered || 0;
+            result[agentKey].totalDialNoAnswer += stat.totalDialNoAnswer || 0;
+          });
+
+          // Filter results to include only those with totalCalls > 2
+          const filteredResults = Object.values(result).filter(
+            (agentStats) => agentStats.totalCalls > 2,
+          );
+
+          res.json(filteredResults); // Send the filtered results back to the client
+        } catch (error) {
+          console.error("Error fetching daily stats:", error);
+          res.status(500).send("Internal Server Error"); // Send an error response
+        }
+      },
+    );
   }
 }

@@ -52,33 +52,242 @@ export const createContact = async (
 
 export type ContactDocument = Omit<Document & IContact, "_id">;
 
+// export const getAllContact = async (
+//   agentId: string,
+//   page: number,
+//   limit: number,
+//   dateOption: DateOption = DateOption.LAST_SCHEDULE,
+// ): Promise<
+//   | {
+//       contacts: ContactDocument[];
+//       totalContactForAgent: number;
+//       totalAnsweredCalls: number;
+//       totalPages: number;
+//       totalNotCalledForAgent: number;
+//       totalAnsweredByVm: number;
+//       totalAppointment: any;
+//       totalCallsTransffered: any;
+//       totalCalls: number;
+//       totalFailedCalls: number;
+//     }
+//   | string
+// > => {
+//   try {
+//     const skip = (page - 1) * limit;
+
+//     let dateFilter = {};
+//     let dateFilter1 = {};
+
+//     const timeZone = "America/Los_Angeles"; // PST time zone
+//     const now = new Date();
+//     const zonedNow = toZonedTime(now, timeZone);
+//     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+
+//     switch (dateOption) {
+//       case DateOption.Today:
+//         dateFilter = { datesCalled: today };
+//         break;
+//       case DateOption.Yesterday:
+//         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+//         const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+//         dateFilter = { datesCalled: yesterday };
+//         break;
+//       case DateOption.ThisWeek:
+//         const weekdays = [];
+//         for (let i = 1; weekdays.length < 5; i++) {
+//           const day = subDays(now, i);
+//           const dayOfWeek = day.getDay();
+//           if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+//             // Exclude weekends
+//             weekdays.push(
+//               format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
+//             );
+//           }
+//         }
+//         // Return the list of past weekdays as an array
+//         dateFilter = { datesCalled: { $in: weekdays } };
+//         break;
+
+//       case DateOption.ThisMonth:
+//         const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
+//         const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+//           timeZone,
+//         });
+//         dateFilter = { datesCalled: { $gte: startOfMonthDate } };
+//         break;
+//       case DateOption.Total:
+//         dateFilter = {};
+//         break;
+//       case DateOption.LAST_SCHEDULE:
+//         const recentJob = await jobModel
+//           .findOne({})
+//           .sort({ createdAt: -1 })
+//           .lean();
+//         if (!recentJob) {
+//           return "No jobs found for today's filter.";
+//         }
+//         const dateToCheck = recentJob.scheduledTime.split("T")[0];
+//         dateFilter = { datesCalled: { $gte: dateToCheck } };
+//         break;
+//       default:
+//         const recentJob1 = await jobModel
+//           .findOne({ agentId })
+//           .sort({ createdAt: -1 })
+//           .lean();
+//         if (!recentJob1) {
+//           return "No jobs found for today's filter.";
+//         }
+//         const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+//         dateFilter = { datesCalled: { $gte: dateToCheck1 } };
+//         break;
+//     }
+
+//     switch (dateOption) {
+//       case DateOption.Today:
+//         dateFilter1 = { day: today };
+//         break;
+//       case DateOption.Yesterday:
+//         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+//         const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+//         dateFilter1 = { day: yesterday };
+//         break;
+//       case DateOption.ThisWeek:
+//         const weekdays = [];
+//         for (let i = 1; weekdays.length < 5; i++) {
+//           const day = subDays(now, i);
+//           const dayOfWeek = day.getDay();
+//           if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+//             // Exclude weekends
+//             weekdays.push(
+//               format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
+//             );
+//           }
+//         }
+//         // Return the list of past weekdays as an array
+//         dateFilter = { day: { $in: weekdays } };
+//         break;
+
+//       case DateOption.ThisMonth:
+//         const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
+//         const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
+//           timeZone,
+//         });
+//         dateFilter1 = { day: { $gte: startOfMonthDate } };
+//         break;
+//       case DateOption.Total:
+//         dateFilter1 = {};
+//         break;
+//       case DateOption.LAST_SCHEDULE:
+//         const recentJob = await jobModel
+//           .findOne({})
+//           .sort({ createdAt: -1 })
+//           .lean();
+//         if (!recentJob) {
+//           return "No jobs found for today's filter.";
+//         }
+//         const dateToCheck = recentJob.scheduledTime.split("T")[0];
+//         dateFilter1 = { day: { $gte: dateToCheck } };
+//         break;
+//       default:
+//         const recentJob1 = await jobModel
+//           .findOne({ agentId })
+//           .sort({ createdAt: -1 })
+//           .lean();
+//         if (!recentJob1) {
+//           return "No jobs found for today's filter.";
+//         }
+//         const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+//         dateFilter1 = { day: { $gte: dateToCheck1 } };
+//         break;
+//     }
+
+//     const foundContacts = await contactModel
+//       .find({ agentId, isDeleted: false, ...dateFilter })
+//       .sort({ createdAt: "desc" })
+//       .populate("referenceToCallId")
+//       .skip(skip)
+//       .limit(limit);
+
+//     const totalCount = await contactModel.countDocuments({
+//       agentId,
+//       isDeleted: { $ne: true },
+//     });
+//     const totalContactForAgent = await contactModel.countDocuments({
+//       agentId,
+//       isDeleted: false,
+//     });
+//     const totalNotCalledForAgent = await contactModel.countDocuments({
+//       agentId,
+//       isDeleted: false,
+//       status: callstatusenum.NOT_CALLED,
+//     });
+//     // const totalAnsweredCalls = await contactModel.countDocuments({
+//     //   agentId,
+//     //   isDeleted: false,
+//     //   status: callstatusenum.CALLED,
+//     //   ...dateFilter,
+//     // });
+//     console.log({ ...dateFilter1 });
+
+//     const stats = await DailyStatsModel.aggregate([
+//       { $match: { agentId, ...dateFilter1 } },
+//       {
+//         $group: {
+//           _id: null,
+//           totalCalls: { $sum: "$totalCalls" },
+//           totalAnsweredByVm: { $sum: "$totalAnsweredByVm" },
+//           totalAppointment: { $sum: "$totalAppointment" },
+//           totalCallsTransffered: { $sum: "$totalTransffered" },
+//           totalFailedCalls: { $sum: "$totalFailed" },
+//           totalAnsweredCalls: { $sum: "$totalCallAnswered" },
+//         },
+//       },
+//     ]);
+
+//     const totalPages = Math.ceil(totalCount / limit);
+
+//     const statsWithTranscripts = await Promise.all(
+//       foundContacts.map(async (stat) => {
+//         const transcript = stat.referenceToCallId?.transcript;
+//         const analyzedTranscript = stat.referenceToCallId?.analyzedTranscript;
+//         return {
+//           ...stat.toObject(),
+//           originalTranscript: transcript,
+//           analyzedTranscript,
+//         } as ContactDocument;
+//       }),
+//     );
+
+//     return {
+//       totalContactForAgent,
+//       totalAnsweredCalls: stats[0]?.totalAnsweredCalls || 0,
+//       totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
+//       totalAppointment: stats[0]?.totalAppointment || 0,
+//       totalCallsTransffered: stats[0]?.totalCallsTransffered || 0,
+//       totalNotCalledForAgent,
+//       totalCalls: stats[0]?.totalCalls || 0,
+//       totalFailedCalls: stats[0]?.totalFailedCalls || 0,
+//       totalPages,
+//       contacts: statsWithTranscripts,
+//     };
+//   } catch (error) {
+//     console.error("Error fetching all contacts:", error);
+//     return "error getting contact";
+//   }
+// };
+
 export const getAllContact = async (
   agentId: string,
   page: number,
   limit: number,
   dateOption: DateOption = DateOption.LAST_SCHEDULE,
-): Promise<
-  | {
-      contacts: ContactDocument[];
-      totalContactForAgent: number;
-      totalAnsweredCalls: number;
-      totalPages: number;
-      totalNotCalledForAgent: number;
-      totalAnsweredByVm: number;
-      totalAppointment: any;
-      totalCallsTransffered: any;
-      totalCalls: number;
-      totalFailedCalls: number;
-    }
-  | string
-> => {
+) => {
   try {
     const skip = (page - 1) * limit;
-
     let dateFilter = {};
     let dateFilter1 = {};
 
-    const timeZone = "America/Los_Angeles"; // PST time zone
+    const timeZone = "America/Los_Angeles";
     const now = new Date();
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
@@ -86,97 +295,39 @@ export const getAllContact = async (
     switch (dateOption) {
       case DateOption.Today:
         dateFilter = { datesCalled: today };
-        break;
-      case DateOption.Yesterday:
-        const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-        const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-        dateFilter = { datesCalled: yesterday };
-        break;
-      case DateOption.ThisWeek:
-        const pastDays = [];
-        for (let i = 1; pastDays.length < 5; i++) {
-          const day = subDays(now, i);
-          const dayOfWeek = day.getDay();
-          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            // Exclude weekends
-            pastDays.push(
-              format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
-            );
-          }
-        }
-        dateFilter = {
-          datesCalled: { $gte: pastDays[pastDays.length - 1], $lte: today },
-        };
-        break;
-
-      case DateOption.ThisMonth:
-        const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-        const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-          timeZone,
-        });
-        dateFilter = { datesCalled: { $gte: startOfMonthDate } };
-        break;
-      case DateOption.Total:
-        dateFilter = {};
-        break;
-      case DateOption.LAST_SCHEDULE:
-        const recentJob = await jobModel
-          .findOne({})
-          .sort({ createdAt: -1 })
-          .lean();
-        if (!recentJob) {
-          return "No jobs found for today's filter.";
-        }
-        const dateToCheck = recentJob.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: { $gte: dateToCheck } };
-        break;
-      default:
-        const recentJob1 = await jobModel
-          .findOne({ agentId })
-          .sort({ createdAt: -1 })
-          .lean();
-        if (!recentJob1) {
-          return "No jobs found for today's filter.";
-        }
-        const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: { $gte: dateToCheck1 } };
-        break;
-    }
-
-    switch (dateOption) {
-      case DateOption.Today:
         dateFilter1 = { day: today };
         break;
       case DateOption.Yesterday:
         const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
         const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+        dateFilter = { datesCalled: yesterday };
         dateFilter1 = { day: yesterday };
         break;
       case DateOption.ThisWeek:
-        const pastDays = [];
-        for (let i = 1; pastDays.length < 5; i++) {
-          const day = subDays(now, i);
+        const weekdays: string[] = [];
+        for (let i = 1; i <= 7; i++) {
+          const day = subDays(zonedNow, i);
           const dayOfWeek = day.getDay();
           if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            // Exclude weekends
-            pastDays.push(
-              format(toZonedTime(day, timeZone), "yyyy-MM-dd", { timeZone }),
-            );
+            weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
           }
         }
-        dateFilter1 = {
-          day: { $gte: pastDays[pastDays.length - 1], $lte: today },
-        };
+        dateFilter = { datesCalled: { $in: weekdays } };
+        dateFilter1 = { day: { $in: weekdays } };
         break;
 
       case DateOption.ThisMonth:
-        const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-        const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-          timeZone,
-        });
-        dateFilter1 = { day: { $gte: startOfMonthDate } };
+        const monthDates: string[] = [];
+        for (let i = 0; i < now.getDate(); i++) {
+          const day = subDays(now, i);
+          monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+        }
+        dateFilter = { datesCalled: { $in: monthDates } };
+        dateFilter1 = { day: { $in: monthDates } };
         break;
+
       case DateOption.Total:
+        dateFilter = {};
         dateFilter1 = {};
         break;
       case DateOption.LAST_SCHEDULE:
@@ -184,21 +335,20 @@ export const getAllContact = async (
           .findOne({})
           .sort({ createdAt: -1 })
           .lean();
-        if (!recentJob) {
-          return "No jobs found for today's filter.";
-        }
+        if (!recentJob) return "No jobs found for today's filter.";
         const dateToCheck = recentJob.scheduledTime.split("T")[0];
+        dateFilter = { datesCalled: { $gte: dateToCheck } };
         dateFilter1 = { day: { $gte: dateToCheck } };
         break;
+
       default:
         const recentJob1 = await jobModel
           .findOne({ agentId })
           .sort({ createdAt: -1 })
           .lean();
-        if (!recentJob1) {
-          return "No jobs found for today's filter.";
-        }
+        if (!recentJob1) return "No jobs found for today's filter.";
         const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
+        dateFilter = { datesCalled: { $gte: dateToCheck1 } };
         dateFilter1 = { day: { $gte: dateToCheck1 } };
         break;
     }
@@ -223,13 +373,8 @@ export const getAllContact = async (
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
     });
-    // const totalAnsweredCalls = await contactModel.countDocuments({
-    //   agentId,
-    //   isDeleted: false,
-    //   status: callstatusenum.CALLED,
-    //   ...dateFilter,
-    // });
 
+    
     const stats = await DailyStatsModel.aggregate([
       { $match: { agentId, ...dateFilter1 } },
       {
@@ -255,7 +400,7 @@ export const getAllContact = async (
           ...stat.toObject(),
           originalTranscript: transcript,
           analyzedTranscript,
-        } as ContactDocument;
+        };
       }),
     );
 
@@ -276,7 +421,6 @@ export const getAllContact = async (
     return "error getting contact";
   }
 };
-
 export const deleteOneContact = async (id: string) => {
   try {
     const deleteContact = await contactModel.findOneAndUpdate(
