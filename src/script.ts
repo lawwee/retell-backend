@@ -1,85 +1,47 @@
+import { contactModel, EventModel } from "./contacts/contact_model";
+import { reviewTranscript } from "./helper-fuction/transcript-review";
 
-// Import required modules
-import mongoose from 'mongoose';
-import axios from 'axios';
-import { createObjectCsvWriter } from 'csv-writer';
-import { contactModel, EventModel } from './contacts/contact_model';
-
-
-// Retell API configuration
-const RETELL_API_URL = 'https://retell.api.url'; // Replace with actual Retell API URL
-const RETELL_API_KEY = 'your_retell_api_key'; // Replace with your Retell API key
-
-// Function to call Retell API
-async function getRetellCallData(callId:String) {
-  try {
-    const response = await axios.get(`${RETELL_API_URL}/calls/${callId}`, {
-      headers: { Authorization: `Bearer ${RETELL_API_KEY}` },
-    });
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching call data for callId ${callId}:`, error);
-    return null;
-  }
-}
-
-// CSV Writer setup (optional, for logging results)
-const csvWriter = createObjectCsvWriter({
-  path: 'contacts_with_summary.csv',
-  header: [
-    { id: 'firstname', title: 'Firstname' },
-    { id: 'lastname', title: 'Lastname' },
-    { id: 'email', title: 'Email' },
-    { id: 'callSummary', title: 'Retell Call Summary' },
-  ],
-});
-
-// Main script function
 export async function script() {
   try {
+    // Fetch contacts that are not marked as deleted and populate `referenceToCallId`
+    const contacts = await contactModel.find({ isDeleted: false }).populate("referenceToCallId");
     
-    // Find contacts marked as deleted
-    const foundContacts = await contactModel
-      .find({ isDeleted: true })
-      .populate('referenceToCallId');
-
-    const contactSummaries = [];
-
-    // Process each found contact
-    for (const contact of foundContacts) {
-      const callId = contact.callId;
-
-      // Retrieve call data from Retell API
-      if (callId) {
-        const retellData = await getRetellCallData(callId);
-        if (retellData && retellData.call_analysis) {
-          const callSummary = retellData.call_analysis.call_summary;
-
-          // Update retellCallSummary in the transcript model
-          if (contact.referenceToCallId) {
-            await EventModel.findByIdAndUpdate(
-              contact.referenceToCallId._id,
-              { retellCallSummary: callSummary }
-            );
-
-            console.log(`Updated call summary for contact ${contact.firstname} ${contact.lastname}`);
-          }
-
-          // Prepare data for CSV logging
-          contactSummaries.push({  callSummary: callSummary,
-          });
+    console.log(`Fetched ${contacts.length} contacts for processing.`);
+    
+    for (const contact of contacts) {
+      try {
+        // Check if referenceToCallId or transcript exists
+        if (!contact.referenceToCallId || !contact.referenceToCallId.transcript) {
+          console.log(`Skipping contact ${contact._id} - missing referenceToCallId or transcript.`);
+          continue;
         }
+
+        // Review the transcript
+        console.log(`Reviewing transcript for contact ${contact._id}`);
+        const reviewedTranscript = await reviewTranscript(contact.referenceToCallId.transcript);
+
+        // Update EventModel with the reviewed transcript
+        const result = await EventModel.findOneAndUpdate(
+          { callId: contact.referenceToCallId.callId },
+          { analyzedTranscript: reviewedTranscript },
+          { new: true } // Return the updated document
+        );
+
+        // Log the updated result
+        if (result) {
+          console.log(`Updated EventModel for callId ${contact.referenceToCallId.callId} with analyzedTranscript.`);
+        } else {
+          console.log(`EventModel not found for callId ${contact.referenceToCallId.callId} - update skipped.`);
+        }
+
+      } catch (innerError) {
+        console.error(`Error processing contact ${contact._id}:`, innerError);
       }
     }
 
-    // Write results to CSV (optional)
-    await csvWriter.writeRecords(contactSummaries);
-    console.log('Contacts and call summaries exported to CSV.');
+    console.log("Processing complete for all contacts.");
 
   } catch (error) {
-    console.error('Error processing contacts:', error);
-  } finally {
-    // Disconnect from MongoDB
-    await mongoose.disconnect();
+    console.error("Error fetching contacts or updating EventModel:", error);
   }
 }
