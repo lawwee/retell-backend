@@ -3,12 +3,9 @@ import cors from "cors";
 import { format, toZonedTime } from "date-fns-tz";
 import express, { Request, Response } from "express";
 import expressWs from "express-ws";
-import https, {
-  Server as HTTPSServer,
-  createServer as httpsCreateServer,
-} from "https";
+
 import { Server as HTTPServer, createServer as httpCreateServer } from "http";
-import { RawData, WebSocket } from "ws";
+
 import { Retell } from "retell-sdk";
 import { createObjectCsvWriter } from "csv-writer";
 import {
@@ -18,7 +15,7 @@ import {
   updateContactAndTranscript,
   updateOneContact,
 } from "./contacts/contact_controller";
-import { readFileSync } from "fs";
+
 import csv from "csv-parser";
 
 import {
@@ -30,13 +27,12 @@ import {
 import axios from "axios";
 import argon2 from "argon2";
 // import { TwilioClient } from "./twilio_api";
-import { createClient } from "redis";
+
 import {
   callSentimentenum,
-  CustomLlmRequest,
-  CustomLlmResponse,
+
   DateOption,
-  DaysToBeProcessedEnum,
+
   Ilogs,
 } from "./utils/types";
 import {
@@ -46,7 +42,7 @@ import {
   jobstatus,
 } from "./utils/types";
 import * as Papa from "papaparse";
-import { subDays, startOfMonth, startOfWeek } from "date-fns";
+import { subDays, startOfMonth } from "date-fns";
 import fs from "fs";
 import multer from "multer";
 import moment from "moment-timezone";
@@ -65,7 +61,7 @@ import {
   reviewTranscript,
 } from "./helper-fuction/transcript-review";
 import jwt from "jsonwebtoken";
-import { redisClient, redisConnection } from "./utils/redis";
+import {redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
 import { isAdmin } from "./middleware/isAdmin";
@@ -1736,6 +1732,121 @@ export class Server {
       },
     );
   }
+  // loginUser() {
+  //   this.app.post("/user/login", async (req: Request, res: Response) => {
+  //     try {
+  //       const { username, password } = req.body;
+  //       if (!username || !password) {
+  //         return res.status(400).json({ message: "Provide the login details" });
+  //       }
+
+  //       const userInDb = await userModel.findOne(
+  //         { username },
+  //         {
+  //           "agents.agentId": 1,
+  //           passwordHash: 1,
+  //           isAdmin: 1,
+  //           username: 1,
+  //           group: 1,
+  //           name: 1,
+  //         },
+  //       );
+
+  //       if (!userInDb) {
+  //         // Log unsuccessful login attempt
+  //         await userModel.updateOne(
+  //           { username },
+  //           {
+  //             $push: {
+  //               loginDetails: {
+  //                 ipAddress: req.ip,
+  //                 successful: false,
+  //               },
+  //             },
+  //           },
+  //         );
+  //         return res.status(400).json({ message: "Invalid login credentials" });
+  //       }
+
+  //       const verifyPassword = await argon2.verify(
+  //         userInDb.passwordHash,
+  //         password,
+  //       );
+  //       if (!verifyPassword) {
+  //         // Log unsuccessful login attempt
+  //         await userModel.updateOne(
+  //           { username },
+  //           {
+  //             $push: {
+  //               loginDetails: {
+  //                 ipAddress: req.ip,
+  //                 successful: false,
+  //               },
+  //             },
+  //           },
+  //         );
+  //         return res.status(400).json({ message: "Incorrect password" });
+  //       }
+
+  //       // Log successful login attempt
+  //       await userModel.updateOne(
+  //         { username },
+  //         {
+  //           $push: {
+  //             loginDetails: {
+  //               ipAddress: req.ip,
+  //               successful: true,
+  //             },
+  //           },
+  //         },
+  //       );
+
+  //       let result;
+  //       if (userInDb.isAdmin === true) {
+  //         const payload = await userModel.aggregate([
+  //           {
+  //             $project: { agents: 1 },
+  //           },
+  //           {
+  //             $unwind: "$agents",
+  //           },
+  //           {
+  //             $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } },
+  //           },
+  //           {
+  //             $project: { _id: 0, allAgentIds: 1 },
+  //           },
+  //         ]);
+  //         result = payload.length > 0 ? payload[0].allAgentIds : [];
+  //       } else {
+  //         result = userInDb?.agents?.map((agent) => agent.agentId) || [];
+  //       }
+
+  //       const token = jwt.sign(
+  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+  //         process.env.JWT_SECRET,
+  //         { expiresIn: "1d" },
+  //       );
+
+  //       console.log(userInDb);
+
+  //       res.json({
+  //         payload: {
+  //           message: "Logged in successfully",
+  //           token,
+  //           username: userInDb.username,
+  //           userId: userInDb._id,
+  //           group: userInDb.group,
+  //           name: userInDb.name,
+  //           agentIds: result,
+  //         },
+  //       });
+  //     } catch (error) {
+  //       console.log(error);
+  //       return res.status(500).json({ message: "Error happened during login" });
+  //     }
+  //   });
+  // }
   loginUser() {
     this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
@@ -1743,7 +1854,7 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-
+  
         const userInDb = await userModel.findOne(
           { username },
           {
@@ -1755,7 +1866,7 @@ export class Server {
             name: 1,
           },
         );
-
+  
         if (!userInDb) {
           // Log unsuccessful login attempt
           await userModel.updateOne(
@@ -1771,7 +1882,7 @@ export class Server {
           );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-
+  
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
@@ -1791,7 +1902,7 @@ export class Server {
           );
           return res.status(400).json({ message: "Incorrect password" });
         }
-
+  
         // Log successful login attempt
         await userModel.updateOne(
           { username },
@@ -1804,7 +1915,7 @@ export class Server {
             },
           },
         );
-
+  
         let result;
         if (userInDb.isAdmin === true) {
           const payload = await userModel.aggregate([
@@ -1825,15 +1936,13 @@ export class Server {
         } else {
           result = userInDb?.agents?.map((agent) => agent.agentId) || [];
         }
-
+  
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-
-        console.log(userInDb);
-
+  
         res.json({
           payload: {
             message: "Logged in successfully",
@@ -1847,10 +1956,128 @@ export class Server {
         });
       } catch (error) {
         console.log(error);
-        return res.status(500).json({ message: "Error happened during login" });
+        if (!res.headersSent) { // Check if headers have not been sent before sending response
+          return res.status(500).json({ message: "Error happened during login" });
+        }
       }
     });
   }
+  
+  // loginAdmin() {
+  //   this.app.post("/admin/login", async (req: Request, res: Response) => {
+  //     try {
+  //       const { username, password } = req.body;
+  //       if (!username || !password) {
+  //         return res.status(400).json({ message: "Provide the login details" });
+  //       }
+
+  //       const userInDb = await userModel.findOne({ username });
+  //       if (!userInDb) {
+  //         // Log unsuccessful login attempt
+  //         await userModel.updateOne(
+  //           { username },
+  //           {
+  //             $push: {
+  //               loginDetails: {
+  //                 ipAddress: req.ip,
+  //                 device: "Unknown", // Improve this as needed
+  //                 successful: false,
+  //               },
+  //             },
+  //           },
+  //         );
+  //         return res.status(400).json({ message: "Invalid login credentials" });
+  //       }
+
+  //       const verifyPassword = await argon2.verify(
+  //         userInDb.passwordHash,
+  //         password,
+  //       );
+  //       if (!verifyPassword) {
+  //         // Log unsuccessful login attempt
+  //         await userModel.updateOne(
+  //           { username },
+  //           {
+  //             $push: {
+  //               loginDetails: {
+  //                 ipAddress: req.ip,
+  //                 device: "Unknown", // Improve this as needed
+  //                 successful: false,
+  //               },
+  //             },
+  //           },
+  //         );
+  //         return res.status(400).json({ message: "Incorrect password" });
+  //       }
+
+  //       if (userInDb.isAdmin === false) {
+  //         return res.status(401).json("Only admins can access here");
+  //       }
+
+  //       // Log successful login attempt
+  //       await userModel.updateOne(
+  //         { username },
+  //         {
+  //           $push: {
+  //             loginDetails: {
+  //               ipAddress: req.ip,
+  //               device: "Unknown", // Improve this as needed
+  //               successful: true,
+  //             },
+  //           },
+  //         },
+  //       );
+
+  //       const token = jwt.sign(
+  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
+  //         process.env.JWT_SECRET,
+  //         { expiresIn: "1d" },
+  //       );
+
+  //       const result = await userModel.aggregate([
+  //         {
+  //           // Project only the agents field, which contains the agentId
+  //           $project: {
+  //             agents: 1,
+  //           },
+  //         },
+  //         {
+  //           // Unwind the agents array to have individual documents for each agent
+  //           $unwind: "$agents",
+  //         },
+  //         {
+  //           // Group all the agentId values into one array
+  //           $group: {
+  //             _id: null, // Single group
+  //             allAgentIds: { $push: "$agents.agentId" },
+  //           },
+  //         },
+  //         {
+  //           // Optionally, remove the _id field from the result
+
+  //           $project: {
+  //             _id: 0,
+  //             allAgentIds: 1,
+  //           },
+  //         },
+  //       ]);
+
+  //       return res.status(200).json({
+  //         payload: {
+  //           message: "Logged in successfully",
+  //           token,
+  //           username: userInDb.username,
+  //           userId: userInDb._id,
+  //           group: userInDb.group,
+  //           agentIds: result,
+  //         },
+  //       });
+  //     } catch (error) {
+  //       console.log(error);
+  //       return res.status(500).json({ message: "Error happened during login" });
+  //     }
+  //   });
+  // }
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
@@ -1858,7 +2085,7 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-
+  
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
           // Log unsuccessful login attempt
@@ -1876,11 +2103,8 @@ export class Server {
           );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-
-        const verifyPassword = await argon2.verify(
-          userInDb.passwordHash,
-          password,
-        );
+  
+        const verifyPassword = await argon2.verify(userInDb.passwordHash, password);
         if (!verifyPassword) {
           // Log unsuccessful login attempt
           await userModel.updateOne(
@@ -1897,11 +2121,11 @@ export class Server {
           );
           return res.status(400).json({ message: "Incorrect password" });
         }
-
+  
         if (userInDb.isAdmin === false) {
-          return res.status(401).json("Only admins can access here");
+          return res.status(401).json({ message: "Only admins can access here" });
         }
-
+  
         // Log successful login attempt
         await userModel.updateOne(
           { username },
@@ -1915,41 +2139,20 @@ export class Server {
             },
           },
         );
-
+  
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-
+  
         const result = await userModel.aggregate([
-          {
-            // Project only the agents field, which contains the agentId
-            $project: {
-              agents: 1,
-            },
-          },
-          {
-            // Unwind the agents array to have individual documents for each agent
-            $unwind: "$agents",
-          },
-          {
-            // Group all the agentId values into one array
-            $group: {
-              _id: null, // Single group
-              allAgentIds: { $push: "$agents.agentId" },
-            },
-          },
-          {
-            // Optionally, remove the _id field from the result
-
-            $project: {
-              _id: 0,
-              allAgentIds: 1,
-            },
-          },
+          { $project: { agents: 1 } },
+          { $unwind: "$agents" },
+          { $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } } },
+          { $project: { _id: 0, allAgentIds: 1 } },
         ]);
-
+  
         return res.status(200).json({
           payload: {
             message: "Logged in successfully",
@@ -1962,10 +2165,13 @@ export class Server {
         });
       } catch (error) {
         console.log(error);
-        return res.status(500).json({ message: "Error happened during login" });
+        if (!res.headersSent) {
+          return res.status(500).json({ message: "Error happened during login" });
+        }
       }
     });
   }
+  
   signUpUser() {
     this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
