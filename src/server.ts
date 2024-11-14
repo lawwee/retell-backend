@@ -111,11 +111,11 @@ export class Server {
   constructor() {
     this.app = expressWs(express()).app;
     this.app.use(express.json());
-    this.app.use(
-      cors({
-        origin: "*",
-      }),
-    );
+    // this.app.use(
+    //   cors({
+    //     origin: "*",
+    //   }),
+    // );
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
     this.client = new OpenAI({
