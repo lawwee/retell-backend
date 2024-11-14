@@ -113,7 +113,7 @@ export class Server {
     this.app.use(express.json());
    
     this.app.use(cors({
-      origin: 'https://intuitiveagents.netlify.app', // specify your frontend origin
+      origin: ['https://intuitiveagents.netlify.app',"https://tvagclientdashboard.com"], // specify your frontend origin
       methods: ['GET', 'POST'], // allow specific methods
       credentials: true // if you need to send cookies or authentication
     }));
