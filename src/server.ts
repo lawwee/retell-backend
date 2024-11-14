@@ -111,11 +111,7 @@ export class Server {
   constructor() {
     this.app = expressWs(express()).app;
     this.app.use(express.json());
-    // this.app.use(
-    //   cors({
-    //     origin: "*",
-    //   }),
-    // );
+   
     this.app.use(cors({
       origin: 'https://intuitiveagents.netlify.app', // specify your frontend origin
       methods: ['GET', 'POST'], // allow specific methods
@@ -127,6 +123,7 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
+    this.app.options('*', cors()); // Enable preflight for all routes
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
