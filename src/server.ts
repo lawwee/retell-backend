@@ -111,19 +111,17 @@ export class Server {
   constructor() {
     this.app = expressWs(express()).app;
     this.app.use(express.json());
-   
-    this.app.use(cors({
-      origin: ['https://intuitiveagents.netlify.app',"https://tvagclientdashboard.com"], // specify your frontend origin
-      methods: ['GET', 'POST'], // allow specific methods
-      credentials: true // if you need to send cookies or authentication
-    }));
+    this.app.use(
+      cors({
+        origin: "*",
+      }),
+    );
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_APIKEY,
     });
 
-    this.app.options('*', cors()); // Enable preflight for all routes
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
