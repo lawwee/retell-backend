@@ -116,6 +116,11 @@ export class Server {
     //     origin: "*",
     //   }),
     // );
+    this.app.use(cors({
+      origin: 'https://intuitiveagents.netlify.app', // specify your frontend origin
+      methods: ['GET', 'POST'], // allow specific methods
+      credentials: true // if you need to send cookies or authentication
+    }));
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static(path.join(__dirname, "public")));
     this.client = new OpenAI({
