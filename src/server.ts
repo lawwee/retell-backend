@@ -1,7 +1,7 @@
 process.env.TZ = "America/Los_Angeles";
 import cors from "cors";
 import { format, toZonedTime } from "date-fns-tz";
-import express, { Request, Response } from "express";
+import express, { Request, Response, Router } from "express";
 import expressWs from "express-ws";
 
 import { Server as HTTPServer, createServer as httpCreateServer } from "http";
@@ -109,7 +109,9 @@ export class Server {
 
   upload = multer({ storage: this.storage });
   constructor() {
+    
     this.app = expressWs(express()).app;
+    
     this.app.use(express.json());
     this.app.use(
       cors({
@@ -121,6 +123,8 @@ export class Server {
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_APIKEY,
     });
+   
+  
 
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
@@ -404,7 +408,7 @@ export class Server {
   // }
   createPhoneCall2() {
     this.app.post(
-      "/create-llm-phone-call",
+      "/api/create-llm-phone-call",
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
@@ -465,7 +469,7 @@ export class Server {
   }
   handleContactSaving() {
     this.app.post(
-      "/users/create",
+      "/api/users/create",
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
@@ -499,7 +503,7 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
+    this.app.post("/api/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
       const { page, limit, dateOption } = req.body;
       const newPage = parseInt(page);
@@ -534,7 +538,7 @@ export class Server {
   }
   handlecontactDelete() {
     this.app.patch(
-      "/users/delete",
+      "/api/users/delete",
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
@@ -550,7 +554,7 @@ export class Server {
   }
   handleContactUpdate() {
     this.app.patch(
-      "/users/update",
+      "/api/users/update",
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
@@ -1848,7 +1852,7 @@ export class Server {
   //   });
   // }
   loginUser() {
-    this.app.post("/user/login", async (req: Request, res: Response) => {
+    this.app.post("/api/user/login", async (req: Request, res: Response) => {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
@@ -2079,7 +2083,7 @@ export class Server {
   //   });
   // }
   loginAdmin() {
-    this.app.post("/admin/login", async (req: Request, res: Response) => {
+    this.app.post("/api/admin/login", async (req: Request, res: Response) => {
       try {
         console.log("i am here")
         const { username, password } = req.body;
@@ -2174,7 +2178,7 @@ export class Server {
   }
   
   signUpUser() {
-    this.app.post("/user/signup", async (req: Request, res: Response) => {
+    this.app.post("/api/user/signup", async (req: Request, res: Response) => {
       try {
         const { username, email, password, group, name } = req.body;
         if (!username || !email || !password || !group) {
