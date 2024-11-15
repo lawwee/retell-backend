@@ -109,9 +109,7 @@ export class Server {
 
   upload = multer({ storage: this.storage });
   constructor() {
-    
     this.app = expressWs(express()).app;
-    
     this.app.use(express.json());
     this.app.use(
       cors({
@@ -124,8 +122,6 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
    
-  
-
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
@@ -408,7 +404,7 @@ export class Server {
   // }
   createPhoneCall2() {
     this.app.post(
-      "/api/create-llm-phone-call",
+      "/create-llm-phone-call",
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
@@ -469,7 +465,7 @@ export class Server {
   }
   handleContactSaving() {
     this.app.post(
-      "/api/users/create",
+      "/users/create",
       authmiddleware,
       isAdmin,
       async (req: Request, res: Response) => {
@@ -503,7 +499,7 @@ export class Server {
   }
 
   handlecontactGet() {
-    this.app.post("/api/users/:agentId", async (req: Request, res: Response) => {
+    this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
       const { page, limit, dateOption } = req.body;
       const newPage = parseInt(page);
@@ -538,7 +534,7 @@ export class Server {
   }
   handlecontactDelete() {
     this.app.patch(
-      "/api/users/delete",
+      "/users/delete",
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
@@ -554,7 +550,7 @@ export class Server {
   }
   handleContactUpdate() {
     this.app.patch(
-      "/api/users/update",
+      "/users/update",
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
@@ -1852,7 +1848,7 @@ export class Server {
   //   });
   // }
   loginUser() {
-    this.app.post("/api/user/login", async (req: Request, res: Response) => {
+    this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
         const { username, password } = req.body;
         if (!username || !password) {
@@ -2083,7 +2079,7 @@ export class Server {
   //   });
   // }
   loginAdmin() {
-    this.app.post("/api/admin/login", async (req: Request, res: Response) => {
+    this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
         console.log("i am here")
         const { username, password } = req.body;
@@ -2178,7 +2174,7 @@ export class Server {
   }
   
   signUpUser() {
-    this.app.post("/api/user/signup", async (req: Request, res: Response) => {
+    this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
         const { username, email, password, group, name } = req.body;
         if (!username || !email || !password || !group) {
