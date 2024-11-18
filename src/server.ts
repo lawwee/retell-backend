@@ -81,7 +81,7 @@ import { script } from "./script";
 connectDb();
 const smee = new SmeeClient({
   source: process.env.SMEE_URL,
-  target: "https://intuitiveagents.ai/webhook",
+  target: "https://api.intuitiveagents.ai/webhook",
   logger: console,
 });
 smee.start();
@@ -1215,108 +1215,39 @@ export class Server {
         switch (dateOption) {
           case DateOption.Today:
             dateFilter = { datesCalled: today };
-
-            break;
-          case DateOption.Yesterday:
-            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
-              timeZone,
-            });
-            dateFilter = { datesCalled: yesterday };
-            break;
-          case DateOption.ThisWeek:
-            const pastDays = [];
-            for (let i = 1; pastDays.length < 5; i++) {
-              const day = subDays(now, i);
-              const dayOfWeek = day.getDay();
-              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                pastDays.push(
-                  format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
-                    timeZone,
-                  }),
-                );
-              }
-            }
-            dateFilter = {
-              datesCalled: {
-                $gte: pastDays[pastDays.length - 1],
-                $lte: today,
-              },
-            };
-            break;
-
-          case DateOption.ThisMonth:
-            const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-            const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-              timeZone,
-            });
-            dateFilter = { datesCalled: { $gte: startOfMonthDate } };
-            break;
-          case DateOption.Total:
-            dateFilter = {};
-            break;
-          case DateOption.LAST_SCHEDULE:
-            const recentJob = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob) {
-              return "No jobs found for today's filter.";
-            }
-            const dateToCheck = recentJob.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck } };
-            break;
-          default:
-            const recentJob1 = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob1) {
-              return "No jobs found for today's filter.";
-            }
-            const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck1 } };
-            break;
-        }
-
-        switch (dateOption) {
-          case DateOption.Today:
             dateFilter1 = { day: today };
             break;
           case DateOption.Yesterday:
             const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
-              timeZone,
-            });
+            const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+            dateFilter = { datesCalled: yesterday };
             dateFilter1 = { day: yesterday };
             break;
           case DateOption.ThisWeek:
-            const pastDays = [];
-            for (let i = 1; pastDays.length < 5; i++) {
-              const day = subDays(now, i);
+            const weekdays: string[] = [];
+            for (let i = 1; i <= 7; i++) {
+              const day = subDays(zonedNow, i);
               const dayOfWeek = day.getDay();
               if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                // Exclude weekends
-                pastDays.push(
-                  format(toZonedTime(day, timeZone), "yyyy-MM-dd", {
-                    timeZone,
-                  }),
-                );
+                weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
               }
             }
-            dateFilter1 = {
-              day: { $gte: pastDays[pastDays.length - 1], $lte: today },
-            };
+            dateFilter = { datesCalled: { $in: weekdays } };
+            dateFilter1 = { day: { $in: weekdays } };
             break;
-
+    
           case DateOption.ThisMonth:
-            const zonedStartOfMonth = toZonedTime(startOfMonth(now), timeZone);
-            const startOfMonthDate = format(zonedStartOfMonth, "yyyy-MM-dd", {
-              timeZone,
-            });
-            dateFilter1 = { day: { $gte: startOfMonthDate } };
+            const monthDates: string[] = [];
+            for (let i = 0; i < now.getDate(); i++) {
+              const day = subDays(now, i);
+              monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+            }
+            dateFilter = { datesCalled: { $in: monthDates } };
+            dateFilter1 = { day: { $in: monthDates } };
             break;
+    
           case DateOption.Total:
+            dateFilter = {};
             dateFilter1 = {};
             break;
           case DateOption.LAST_SCHEDULE:
@@ -1324,22 +1255,10 @@ export class Server {
               .findOne({})
               .sort({ createdAt: -1 })
               .lean();
-            if (!recentJob) {
-              return "No jobs found for today's filter.";
-            }
+            if (!recentJob) return "No jobs found for today's filter.";
             const dateToCheck = recentJob.scheduledTime.split("T")[0];
+            dateFilter = { datesCalled: { $gte: dateToCheck } };
             dateFilter1 = { day: { $gte: dateToCheck } };
-            break;
-          default:
-            const recentJob1 = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob1) {
-              return "No jobs found for today's filter.";
-            }
-            const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-            dateFilter1 = { day: { $gte: dateToCheck1 } };
             break;
         }
 
