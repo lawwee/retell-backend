@@ -79,13 +79,13 @@ import { formatPhoneNumber } from "./helper-fuction/formatter";
 import { script } from "./script";
 
 connectDb();
-const smee = new SmeeClient({
-  source: process.env.SMEE_URL,
-  target: "https://api.intuitiveagents.ai/webhook",
-  logger: console,
-});
-smee.start();
-redisConnection();
+// const smee = new SmeeClient({
+//   source: process.env.SMEE_URL,
+//   target: "https://api.intuitiveagents.ai/webhook",
+//   logger: console,
+// });
+// smee.start();
+// redisConnection();
 
 export class Server {
   public app: expressWs.Application;

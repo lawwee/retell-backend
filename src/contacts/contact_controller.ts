@@ -113,19 +113,20 @@ export const getAllContact = async (
           .lean();
         if (!recentJob) return "No jobs found for today's filter.";
         const dateToCheck = recentJob.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: { $gte: dateToCheck } };
-        dateFilter1 = { day: { $gte: dateToCheck } };
+        dateFilter = { datesCalled: dateToCheck  };
+        dateFilter1 = { day:  dateToCheck  };
         break;
     }
 
     console.log(dateFilter);
+    console.log(dateFilter1)
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: false, ...dateFilter })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
       .skip(skip)
       .limit(limit);
-    console.log(foundContacts);
+    
 
     const totalCount = await contactModel.countDocuments({
       agentId,
