@@ -2000,7 +2000,7 @@ export class Server {
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
-        console.log("i am here")
+      
         const { username, password } = req.body;
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });

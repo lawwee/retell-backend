@@ -56,7 +56,7 @@ export const getAllContact = async (
   agentId: string,
   page: number,
   limit: number,
-  dateOption: DateOption = DateOption.LAST_SCHEDULE,
+  dateOption: DateOption,
 ) => {
   try {
     const skip = (page - 1) * limit;
@@ -116,25 +116,16 @@ export const getAllContact = async (
         dateFilter = { datesCalled: { $gte: dateToCheck } };
         dateFilter1 = { day: { $gte: dateToCheck } };
         break;
-
-      default:
-        const recentJob1 = await jobModel
-          .findOne({ agentId })
-          .sort({ createdAt: -1 })
-          .lean();
-        if (!recentJob1) return "No jobs found for today's filter.";
-        const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: { $gte: dateToCheck1 } };
-        dateFilter1 = { day: { $gte: dateToCheck1 } };
-        break;
     }
 
+    console.log(dateFilter);
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: false, ...dateFilter })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
       .skip(skip)
       .limit(limit);
+    console.log(foundContacts);
 
     const totalCount = await contactModel.countDocuments({
       agentId,
@@ -155,7 +146,6 @@ export const getAllContact = async (
       status: callstatusenum.IVR,
     });
 
-    
     const stats = await DailyStatsModel.aggregate([
       { $match: { agentId, ...dateFilter1 } },
       {
