@@ -514,9 +514,7 @@ export class Server {
           return res.status(400).json({ error: "Invalid date option" });
         }
         validDateOption = dateOption as DateOption;
-      } else {
-        validDateOption = DateOption.LAST_SCHEDULE;
-      }
+      } 
 
       try {
         const result = await getAllContact(
