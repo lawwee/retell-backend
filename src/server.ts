@@ -2768,6 +2768,9 @@ export class Server {
             case "ivr":
               query.status = callstatusenum.IVR;
               break;
+              case "inactivity":
+                query.status = callstatusenum.INACTIVITY;
+                break;
           }
         }
 
