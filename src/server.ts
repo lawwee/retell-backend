@@ -28,13 +28,7 @@ import axios from "axios";
 import argon2 from "argon2";
 // import { TwilioClient } from "./twilio_api";
 
-import {
-  callSentimentenum,
-
-  DateOption,
-
-  Ilogs,
-} from "./utils/types";
+import { callSentimentenum, DateOption, Ilogs } from "./utils/types";
 import {
   IContact,
   RetellRequest,
@@ -61,7 +55,7 @@ import {
   reviewTranscript,
 } from "./helper-fuction/transcript-review";
 import jwt from "jsonwebtoken";
-import {redisConnection } from "./utils/redis";
+import { redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
 import authmiddleware from "./middleware/protect";
 import { isAdmin } from "./middleware/isAdmin";
@@ -121,7 +115,7 @@ export class Server {
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_APIKEY,
     });
-   
+
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
@@ -131,7 +125,7 @@ export class Server {
     this.secondscript();
     // this.createPhoneCall();
     this.handleContactUpdate();
-    this.uploadcsvToDb(); 
+    this.uploadcsvToDb();
     this.schedulemycall();
     this.getjobstatus();
     this.resetAgentStatus();
@@ -514,7 +508,10 @@ export class Server {
           return res.status(400).json({ error: "Invalid date option" });
         }
         validDateOption = dateOption as DateOption;
-      } 
+      } else {
+        validDateOption = DateOption.LAST_SCHEDULE;
+      }
+      console.log(validDateOption);
 
       try {
         const result = await getAllContact(
@@ -632,33 +629,44 @@ export class Server {
           const tag = req.query.tag;
           const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
-  
+
           Papa.parse(csvData, {
             header: true,
             complete: async (results: any) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const headers = results.meta.fields.map((header: string) => header.trim());
-              const requiredHeaders = ["firstname", "lastname", "phone", "email"];
-              const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
-  
+              const headers = results.meta.fields.map((header: string) =>
+                header.trim(),
+              );
+              const requiredHeaders = [
+                "firstname",
+                "lastname",
+                "phone",
+                "email",
+              ];
+              const missingHeaders = requiredHeaders.filter(
+                (header) => !headers.includes(header),
+              );
+
               if (missingHeaders.length > 0) {
                 return res.status(400).json({
-                  message: `CSV must contain the following headers: ${missingHeaders.join(", ")}`,
+                  message: `CSV must contain the following headers: ${missingHeaders.join(
+                    ", ",
+                  )}`,
                 });
               }
-  
+
               const agentId = req.params.agentId;
               console.log("agentId:", agentId);
-              
+
               const uniqueRecordsMap = new Map<string, IContact>();
               const duplicateKeys = new Set<string>();
               const failedContacts = [];
-  
+
               for (const user of jsonArrayObj) {
                 if (user.firstname && user.phone) {
                   const formattedPhone = formatPhoneNumber(user.phone);
                   user.phone = formattedPhone;
-  
+
                   if (uniqueRecordsMap.has(formattedPhone)) {
                     duplicateKeys.add(formattedPhone);
                     failedContacts.push({ user, reason: "duplicate" });
@@ -666,41 +674,51 @@ export class Server {
                     uniqueRecordsMap.set(formattedPhone, user);
                   }
                 } else {
-                  failedContacts.push({ user, reason: "missing required fields" });
+                  failedContacts.push({
+                    user,
+                    reason: "missing required fields",
+                  });
                 }
               }
-  
-              const uniqueUsersToInsert = Array.from(uniqueRecordsMap.values())
-                .filter(user => !duplicateKeys.has(user.phone));
-  
-              
-              const usersWithAgentId = uniqueUsersToInsert.map(user => ({
+
+              const uniqueUsersToInsert = Array.from(
+                uniqueRecordsMap.values(),
+              ).filter((user) => !duplicateKeys.has(user.phone));
+
+              const usersWithAgentId = uniqueUsersToInsert.map((user) => ({
                 ...user,
                 agentId: agentId,
-                tag
+                tag,
               }));
-  
-              // Batch query to find existing users
-              const phoneNumbersToCheck = usersWithAgentId.map(user => user.phone);
-              const existingUsers = await contactModel.find({
-                isDeleted:false,
-                phone: { $in: phoneNumbersToCheck }
-              });
-  
-              const dbDuplicates = existingUsers;
-  
-              const existingPhoneNumbers = new Set(existingUsers.map(user => user.phone));
-  
 
-              const finalUsersToInsert = usersWithAgentId.filter(user => !existingPhoneNumbers.has(user.phone));
-              
+              // Batch query to find existing users
+              const phoneNumbersToCheck = usersWithAgentId.map(
+                (user) => user.phone,
+              );
+              const existingUsers = await contactModel.find({
+                isDeleted: false,
+                phone: { $in: phoneNumbersToCheck },
+              });
+
+              const dbDuplicates = existingUsers;
+
+              const existingPhoneNumbers = new Set(
+                existingUsers.map((user) => user.phone),
+              );
+
+              const finalUsersToInsert = usersWithAgentId.filter(
+                (user) => !existingPhoneNumbers.has(user.phone),
+              );
 
               if (dbDuplicates.length > 0) {
-                dbDuplicates.forEach(existingUser => {
-                  failedContacts.push({ user: existingUser, reason: "already exists in the database" });
+                dbDuplicates.forEach((existingUser) => {
+                  failedContacts.push({
+                    user: existingUser,
+                    reason: "already exists in the database",
+                  });
                 });
               }
-  
+
               if (finalUsersToInsert.length > 0) {
                 await contactModel.insertMany(finalUsersToInsert);
                 await userModel.updateOne(
@@ -708,16 +726,15 @@ export class Server {
                   { $addToSet: { "agents.$.tag": lowerCaseTag } },
                 );
               }
-  
-            
+
               if (failedContacts.length > 0) {
                 console.log("Failed Contacts:", failedContacts);
               }
-  
+
               res.status(200).json({
                 message: `Upload successful, contacts uploaded: ${finalUsersToInsert.length}, duplicates found: ${dbDuplicates.length}`,
                 duplicates: dbDuplicates,
-                failedContacts: failedContacts
+                failedContacts: failedContacts,
               });
             },
             error: async (err: Error) => {
@@ -727,9 +744,11 @@ export class Server {
           });
         } catch (err) {
           console.error("Error:", err);
-          res.status(500).json({ message: "Failed to upload CSV data to database" });
+          res
+            .status(500)
+            .json({ message: "Failed to upload CSV data to database" });
         }
-      }
+      },
     );
   }
   getjobstatus() {
@@ -1009,15 +1028,17 @@ export class Server {
         const isCallTransferred = disconnection_reason === "call_transfer";
         // const isMachine = disconnection_reason === "voicemail_reached";
         const isDialNoAnswer = disconnection_reason === "dial_no_answer";
+        const isCallInactivity = disconnection_reason === "inactivity";
         const isCallAnswered =
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
 
         analyzedTranscript = await reviewTranscript(transcript);
-        const isCallScheduled = analyzedTranscript.message.content === "scheduled";
+        const isCallScheduled =
+          analyzedTranscript.message.content === "scheduled";
         const isMachine = analyzedTranscript.message.content === "voicemail";
         const isIVR = analyzedTranscript.message.content === "ivr";
-        const callbackdate = await reviewCallback(transcript)
+        const callbackdate = await reviewCallback(transcript);
         const callEndedUpdateData = {
           callId: call_id,
           agentId: payload.call.agent_id,
@@ -1039,7 +1060,7 @@ export class Server {
         if (isMachine) {
           statsUpdate.$inc.totalAnsweredByVm = 1;
           callStatus = callstatusenum.VOICEMAIL;
-        } else if(isIVR){
+        } else if (isIVR) {
           statsUpdate.$inc.totalAnsweredByIVR = 1;
           callStatus = callstatusenum.IVR;
         } else if (isCallFailed) {
@@ -1054,6 +1075,9 @@ export class Server {
         } else if (isCallScheduled) {
           statsUpdate.$inc.totalAppointment = 1;
           callStatus = callstatusenum.SCHEDULED;
+        } else if (isCallInactivity) {
+          statsUpdate.$inc.totalCallInactivity = 1;
+          callStatus = callstatusenum.INACTIVITY;
         } else if (isCallAnswered) {
           statsUpdate.$inc.totalCallAnswered = 1;
           callStatus = callstatusenum.CALLED;
@@ -1195,10 +1219,178 @@ export class Server {
       }
     });
   }
+  // statsForAgent() {
+  //   this.app.post("/get-stats", async (req: Request, res: Response) => {
+  //     const { agentIds, dateOption, limit, page, startDate, endDate } =
+  //       req.body;
+
+  //     try {
+  //       let dateFilter = {};
+  //       let dateFilter1 = {};
+  //       const skip = (page - 1) * limit;
+
+  //       const timeZone = "America/Los_Angeles";
+  //       const now = new Date();
+  //       const zonedNow = toZonedTime(now, timeZone);
+  //       const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+
+  //       switch (dateOption) {
+  //         case DateOption.Today:
+  //           dateFilter = { datesCalled: today };
+  //           dateFilter1 = { day: today };
+  //           break;
+  //         case DateOption.Yesterday:
+  //           const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+  //           const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+  //           dateFilter = { datesCalled: yesterday };
+  //           dateFilter1 = { day: yesterday };
+  //           break;
+  //         case DateOption.ThisWeek:
+  //           const weekdays: string[] = [];
+  //           for (let i = 1; i <= 7; i++) {
+  //             const day = subDays(zonedNow, i);
+  //             const dayOfWeek = day.getDay();
+  //             if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+  //               weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+  //             }
+  //           }
+  //           dateFilter = { datesCalled: { $in: weekdays } };
+  //           dateFilter1 = { day: { $in: weekdays } };
+  //           break;
+
+  //         case DateOption.ThisMonth:
+  //           const monthDates: string[] = [];
+  //           for (let i = 0; i < now.getDate(); i++) {
+  //             const day = subDays(now, i);
+  //             monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+  //           }
+  //           dateFilter = { datesCalled: { $in: monthDates } };
+  //           dateFilter1 = { day: { $in: monthDates } };
+  //           break;
+
+  //         case DateOption.Total:
+  //           dateFilter = {};
+  //           dateFilter1 = {};
+  //           break;
+  //         case DateOption.LAST_SCHEDULE:
+  //           const recentJob = await jobModel
+  //             .findOne({agentId:{$in: agentIds}})
+  //             .sort({ createdAt: -1 })
+  //             .lean();
+  //           if (!recentJob) return "No jobs found for today's filter.";
+  //           const dateToCheck = recentJob.scheduledTime.split("T")[0];
+  //           dateFilter = { datesCalled: { $gte: dateToCheck } };
+  //           dateFilter1 = { day: { $gte: dateToCheck } };
+  //           break;
+  //       }
+
+  //       if (startDate) {
+  //         dateFilter = {
+  //           datesCalled: {
+  //             $gte: startDate,
+  //           },
+  //         };
+  //         dateFilter1 = {
+  //           day: {
+  //             $gte: startDate,
+  //           },
+  //         };
+  //       }
+
+  //       if (endDate) {
+  //         dateFilter = {
+  //           datesCalled: {
+  //             $lte: endDate,
+  //           },
+  //         };
+  //         dateFilter1 = {
+  //           day: {
+  //             $lte: endDate,
+  //           },
+  //         };
+  //       }
+  //       console.log(dateFilter, dateFilter1);
+
+  //       const foundContacts = await contactModel
+  //         .find({ agentId: { $in: agentIds }, isDeleted: false, ...dateFilter })
+  //         .sort({ createdAt: "desc" })
+  //         .populate("referenceToCallId")
+  //         .limit(limit)
+  //         .skip(skip);
+
+  //       const totalContactForAgent = await contactModel.countDocuments({
+  //         agentId: { $in: agentIds },
+  //         isDeleted: false,
+  //       });
+
+  //       const totalCount = await contactModel.countDocuments({
+  //         agentId: { $in: agentIds },
+  //         isDeleted: { $ne: true },
+  //       });
+
+  //       const totalNotCalledForAgent = await contactModel.countDocuments({
+  //         agentId: { $in: agentIds },
+  //         isDeleted: false,
+  //         status: callstatusenum.NOT_CALLED,
+  //       });
+  //       const totalAnsweredCalls = await contactModel.countDocuments({
+  //         agentId: { $in: agentIds },
+  //         isDeleted: false,
+  //         status: callstatusenum.CALLED,
+  //         ...dateFilter,
+  //       });
+
+  //       const stats = await DailyStatsModel.aggregate([
+  //         { $match: { agentId: { $in: agentIds }, ...dateFilter1 } },
+  //         {
+  //           $group: {
+  //             _id: null,
+  //             totalCalls: { $sum: "$totalCalls" },
+  //             totalAnsweredByVm: { $sum: "$totalAnsweredByVm" },
+  //             totalAppointment: { $sum: "$totalAppointment" },
+  //             totalCallsTransffered: { $sum: "$totalTransffered" },
+  //             totalFailedCalls: { $sum: "$totalFailed" },
+  //             // totalContactForAgent: { $sum: 1 },
+  //           },
+  //         },
+  //       ]);
+  //       const totalPages = Math.ceil(totalCount / limit);
+  //       const statsWithTranscripts = await Promise.all(
+  //         foundContacts.map(async (stat) => {
+  //           const transcript = stat.referenceToCallId?.transcript;
+  //           const analyzedTranscript =
+  //             stat.referenceToCallId?.analyzedTranscript;
+  //           return {
+  //             ...stat.toObject(),
+  //             originalTranscript: transcript,
+  //             analyzedTranscript,
+  //           };
+  //         }),
+  //       );
+  //       res.json({
+  //         totalContactForAgent,
+  //         totalAnsweredCalls,
+  //         totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
+  //         totalAppointment: stats[0]?.totalAppointment || 0,
+  //         totalCallsTransffered: stats[0]?.totalCallsTransffered || 0,
+  //         totalNotCalledForAgent,
+  //         totalCalls: stats[0]?.totalCalls || 0,
+  //         totalFailedCalls: stats[0]?.totalFailedCalls || 0,
+  //         totalPages,
+  //         contacts: statsWithTranscripts,
+  //       });
+  //     } catch (error) {
+  //       console.error("Error fetching all contacts:", error);
+  //       return "error getting contact";
+  //     }
+  //   });
+  // }
+
   statsForAgent() {
     this.app.post("/get-stats", async (req: Request, res: Response) => {
-      const { agentIds, dateOption, limit, page, startDate, endDate } =
-        req.body;
+      const { agentIds, limit, page, startDate, endDate } = req.body;
+      let dateOption;
+      dateOption = req.body.dateOption;
 
       try {
         let dateFilter = {};
@@ -1210,54 +1402,70 @@ export class Server {
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
 
-        switch (dateOption) {
-          case DateOption.Today:
-            dateFilter = { datesCalled: today };
-            dateFilter1 = { day: today };
-            break;
-          case DateOption.Yesterday:
-            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-            const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-            dateFilter = { datesCalled: yesterday };
-            dateFilter1 = { day: yesterday };
-            break;
-          case DateOption.ThisWeek:
-            const weekdays: string[] = [];
-            for (let i = 1; i <= 7; i++) {
-              const day = subDays(zonedNow, i);
-              const dayOfWeek = day.getDay();
-              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+        if (!dateOption) {
+          dateOption = DateOption.LAST_SCHEDULE;
+          const recentJob = await jobModel
+            .findOne({ agentId: { $in: agentIds } })
+            .sort({ createdAt: -1 })
+            .lean();
+          console.log(recentJob);
+          if (!recentJob) return "No jobs found for today's filter.";
+          const dateToCheck = recentJob.scheduledTime.split("T")[0];
+          dateFilter = { datesCalled: { $gte: dateToCheck } };
+          dateFilter1 = { day: { $gte: dateToCheck } };
+        } else {
+          switch (dateOption) {
+            case DateOption.Today:
+              dateFilter = { datesCalled: today };
+              dateFilter1 = { day: today };
+              break;
+            case DateOption.Yesterday:
+              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+              const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+                timeZone,
+              });
+              dateFilter = { datesCalled: yesterday };
+              dateFilter1 = { day: yesterday };
+              break;
+            case DateOption.ThisWeek:
+              const weekdays: string[] = [];
+              for (let i = 1; i <= 7; i++) {
+                const day = subDays(zonedNow, i);
+                const dayOfWeek = day.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                  weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+                }
               }
-            }
-            dateFilter = { datesCalled: { $in: weekdays } };
-            dateFilter1 = { day: { $in: weekdays } };
-            break;
-    
-          case DateOption.ThisMonth:
-            const monthDates: string[] = [];
-            for (let i = 0; i < now.getDate(); i++) {
-              const day = subDays(now, i);
-              monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
-            }
-            dateFilter = { datesCalled: { $in: monthDates } };
-            dateFilter1 = { day: { $in: monthDates } };
-            break;
-    
-          case DateOption.Total:
-            dateFilter = {};
-            dateFilter1 = {};
-            break;
-          case DateOption.LAST_SCHEDULE:
-            const recentJob = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob) return "No jobs found for today's filter.";
-            const dateToCheck = recentJob.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck } };
-            dateFilter1 = { day: { $gte: dateToCheck } };
-            break;
+              dateFilter = { datesCalled: { $in: weekdays } };
+              dateFilter1 = { day: { $in: weekdays } };
+              break;
+
+            case DateOption.ThisMonth:
+              const monthDates: string[] = [];
+              for (let i = 0; i < now.getDate(); i++) {
+                const day = subDays(now, i);
+                monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+              }
+              dateFilter = { datesCalled: { $in: monthDates } };
+              dateFilter1 = { day: { $in: monthDates } };
+              break;
+
+            case DateOption.Total:
+              dateFilter = {};
+              dateFilter1 = {};
+              break;
+            case DateOption.LAST_SCHEDULE:
+              const recentJob = await jobModel
+                .findOne({ agentId: { $in: agentIds } })
+                .sort({ createdAt: -1 })
+                .lean();
+              console.log(recentJob);
+              if (!recentJob) return "No jobs found for today's filter.";
+              const dateToCheck = recentJob.scheduledTime.split("T")[0];
+              dateFilter = { datesCalled: { $gte: dateToCheck } };
+              dateFilter1 = { day: { $gte: dateToCheck } };
+              break;
+          }
         }
 
         if (startDate) {
@@ -1326,7 +1534,10 @@ export class Server {
               totalAppointment: { $sum: "$totalAppointment" },
               totalCallsTransffered: { $sum: "$totalTransffered" },
               totalFailedCalls: { $sum: "$totalFailed" },
-              // totalContactForAgent: { $sum: 1 },
+              totalAnsweredCalls: { $sum: "$totalCallAnswered" },
+              totalDialNoAnswer: { $sum: "$totalDialNoAnswer" },
+              totalAnsweredByIVR: { $sum: "$totalAnsweredByIVR" },
+              totalCallInactivity: { $sum: "$totalCallInactivity" },
             },
           },
         ]);
@@ -1352,6 +1563,9 @@ export class Server {
           totalNotCalledForAgent,
           totalCalls: stats[0]?.totalCalls || 0,
           totalFailedCalls: stats[0]?.totalFailedCalls || 0,
+          totalAnsweredByIVR: stats[0]?.totalAnsweredByIVR || 0,
+          totalDialNoAnswer: stats[0]?.totalDialNoAnswer || 0,
+          totalCallInactivity: stats[0]?.totalCallInactivity || 0,
           totalPages,
           contacts: statsWithTranscripts,
         });
@@ -1559,7 +1773,6 @@ export class Server {
           scheduled: callSentimentenum.SCHEDULED,
           voicemail: callSentimentenum.VOICEMAIL,
           incomplete: callSentimentenum.INCOMPLETE_CALL,
-
         };
 
         let sentimentStatus = sentimentOption
@@ -1649,121 +1862,7 @@ export class Server {
       },
     );
   }
-  // loginUser() {
-  //   this.app.post("/user/login", async (req: Request, res: Response) => {
-  //     try {
-  //       const { username, password } = req.body;
-  //       if (!username || !password) {
-  //         return res.status(400).json({ message: "Provide the login details" });
-  //       }
 
-  //       const userInDb = await userModel.findOne(
-  //         { username },
-  //         {
-  //           "agents.agentId": 1,
-  //           passwordHash: 1,
-  //           isAdmin: 1,
-  //           username: 1,
-  //           group: 1,
-  //           name: 1,
-  //         },
-  //       );
-
-  //       if (!userInDb) {
-  //         // Log unsuccessful login attempt
-  //         await userModel.updateOne(
-  //           { username },
-  //           {
-  //             $push: {
-  //               loginDetails: {
-  //                 ipAddress: req.ip,
-  //                 successful: false,
-  //               },
-  //             },
-  //           },
-  //         );
-  //         return res.status(400).json({ message: "Invalid login credentials" });
-  //       }
-
-  //       const verifyPassword = await argon2.verify(
-  //         userInDb.passwordHash,
-  //         password,
-  //       );
-  //       if (!verifyPassword) {
-  //         // Log unsuccessful login attempt
-  //         await userModel.updateOne(
-  //           { username },
-  //           {
-  //             $push: {
-  //               loginDetails: {
-  //                 ipAddress: req.ip,
-  //                 successful: false,
-  //               },
-  //             },
-  //           },
-  //         );
-  //         return res.status(400).json({ message: "Incorrect password" });
-  //       }
-
-  //       // Log successful login attempt
-  //       await userModel.updateOne(
-  //         { username },
-  //         {
-  //           $push: {
-  //             loginDetails: {
-  //               ipAddress: req.ip,
-  //               successful: true,
-  //             },
-  //           },
-  //         },
-  //       );
-
-  //       let result;
-  //       if (userInDb.isAdmin === true) {
-  //         const payload = await userModel.aggregate([
-  //           {
-  //             $project: { agents: 1 },
-  //           },
-  //           {
-  //             $unwind: "$agents",
-  //           },
-  //           {
-  //             $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } },
-  //           },
-  //           {
-  //             $project: { _id: 0, allAgentIds: 1 },
-  //           },
-  //         ]);
-  //         result = payload.length > 0 ? payload[0].allAgentIds : [];
-  //       } else {
-  //         result = userInDb?.agents?.map((agent) => agent.agentId) || [];
-  //       }
-
-  //       const token = jwt.sign(
-  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-  //         process.env.JWT_SECRET,
-  //         { expiresIn: "1d" },
-  //       );
-
-  //       console.log(userInDb);
-
-  //       res.json({
-  //         payload: {
-  //           message: "Logged in successfully",
-  //           token,
-  //           username: userInDb.username,
-  //           userId: userInDb._id,
-  //           group: userInDb.group,
-  //           name: userInDb.name,
-  //           agentIds: result,
-  //         },
-  //       });
-  //     } catch (error) {
-  //       console.log(error);
-  //       return res.status(500).json({ message: "Error happened during login" });
-  //     }
-  //   });
-  // }
   loginUser() {
     this.app.post("/user/login", async (req: Request, res: Response) => {
       try {
@@ -1771,7 +1870,7 @@ export class Server {
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-  
+
         const userInDb = await userModel.findOne(
           { username },
           {
@@ -1783,7 +1882,7 @@ export class Server {
             name: 1,
           },
         );
-  
+
         if (!userInDb) {
           // Log unsuccessful login attempt
           await userModel.updateOne(
@@ -1799,7 +1898,7 @@ export class Server {
           );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-  
+
         const verifyPassword = await argon2.verify(
           userInDb.passwordHash,
           password,
@@ -1819,7 +1918,7 @@ export class Server {
           );
           return res.status(400).json({ message: "Incorrect password" });
         }
-  
+
         // Log successful login attempt
         await userModel.updateOne(
           { username },
@@ -1832,7 +1931,7 @@ export class Server {
             },
           },
         );
-  
+
         let result;
         if (userInDb.isAdmin === true) {
           const payload = await userModel.aggregate([
@@ -1853,13 +1952,13 @@ export class Server {
         } else {
           result = userInDb?.agents?.map((agent) => agent.agentId) || [];
         }
-  
+
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-  
+
         res.json({
           payload: {
             message: "Logged in successfully",
@@ -1873,137 +1972,24 @@ export class Server {
         });
       } catch (error) {
         console.log(error);
-        if (!res.headersSent) { // Check if headers have not been sent before sending response
-          return res.status(500).json({ message: "Error happened during login" });
+        if (!res.headersSent) {
+          // Check if headers have not been sent before sending response
+          return res
+            .status(500)
+            .json({ message: "Error happened during login" });
         }
       }
     });
   }
-  
-  // loginAdmin() {
-  //   this.app.post("/admin/login", async (req: Request, res: Response) => {
-  //     try {
-  //       const { username, password } = req.body;
-  //       if (!username || !password) {
-  //         return res.status(400).json({ message: "Provide the login details" });
-  //       }
 
-  //       const userInDb = await userModel.findOne({ username });
-  //       if (!userInDb) {
-  //         // Log unsuccessful login attempt
-  //         await userModel.updateOne(
-  //           { username },
-  //           {
-  //             $push: {
-  //               loginDetails: {
-  //                 ipAddress: req.ip,
-  //                 device: "Unknown", // Improve this as needed
-  //                 successful: false,
-  //               },
-  //             },
-  //           },
-  //         );
-  //         return res.status(400).json({ message: "Invalid login credentials" });
-  //       }
-
-  //       const verifyPassword = await argon2.verify(
-  //         userInDb.passwordHash,
-  //         password,
-  //       );
-  //       if (!verifyPassword) {
-  //         // Log unsuccessful login attempt
-  //         await userModel.updateOne(
-  //           { username },
-  //           {
-  //             $push: {
-  //               loginDetails: {
-  //                 ipAddress: req.ip,
-  //                 device: "Unknown", // Improve this as needed
-  //                 successful: false,
-  //               },
-  //             },
-  //           },
-  //         );
-  //         return res.status(400).json({ message: "Incorrect password" });
-  //       }
-
-  //       if (userInDb.isAdmin === false) {
-  //         return res.status(401).json("Only admins can access here");
-  //       }
-
-  //       // Log successful login attempt
-  //       await userModel.updateOne(
-  //         { username },
-  //         {
-  //           $push: {
-  //             loginDetails: {
-  //               ipAddress: req.ip,
-  //               device: "Unknown", // Improve this as needed
-  //               successful: true,
-  //             },
-  //           },
-  //         },
-  //       );
-
-  //       const token = jwt.sign(
-  //         { userId: userInDb._id, isAdmin: userInDb.isAdmin },
-  //         process.env.JWT_SECRET,
-  //         { expiresIn: "1d" },
-  //       );
-
-  //       const result = await userModel.aggregate([
-  //         {
-  //           // Project only the agents field, which contains the agentId
-  //           $project: {
-  //             agents: 1,
-  //           },
-  //         },
-  //         {
-  //           // Unwind the agents array to have individual documents for each agent
-  //           $unwind: "$agents",
-  //         },
-  //         {
-  //           // Group all the agentId values into one array
-  //           $group: {
-  //             _id: null, // Single group
-  //             allAgentIds: { $push: "$agents.agentId" },
-  //           },
-  //         },
-  //         {
-  //           // Optionally, remove the _id field from the result
-
-  //           $project: {
-  //             _id: 0,
-  //             allAgentIds: 1,
-  //           },
-  //         },
-  //       ]);
-
-  //       return res.status(200).json({
-  //         payload: {
-  //           message: "Logged in successfully",
-  //           token,
-  //           username: userInDb.username,
-  //           userId: userInDb._id,
-  //           group: userInDb.group,
-  //           agentIds: result,
-  //         },
-  //       });
-  //     } catch (error) {
-  //       console.log(error);
-  //       return res.status(500).json({ message: "Error happened during login" });
-  //     }
-  //   });
-  // }
   loginAdmin() {
     this.app.post("/admin/login", async (req: Request, res: Response) => {
       try {
-      
         const { username, password } = req.body;
         if (!username || !password) {
           return res.status(400).json({ message: "Provide the login details" });
         }
-  
+
         const userInDb = await userModel.findOne({ username });
         if (!userInDb) {
           // Log unsuccessful login attempt
@@ -2021,8 +2007,11 @@ export class Server {
           );
           return res.status(400).json({ message: "Invalid login credentials" });
         }
-  
-        const verifyPassword = await argon2.verify(userInDb.passwordHash, password);
+
+        const verifyPassword = await argon2.verify(
+          userInDb.passwordHash,
+          password,
+        );
         if (!verifyPassword) {
           // Log unsuccessful login attempt
           await userModel.updateOne(
@@ -2039,11 +2028,13 @@ export class Server {
           );
           return res.status(400).json({ message: "Incorrect password" });
         }
-  
+
         if (userInDb.isAdmin === false) {
-          return res.status(401).json({ message: "Only admins can access here" });
+          return res
+            .status(401)
+            .json({ message: "Only admins can access here" });
         }
-  
+
         // Log successful login attempt
         await userModel.updateOne(
           { username },
@@ -2057,20 +2048,20 @@ export class Server {
             },
           },
         );
-  
+
         const token = jwt.sign(
           { userId: userInDb._id, isAdmin: userInDb.isAdmin },
           process.env.JWT_SECRET,
           { expiresIn: "1d" },
         );
-  
+
         const result = await userModel.aggregate([
           { $project: { agents: 1 } },
           { $unwind: "$agents" },
           { $group: { _id: null, allAgentIds: { $push: "$agents.agentId" } } },
           { $project: { _id: 0, allAgentIds: 1 } },
         ]);
-  
+
         return res.status(200).json({
           payload: {
             message: "Logged in successfully",
@@ -2084,12 +2075,14 @@ export class Server {
       } catch (error) {
         console.log(error);
         if (!res.headersSent) {
-          return res.status(500).json({ message: "Error happened during login" });
+          return res
+            .status(500)
+            .json({ message: "Error happened during login" });
         }
       }
     });
   }
-  
+
   signUpUser() {
     this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
@@ -2669,7 +2662,7 @@ export class Server {
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
         let dateFilter = {};
-        let dateFilter1 = {}
+        let dateFilter1 = {};
 
         switch (dateOption) {
           case DateOption.Today:
@@ -2678,7 +2671,9 @@ export class Server {
             break;
           case DateOption.Yesterday:
             const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-            const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+              timeZone,
+            });
             dateFilter = { datesCalled: yesterday };
             dateFilter1 = { day: yesterday };
             break;
@@ -2694,7 +2689,7 @@ export class Server {
             dateFilter = { datesCalled: { $in: weekdays } };
             dateFilter1 = { day: { $in: weekdays } };
             break;
-    
+
           case DateOption.ThisMonth:
             const monthDates: string[] = [];
             for (let i = 0; i < now.getDate(); i++) {
@@ -2704,7 +2699,7 @@ export class Server {
             dateFilter = { datesCalled: { $in: monthDates } };
             dateFilter1 = { day: { $in: monthDates } };
             break;
-    
+
           case DateOption.Total:
             dateFilter = {};
             dateFilter1 = {};
@@ -2719,7 +2714,7 @@ export class Server {
             dateFilter = { datesCalled: { $gte: dateToCheck } };
             dateFilter1 = { day: { $gte: dateToCheck } };
             break;
-    
+
           default:
             const recentJob1 = await jobModel
               .findOne({ agentId })
@@ -2899,7 +2894,8 @@ export class Server {
                 totalAppointment: 0,
                 totalCallAnswered: 0,
                 totalDialNoAnswer: 0,
-                totalAnsweredByIVR:0
+                totalAnsweredByIVR: 0,
+                totalCallInactivity: 0,
               };
             }
 

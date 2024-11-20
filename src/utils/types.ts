@@ -60,7 +60,8 @@ export enum callstatusenum {
   TRANSFERRED = "connected-transferred",
   SCHEDULED = "appt-scheduled",
   NO_ANSWER = "not-answered",
-  IVR = "connected-ivr"
+  IVR = "connected-ivr",
+  INACTIVITY = "inactivity"
 }
 
 export enum callSentimentenum{
@@ -108,6 +109,7 @@ export interface Ilogs {
   jobProcessedBy:String
   totalDialNoAnswer:number
   totalAnsweredByIVR:number
+  totalCallInactivity:number
 }
 
 // Retell -> Your Server Events
