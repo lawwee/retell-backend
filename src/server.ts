@@ -2765,6 +2765,9 @@ export class Server {
             case "appointment":
               query.status = callstatusenum.SCHEDULED;
               break;
+            case "ivr":
+              query.status = callstatusenum.IVR;
+              break;
           }
         }
 
