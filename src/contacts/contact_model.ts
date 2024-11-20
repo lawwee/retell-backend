@@ -71,8 +71,10 @@ const ContactSchema = new Schema<IContact>(
     jobProcessedWithId: {
       type: [String],
       default: [],
-    },
-  },
+    },isOnDNCList:{
+      type: Boolean,
+      default: false
+    }  },
   { timestamps: true },
 );
 

@@ -36,6 +36,7 @@ export const scheduleCronJob = async (
       tagProcessedFor: lowerCaseTag,
       callstatus: { $in: [jobstatus.ON_CALL, jobstatus.QUEUED] },
       shouldContinueProcessing: true,
+      
     });
 
     if (existingJob) {
@@ -53,6 +54,7 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
       tagProcessedFor: lowerCaseTag,
+      
     });
 
     const contactLimit = parseInt(limit);
@@ -62,6 +64,7 @@ export const scheduleCronJob = async (
         status: callstatusenum.NOT_CALLED,
         isDeleted: false,
         ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
+        isOnDNCList:false
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });

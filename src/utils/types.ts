@@ -34,6 +34,7 @@ export interface IContact {
   tag: string
   jobProcessedWithId: string[]
   callBackDate:string
+  isOnDNCList: boolean
 }
 
 export enum DaysToBeProcessedEnum{
