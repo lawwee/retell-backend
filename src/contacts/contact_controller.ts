@@ -253,10 +253,13 @@ export const getAllContact = async (
           .findOne({agentId})
           .sort({ createdAt: -1 })
           .lean();
-        if (!recentJob) return "No jobs found for today's filter.";
+        if (!recentJob) {
+          dateFilter = {}
+          dateFilter1 = {}
+        } else {
         const dateToCheck = recentJob.scheduledTime.split("T")[0];
         dateFilter = { datesCalled: dateToCheck };
-        dateFilter1 = { day: dateToCheck };
+        dateFilter1 = { day: dateToCheck }; }
         break;
 
       default:

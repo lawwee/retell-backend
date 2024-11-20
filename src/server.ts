@@ -1409,10 +1409,14 @@ export class Server {
             .sort({ createdAt: -1 })
             .lean();
           console.log(recentJob);
-          if (!recentJob) return "No jobs found for today's filter.";
-          const dateToCheck = recentJob.scheduledTime.split("T")[0];
-          dateFilter = { datesCalled: { $gte: dateToCheck } };
-          dateFilter1 = { day: { $gte: dateToCheck } };
+          if (!recentJob) {
+            dateFilter = {};
+            dateFilter1 = {};
+          } else {
+            const dateToCheck = recentJob.scheduledTime.split("T")[0];
+            dateFilter = { datesCalled: { $gte: dateToCheck } };
+            dateFilter1 = { day: { $gte: dateToCheck } };
+          }
         } else {
           switch (dateOption) {
             case DateOption.Today:
@@ -1460,10 +1464,14 @@ export class Server {
                 .sort({ createdAt: -1 })
                 .lean();
               console.log(recentJob);
-              if (!recentJob) return "No jobs found for today's filter.";
-              const dateToCheck = recentJob.scheduledTime.split("T")[0];
-              dateFilter = { datesCalled: { $gte: dateToCheck } };
-              dateFilter1 = { day: { $gte: dateToCheck } };
+              if (!recentJob) {
+                dateFilter = {};
+                dateFilter1 = {};
+              } else {
+                const dateToCheck = recentJob.scheduledTime.split("T")[0];
+                dateFilter = { datesCalled: { $gte: dateToCheck } };
+                dateFilter1 = { day: { $gte: dateToCheck } };
+              }
               break;
           }
         }
