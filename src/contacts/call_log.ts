@@ -13,7 +13,8 @@ const dailyStatsSchema = new Schema<Ilogs>(
     jobProcessedBy:{type:String},
     totalDialNoAnswer:{type: Number},
     totalAnsweredByIVR:{type:Number},
-    totalCallInactivity:{type:Number}
+    totalCallInactivity:{type:Number},
+    totalCallDuration:{type: Number}
 
   },
   { timestamps: true },

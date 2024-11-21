@@ -119,7 +119,8 @@ const transcriptSchema = new Schema(
     disconnectionReason: { type: String },
     analyzedTranscript: { type: String },
     agentId:{type:String},
-    callBackDate:{type: String}
+    callBackDate:{type: String},
+    callDuration:{type: Number, default: 0}
   },
   { timestamps: true },
 );

@@ -124,7 +124,6 @@ export type ContactDocument = Omit<Document & IContact, "_id">;
 //       .populate("referenceToCallId")
 //       .skip(skip)
 //       .limit(limit);
-    
 
 //     const totalCount = await contactModel.countDocuments({
 //       agentId,
@@ -197,7 +196,7 @@ export const getAllContact = async (
   agentId: string,
   page: number,
   limit: number,
-  dateOption?: DateOption // Made optional
+  dateOption?: DateOption, // Made optional
 ) => {
   try {
     const skip = (page - 1) * limit;
@@ -250,16 +249,17 @@ export const getAllContact = async (
 
       case DateOption.LAST_SCHEDULE:
         const recentJob = await jobModel
-          .findOne({agentId})
+          .findOne({ agentId })
           .sort({ createdAt: -1 })
           .lean();
         if (!recentJob) {
-          dateFilter = {}
-          dateFilter1 = {}
+          dateFilter = {};
+          dateFilter1 = {};
         } else {
-        const dateToCheck = recentJob.scheduledTime.split("T")[0];
-        dateFilter = { datesCalled: dateToCheck };
-        dateFilter1 = { day: dateToCheck }; }
+          const dateToCheck = recentJob.scheduledTime.split("T")[0];
+          dateFilter = { datesCalled: dateToCheck };
+          dateFilter1 = { day: dateToCheck };
+        }
         break;
 
       default:
@@ -268,7 +268,7 @@ export const getAllContact = async (
         break;
     }
 
-    console.log(dateFilter)
+    console.log(dateFilter);
     let foundContacts = await contactModel
       .find({ agentId, isDeleted: false, ...dateFilter })
       .sort({ createdAt: "desc" })
@@ -276,7 +276,6 @@ export const getAllContact = async (
       .skip(skip)
       .limit(limit);
 
-  
     if (dateOption === DateOption.LAST_SCHEDULE && foundContacts.length === 0) {
       foundContacts = await contactModel
         .find({ agentId, isDeleted: false })
@@ -316,9 +315,10 @@ export const getAllContact = async (
           totalCallsTransffered: { $sum: "$totalTransffered" },
           totalFailedCalls: { $sum: "$totalFailed" },
           totalAnsweredCalls: { $sum: "$totalCallAnswered" },
-          totalDialNoAnswer :{$sum :"$totalDialNoAnswer"},
-          totalAnsweredByIVR :{$sum :"$totalAnsweredByIVR"},
-          totalCallInactivity:{$sum:"$totalCallInactivity"}
+          totalDialNoAnswer: { $sum: "$totalDialNoAnswer" },
+          totalAnsweredByIVR: { $sum: "$totalAnsweredByIVR" },
+          totalCallInactivity: { $sum: "$totalCallInactivity" },
+          totalCallDuration: { $sum: "$totalCallDuration" },
         },
       },
     ]);
@@ -334,7 +334,23 @@ export const getAllContact = async (
           originalTranscript: transcript,
           analyzedTranscript,
         };
-      })
+      }),
+    );
+
+    function convertMsToHourMinSec(ms: number): string {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+        2,
+        "0",
+      )}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    const combinedCallDuration = convertMsToHourMinSec(
+      stats[0]?.totalCallDuration || 0,
     );
 
     return {
@@ -346,9 +362,10 @@ export const getAllContact = async (
       totalNotCalledForAgent,
       totalCalls: stats[0]?.totalCalls || 0,
       totalFailedCalls: stats[0]?.totalFailedCalls || 0,
-      totalAnsweredByIVRFromStats:stats[0]?.totalAnsweredByIVR || 0,
-      totalDialNoAnswer:stats[0]?.totalDialNoAnswer || 0,
-      totalCallInactivity:stats[0]?.totalCallInactivity || 0,
+      totalAnsweredByIVRFromStats: stats[0]?.totalAnsweredByIVR || 0,
+      totalDialNoAnswer: stats[0]?.totalDialNoAnswer || 0,
+      totalCallInactivity: stats[0]?.totalCallInactivity || 0,
+      callDuration: combinedCallDuration,
       totalAnsweredByIVR,
       totalPages,
       contacts: statsWithTranscripts,

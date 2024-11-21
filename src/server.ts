@@ -1043,6 +1043,7 @@ export class Server {
           callId: call_id,
           agentId: payload.call.agent_id,
           recordingUrl: recording_url,
+          callDuration: payload.call.duration_ms,
           disconnectionReason: disconnection_reason,
           callBackDate: callbackdate,
           analyzedTranscript: analyzedTranscript.message.content,
@@ -1056,6 +1057,7 @@ export class Server {
         );
 
         statsUpdate.$inc.totalCalls = 1;
+        statsUpdate.$inc.totalCallDuration  = payload.call.duration_ms
 
         if (isMachine) {
           statsUpdate.$inc.totalAnsweredByVm = 1;
@@ -1546,6 +1548,7 @@ export class Server {
               totalDialNoAnswer: { $sum: "$totalDialNoAnswer" },
               totalAnsweredByIVR: { $sum: "$totalAnsweredByIVR" },
               totalCallInactivity: { $sum: "$totalCallInactivity" },
+              totalCallDuration: { $sum: "$totalCallDuration" },
             },
           },
         ]);
@@ -1562,6 +1565,22 @@ export class Server {
             };
           }),
         );
+        function convertMsToHourMinSec(ms: number): string {
+          const totalSeconds = Math.floor(ms / 1000);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+    
+          return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+            2,
+            "0",
+          )}:${String(seconds).padStart(2, "0")}`;
+        }
+    
+        const combinedCallDuration = convertMsToHourMinSec(
+          stats[0]?.totalCallDuration || 0,
+        );
+    
         res.json({
           totalContactForAgent,
           totalAnsweredCalls,
@@ -1574,6 +1593,7 @@ export class Server {
           totalAnsweredByIVR: stats[0]?.totalAnsweredByIVR || 0,
           totalDialNoAnswer: stats[0]?.totalDialNoAnswer || 0,
           totalCallInactivity: stats[0]?.totalCallInactivity || 0,
+          callDuration: combinedCallDuration,
           totalPages,
           contacts: statsWithTranscripts,
         });
@@ -2910,6 +2930,7 @@ export class Server {
                 totalDialNoAnswer: 0,
                 totalAnsweredByIVR: 0,
                 totalCallInactivity: 0,
+                totalCallDuration:0,
               };
             }
 

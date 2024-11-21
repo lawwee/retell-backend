@@ -111,6 +111,8 @@ export interface Ilogs {
   totalDialNoAnswer:number
   totalAnsweredByIVR:number
   totalCallInactivity:number
+  totalCallDuration: number ,
+  
 }
 
 // Retell -> Your Server Events
