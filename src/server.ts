@@ -1039,16 +1039,31 @@ export class Server {
         const isMachine = analyzedTranscript.message.content === "voicemail";
         const isIVR = analyzedTranscript.message.content === "ivr";
         const callbackdate = await reviewCallback(transcript);
+        
+    function convertMsToHourMinSec(ms: number): string {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+        2,
+        "0",
+      )}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    const newDuration = convertMsToHourMinSec(payload.call.duration_ms)
         const callEndedUpdateData = {
           callId: call_id,
           agentId: payload.call.agent_id,
           recordingUrl: recording_url,
-          callDuration: payload.call.duration_ms,
+          callDuration: newDuration,
           disconnectionReason: disconnection_reason,
           callBackDate: callbackdate,
           analyzedTranscript: analyzedTranscript.message.content,
           ...(transcript && { transcript }),
         };
+
 
         const results = await EventModel.findOneAndUpdate(
           { callId: call_id, agentId: payload.call.agent_id },
@@ -1503,7 +1518,7 @@ export class Server {
             },
           };
         }
-        console.log(dateFilter, dateFilter1);
+      
 
         const foundContacts = await contactModel
           .find({ agentId: { $in: agentIds }, isDeleted: false, ...dateFilter })

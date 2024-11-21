@@ -120,7 +120,7 @@ const transcriptSchema = new Schema(
     analyzedTranscript: { type: String },
     agentId:{type:String},
     callBackDate:{type: String},
-    callDuration:{type: Number, default: 0}
+    callDuration:{type:String}
   },
   { timestamps: true },
 );
