@@ -1450,13 +1450,14 @@ export class Server {
               break;
             case DateOption.ThisWeek:
               const weekdays: string[] = [];
-              for (let i = 1; i <= 7; i++) {
+              for (let i = 0; i < 7; i++) {
                 const day = subDays(zonedNow, i);
                 const dayOfWeek = day.getDay();
                 if (dayOfWeek !== 0 && dayOfWeek !== 6) {
                   weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
                 }
               }
+              console.log(weekdays)
               dateFilter = { datesCalled: { $in: weekdays } };
               dateFilter1 = { day: { $in: weekdays } };
               break;
