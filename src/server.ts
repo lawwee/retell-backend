@@ -116,7 +116,6 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
-    
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
@@ -938,15 +937,24 @@ export class Server {
   async getTranscriptAfterCallEnded() {
     this.app.post("/webhook", async (request: Request, response: Response) => {
       const payload = request.body;
+      const todays = new Date();
+      todays.setHours(0, 0, 0, 0);
+      const todayString = todays.toISOString().split("T")[0];
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayString = today.toISOString().split("T")[0];
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0"); // Months are 0-based
+      const day = String(today.getDate()).padStart(2, "0");
+      const hours = String(today.getHours()).padStart(2, "0");
+      const minutes = String(today.getMinutes()).padStart(2, "0");
+
+      // Format the string as YYYY-MM-DD HH:mm
+      const todayStringWithTime = `${year}-${month}-${day} ${hours}:${minutes}`;
       try {
         if (payload.event === "call_started") {
           console.log(`call started for: ${payload.data.call_id}`);
           await this.handleCallStarted(payload.data);
         } else if (payload.event === "call_ended") {
-          await this.handleCallEnded(payload, todayString);
+          await this.handleCallEnded(payload, todayString, todayStringWithTime);
         } else if (payload.event === "call_analyzed") {
           await this.handleCallAnalyzed(payload);
         }
@@ -966,7 +974,11 @@ export class Server {
       console.error("Error in handleCallStarted:", error);
     }
   }
-  async handleCallEnded(payload: any, todayString: any) {
+  async handleCallEnded(
+    payload: any,
+    todayString: any,
+    todaysDateForDatesCalled: any,
+  ) {
     try {
       const {
         call_id,
@@ -1117,7 +1129,7 @@ export class Server {
           { callId: call_id, agentId: payload.call.agent_id },
           {
             status: callStatus,
-            $push: { datesCalled: todayString },
+            $push: { datesCalled: todaysDateForDatesCalled },
             referenceToCallId: results._id,
             linktocallLogModel: linkToCallLogModelId,
           },
@@ -1843,7 +1855,7 @@ export class Server {
             group: userInDb.group,
             name: userInDb.name,
             agentIds: result,
-            isUserAdmin:userInDb.isAdmin
+            isUserAdmin: userInDb.isAdmin,
           },
         });
       } catch (error) {
@@ -1946,7 +1958,7 @@ export class Server {
             userId: userInDb._id,
             group: userInDb.group,
             agentIds: result,
-            isUserAdmin:userInDb.isAdmin
+            isUserAdmin: userInDb.isAdmin,
           },
         });
       } catch (error) {
