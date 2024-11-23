@@ -116,6 +116,7 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
+    
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
@@ -776,8 +777,7 @@ export class Server {
   resetAgentStatus() {
     this.app.post(
       "/users/status/reset",
-      isAdmin,
-      authmiddleware,
+
       async (req: Request, res: Response) => {
         const { agentId, tag } = req.body;
 
@@ -1039,20 +1039,20 @@ export class Server {
         const isMachine = analyzedTranscript.message.content === "voicemail";
         const isIVR = analyzedTranscript.message.content === "ivr";
         const callbackdate = await reviewCallback(transcript);
-        
-    function convertMsToHourMinSec(ms: number): string {
-      const totalSeconds = Math.floor(ms / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
 
-      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-        2,
-        "0",
-      )}:${String(seconds).padStart(2, "0")}`;
-    }
+        function convertMsToHourMinSec(ms: number): string {
+          const totalSeconds = Math.floor(ms / 1000);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
 
-    const newDuration = convertMsToHourMinSec(payload.call.duration_ms)
+          return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+            2,
+            "0",
+          )}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        const newDuration = convertMsToHourMinSec(payload.call.duration_ms);
         const callEndedUpdateData = {
           callId: call_id,
           agentId: payload.call.agent_id,
@@ -1064,7 +1064,6 @@ export class Server {
           ...(transcript && { transcript }),
         };
 
-
         const results = await EventModel.findOneAndUpdate(
           { callId: call_id, agentId: payload.call.agent_id },
           { $set: callEndedUpdateData },
@@ -1072,7 +1071,7 @@ export class Server {
         );
 
         statsUpdate.$inc.totalCalls = 1;
-        statsUpdate.$inc.totalCallDuration  = payload.call.duration_ms
+        statsUpdate.$inc.totalCallDuration = payload.call.duration_ms;
 
         if (isMachine) {
           statsUpdate.$inc.totalAnsweredByVm = 1;
@@ -1236,173 +1235,6 @@ export class Server {
       }
     });
   }
-  // statsForAgent() {
-  //   this.app.post("/get-stats", async (req: Request, res: Response) => {
-  //     const { agentIds, dateOption, limit, page, startDate, endDate } =
-  //       req.body;
-
-  //     try {
-  //       let dateFilter = {};
-  //       let dateFilter1 = {};
-  //       const skip = (page - 1) * limit;
-
-  //       const timeZone = "America/Los_Angeles";
-  //       const now = new Date();
-  //       const zonedNow = toZonedTime(now, timeZone);
-  //       const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
-
-  //       switch (dateOption) {
-  //         case DateOption.Today:
-  //           dateFilter = { datesCalled: today };
-  //           dateFilter1 = { day: today };
-  //           break;
-  //         case DateOption.Yesterday:
-  //           const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-  //           const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-  //           dateFilter = { datesCalled: yesterday };
-  //           dateFilter1 = { day: yesterday };
-  //           break;
-  //         case DateOption.ThisWeek:
-  //           const weekdays: string[] = [];
-  //           for (let i = 1; i <= 7; i++) {
-  //             const day = subDays(zonedNow, i);
-  //             const dayOfWeek = day.getDay();
-  //             if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-  //               weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
-  //             }
-  //           }
-  //           dateFilter = { datesCalled: { $in: weekdays } };
-  //           dateFilter1 = { day: { $in: weekdays } };
-  //           break;
-
-  //         case DateOption.ThisMonth:
-  //           const monthDates: string[] = [];
-  //           for (let i = 0; i < now.getDate(); i++) {
-  //             const day = subDays(now, i);
-  //             monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
-  //           }
-  //           dateFilter = { datesCalled: { $in: monthDates } };
-  //           dateFilter1 = { day: { $in: monthDates } };
-  //           break;
-
-  //         case DateOption.Total:
-  //           dateFilter = {};
-  //           dateFilter1 = {};
-  //           break;
-  //         case DateOption.LAST_SCHEDULE:
-  //           const recentJob = await jobModel
-  //             .findOne({agentId:{$in: agentIds}})
-  //             .sort({ createdAt: -1 })
-  //             .lean();
-  //           if (!recentJob) return "No jobs found for today's filter.";
-  //           const dateToCheck = recentJob.scheduledTime.split("T")[0];
-  //           dateFilter = { datesCalled: { $gte: dateToCheck } };
-  //           dateFilter1 = { day: { $gte: dateToCheck } };
-  //           break;
-  //       }
-
-  //       if (startDate) {
-  //         dateFilter = {
-  //           datesCalled: {
-  //             $gte: startDate,
-  //           },
-  //         };
-  //         dateFilter1 = {
-  //           day: {
-  //             $gte: startDate,
-  //           },
-  //         };
-  //       }
-
-  //       if (endDate) {
-  //         dateFilter = {
-  //           datesCalled: {
-  //             $lte: endDate,
-  //           },
-  //         };
-  //         dateFilter1 = {
-  //           day: {
-  //             $lte: endDate,
-  //           },
-  //         };
-  //       }
-  //       console.log(dateFilter, dateFilter1);
-
-  //       const foundContacts = await contactModel
-  //         .find({ agentId: { $in: agentIds }, isDeleted: false, ...dateFilter })
-  //         .sort({ createdAt: "desc" })
-  //         .populate("referenceToCallId")
-  //         .limit(limit)
-  //         .skip(skip);
-
-  //       const totalContactForAgent = await contactModel.countDocuments({
-  //         agentId: { $in: agentIds },
-  //         isDeleted: false,
-  //       });
-
-  //       const totalCount = await contactModel.countDocuments({
-  //         agentId: { $in: agentIds },
-  //         isDeleted: { $ne: true },
-  //       });
-
-  //       const totalNotCalledForAgent = await contactModel.countDocuments({
-  //         agentId: { $in: agentIds },
-  //         isDeleted: false,
-  //         status: callstatusenum.NOT_CALLED,
-  //       });
-  //       const totalAnsweredCalls = await contactModel.countDocuments({
-  //         agentId: { $in: agentIds },
-  //         isDeleted: false,
-  //         status: callstatusenum.CALLED,
-  //         ...dateFilter,
-  //       });
-
-  //       const stats = await DailyStatsModel.aggregate([
-  //         { $match: { agentId: { $in: agentIds }, ...dateFilter1 } },
-  //         {
-  //           $group: {
-  //             _id: null,
-  //             totalCalls: { $sum: "$totalCalls" },
-  //             totalAnsweredByVm: { $sum: "$totalAnsweredByVm" },
-  //             totalAppointment: { $sum: "$totalAppointment" },
-  //             totalCallsTransffered: { $sum: "$totalTransffered" },
-  //             totalFailedCalls: { $sum: "$totalFailed" },
-  //             // totalContactForAgent: { $sum: 1 },
-  //           },
-  //         },
-  //       ]);
-  //       const totalPages = Math.ceil(totalCount / limit);
-  //       const statsWithTranscripts = await Promise.all(
-  //         foundContacts.map(async (stat) => {
-  //           const transcript = stat.referenceToCallId?.transcript;
-  //           const analyzedTranscript =
-  //             stat.referenceToCallId?.analyzedTranscript;
-  //           return {
-  //             ...stat.toObject(),
-  //             originalTranscript: transcript,
-  //             analyzedTranscript,
-  //           };
-  //         }),
-  //       );
-  //       res.json({
-  //         totalContactForAgent,
-  //         totalAnsweredCalls,
-  //         totalAnsweredByVm: stats[0]?.totalAnsweredByVm || 0,
-  //         totalAppointment: stats[0]?.totalAppointment || 0,
-  //         totalCallsTransffered: stats[0]?.totalCallsTransffered || 0,
-  //         totalNotCalledForAgent,
-  //         totalCalls: stats[0]?.totalCalls || 0,
-  //         totalFailedCalls: stats[0]?.totalFailedCalls || 0,
-  //         totalPages,
-  //         contacts: statsWithTranscripts,
-  //       });
-  //     } catch (error) {
-  //       console.error("Error fetching all contacts:", error);
-  //       return "error getting contact";
-  //     }
-  //   });
-  // }
-
   statsForAgent() {
     this.app.post("/get-stats", async (req: Request, res: Response) => {
       const { agentIds, limit, page, startDate, endDate } = req.body;
@@ -1457,7 +1289,7 @@ export class Server {
                   weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
                 }
               }
-              console.log(weekdays)
+              console.log(weekdays);
               dateFilter = { datesCalled: { $in: weekdays } };
               dateFilter1 = { day: { $in: weekdays } };
               break;
@@ -1519,7 +1351,6 @@ export class Server {
             },
           };
         }
-      
 
         const foundContacts = await contactModel
           .find({ agentId: { $in: agentIds }, isDeleted: false, ...dateFilter })
@@ -1586,17 +1417,17 @@ export class Server {
           const hours = Math.floor(totalSeconds / 3600);
           const minutes = Math.floor((totalSeconds % 3600) / 60);
           const seconds = totalSeconds % 60;
-    
+
           return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
             2,
             "0",
           )}:${String(seconds).padStart(2, "0")}`;
         }
-    
+
         const combinedCallDuration = convertMsToHourMinSec(
           stats[0]?.totalCallDuration || 0,
         );
-    
+
         res.json({
           totalContactForAgent,
           totalAnsweredCalls,
@@ -2012,6 +1843,7 @@ export class Server {
             group: userInDb.group,
             name: userInDb.name,
             agentIds: result,
+            isUserAdmin:userInDb.isAdmin
           },
         });
       } catch (error) {
@@ -2114,6 +1946,7 @@ export class Server {
             userId: userInDb._id,
             group: userInDb.group,
             agentIds: result,
+            isUserAdmin:userInDb.isAdmin
           },
         });
       } catch (error) {
@@ -2804,9 +2637,9 @@ export class Server {
             case "ivr":
               query.status = callstatusenum.IVR;
               break;
-              case "inactivity":
-                query.status = callstatusenum.INACTIVITY;
-                break;
+            case "inactivity":
+              query.status = callstatusenum.INACTIVITY;
+              break;
           }
         }
 
@@ -2946,7 +2779,7 @@ export class Server {
                 totalDialNoAnswer: 0,
                 totalAnsweredByIVR: 0,
                 totalCallInactivity: 0,
-                totalCallDuration:0,
+                totalCallDuration: 0,
               };
             }
 

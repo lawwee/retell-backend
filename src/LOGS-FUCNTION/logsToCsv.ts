@@ -105,17 +105,6 @@ export const logsToCsv = async (
         const dateToCheck = recentJob.scheduledTime.split("T")[0];
         dateFilter1 = { day: { $gte: dateToCheck } };
         break;
-      default:
-        const recentJob1 = await jobModel
-          .findOne({ agentId })
-          .sort({ createdAt: -1 })
-          .lean();
-        if (!recentJob1) {
-          return "No jobs found for today's filter.";
-        }
-        const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-        dateFilter1 = { day: { $gte: dateToCheck1 } };
-        break;
     }
 
     let query: any = {
