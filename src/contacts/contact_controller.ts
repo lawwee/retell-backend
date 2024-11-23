@@ -1,6 +1,6 @@
 import { populate } from "dotenv";
 import { reviewTranscript } from "../helper-fuction/transcript-review";
-import { DateOption, IContact, callstatusenum } from "../utils/types";
+import { DateOption, IContact, Ijob, callstatusenum } from "../utils/types";
 import { contactModel, EventModel, jobModel } from "./contact_model";
 import mongoose, { Document } from "mongoose";
 import axios from "axios";
@@ -56,99 +56,91 @@ export const getAllContact = async (
   agentId: string,
   page: number,
   limit: number,
-  dateOption?: DateOption, // Made optional
+  jobId?: string, 
+  dateOption?: DateOption, 
 ) => {
   try {
     const skip = (page - 1) * limit;
     let dateFilter = {};
     let dateFilter1 = {};
+    let tag = {}
 
     const timeZone = "America/Los_Angeles";
     const now = new Date();
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
-
-    switch (dateOption) {
-      case DateOption.Today:
-        dateFilter = { datesCalled: today };
-        dateFilter1 = { day: today };
-        break;
-      case DateOption.Yesterday:
-        const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-        const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
-        dateFilter = { datesCalled: yesterday };
-        dateFilter1 = { day: yesterday };
-        break;
-      case DateOption.ThisWeek:
-        const weekdays: string[] = [];
-        for (let i = 0; i < 7; i++) {
-          const day = subDays(zonedNow, i);
-          const dayOfWeek = day.getDay();
-          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+    if (dateOption) {
+      // Handle the logic for dateOption
+      switch (dateOption) {
+        case DateOption.Today:
+          dateFilter = { datesCalled: today };
+          dateFilter1 = { day: today };
+          break;
+        case DateOption.Yesterday:
+          const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+          const yesterday = format(zonedYesterday, "yyyy-MM-dd", { timeZone });
+          dateFilter = { datesCalled: yesterday };
+          dateFilter1 = { day: yesterday };
+          break;
+        case DateOption.ThisWeek:
+          const weekdays: string[] = [];
+          for (let i = 0; i < 7; i++) {
+            const day = subDays(zonedNow, i);
+            const dayOfWeek = day.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+              weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+            }
           }
-        }
-      
-        dateFilter = { datesCalled: { $in: weekdays } };
-        dateFilter1 = { day: { $in: weekdays } };
-        break;
-
-      case DateOption.ThisMonth:
-        const monthDates: string[] = [];
-        for (let i = 0; i < now.getDate(); i++) {
-          const day = subDays(now, i);
-          monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
-        }
-        dateFilter = { datesCalled: { $in: monthDates } };
-        dateFilter1 = { day: { $in: monthDates } };
-        break;
-
-      case DateOption.Total:
-        dateFilter = {};
-        dateFilter1 = {};
-        break;
-
-      case DateOption.LAST_SCHEDULE:
-        const recentJob = await jobModel
-          .findOne({ agentId })
-          .sort({ createdAt: -1 })
-          .lean();
-        if (!recentJob) {
+          dateFilter = { datesCalled: { $in: weekdays } };
+          dateFilter1 = { day: { $in: weekdays } };
+          break;
+        case DateOption.ThisMonth:
+          const monthDates: string[] = [];
+          for (let i = 0; i < now.getDate(); i++) {
+            const day = subDays(now, i);
+            monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+          }
+          dateFilter = { datesCalled: { $in: monthDates } };
+          dateFilter1 = { day: { $in: monthDates } };
+          break;
+        case DateOption.Total:
           dateFilter = {};
           dateFilter1 = {};
-        } else {
-          const dateToCheck = recentJob.scheduledTime.split("T")[0];
-          dateFilter = { datesCalled: dateToCheck };
-          dateFilter1 = { day: dateToCheck };
-        }
-        break;
-
-      default:
-        dateFilter = {};
-        dateFilter1 = {};
-        break;
+          break;
+        default:
+          dateFilter = {};
+          dateFilter1 = {};
+          break;
+      }
+    } else if (jobId) {
+  
+      const job = await jobModel.findOne({jobId,agentId}).lean<any>();
+      if (job && job.createdAt) {
+        const createdAtDate = new Date(job.createdAt).toISOString().split("T")[0]; // Format createdAt to YYYY-MM-DD
+        dateFilter = { datesCalled: createdAtDate };
+        dateFilter1 = { day: createdAtDate };
+        tag = {tag: job.tagProcessedFor}
+      } 
     }
-
-    let foundContacts = await contactModel
-      .find({ agentId, isDeleted: false, ...dateFilter })
+    const foundContacts = await contactModel
+      .find({ agentId, isDeleted: false, ...dateFilter,...tag })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
       .skip(skip)
       .limit(limit);
+  
 
-    if (dateOption === DateOption.LAST_SCHEDULE && foundContacts.length === 0) {
-      foundContacts = await contactModel
-        .find({ agentId, isDeleted: false })
-        .sort({ createdAt: "desc" })
-        .populate("referenceToCallId")
-        .skip(skip)
-        .limit(limit);
-    }
+    // const totalCount = await contactModel.countDocuments({
+    //   agentId,
+    //   isDeleted: { $ne: true },
+    // });
+    const totalCount = await contactModel
+    .countDocuments({ agentId, isDeleted: false, ...dateFilter,...tag })
+    .sort({ createdAt: "desc" })
+    .populate("referenceToCallId")
+    .skip(skip)
+    .limit(limit);
 
-    const totalCount = await contactModel.countDocuments({
-      agentId,
-      isDeleted: { $ne: true },
-    });
     const totalContactForAgent = await contactModel.countDocuments({
       agentId,
       isDeleted: false,
@@ -157,11 +149,6 @@ export const getAllContact = async (
       agentId,
       isDeleted: false,
       status: callstatusenum.NOT_CALLED,
-    });
-    const totalAnsweredByIVR = await contactModel.countDocuments({
-      agentId,
-      isDeleted: false,
-      status: callstatusenum.IVR,
     });
 
     const stats = await DailyStatsModel.aggregate([
@@ -222,11 +209,10 @@ export const getAllContact = async (
       totalNotCalledForAgent,
       totalCalls: stats[0]?.totalCalls || 0,
       totalFailedCalls: stats[0]?.totalFailedCalls || 0,
-      totalAnsweredByIVRFromStats: stats[0]?.totalAnsweredByIVR || 0,
+      totalAnsweredByIVR: stats[0]?.totalAnsweredByIVR || 0,
       totalDialNoAnswer: stats[0]?.totalDialNoAnswer || 0,
       totalCallInactivity: stats[0]?.totalCallInactivity || 0,
       callDuration: combinedCallDuration,
-      totalAnsweredByIVR,
       totalPages,
       contacts: statsWithTranscripts,
     };

@@ -95,7 +95,8 @@ export interface Ijob {
   agentId: string;
   scheduledTime: string;
   shouldContinueProcessing: boolean;
-  tagProcessedFor:string
+  tagProcessedFor:string,
+  createdAt:Date,
 }
 
 export interface Ilogs {

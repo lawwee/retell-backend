@@ -129,6 +129,7 @@ export class Server {
     this.schedulemycall();
     this.getjobstatus();
     this.resetAgentStatus();
+    this.getDatesAgentsHaveBeenCalled();
     this.getCallLogs();
     this.stopSpecificSchedule();
     this.getAllJobSchedule();
@@ -495,7 +496,7 @@ export class Server {
   handlecontactGet() {
     this.app.post("/users/:agentId", async (req: Request, res: Response) => {
       const agentId = req.params.agentId;
-      const { page, limit, dateOption } = req.body;
+      const { page, limit, dateOption, jobId } = req.body;
       const newPage = parseInt(page);
       const newLimit = parseInt(limit);
 
@@ -508,8 +509,6 @@ export class Server {
           return res.status(400).json({ error: "Invalid date option" });
         }
         validDateOption = dateOption as DateOption;
-      } else {
-        validDateOption = DateOption.LAST_SCHEDULE;
       }
       console.log(validDateOption);
 
@@ -518,6 +517,7 @@ export class Server {
           agentId,
           newPage,
           newLimit,
+          jobId,
           validDateOption,
         );
         res.json({ result });
@@ -2544,81 +2544,75 @@ export class Server {
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {
-        const { agentId, dateOption, status } = req.body;
+        const { agentId, dateOption, status, jobId } = req.body;
         const timeZone = "America/Los_Angeles"; // PST time zone
         const now = new Date();
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
         let dateFilter = {};
         let dateFilter1 = {};
+        let tag = {};
 
-        switch (dateOption) {
-          case DateOption.Today:
-            dateFilter = { datesCalled: today };
-            dateFilter1 = { day: today };
-            break;
-          case DateOption.Yesterday:
-            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
-              timeZone,
-            });
-            dateFilter = { datesCalled: yesterday };
-            dateFilter1 = { day: yesterday };
-            break;
-          case DateOption.ThisWeek:
-            const weekdays: string[] = [];
-            for (let i = 1; i <= 7; i++) {
-              const day = subDays(zonedNow, i);
-              const dayOfWeek = day.getDay();
-              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+        if (dateOption) {
+          switch (dateOption) {
+            case DateOption.Today:
+              dateFilter = { datesCalled: today };
+              dateFilter1 = { day: today };
+              break;
+            case DateOption.Yesterday:
+              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+              const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+                timeZone,
+              });
+              dateFilter = { datesCalled: yesterday };
+              dateFilter1 = { day: yesterday };
+              break;
+            case DateOption.ThisWeek:
+              const weekdays: string[] = [];
+              for (let i = 0; i < 7; i++) {
+                const day = subDays(zonedNow, i);
+                const dayOfWeek = day.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                  weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+                }
               }
-            }
-            dateFilter = { datesCalled: { $in: weekdays } };
-            dateFilter1 = { day: { $in: weekdays } };
-            break;
-
-          case DateOption.ThisMonth:
-            const monthDates: string[] = [];
-            for (let i = 0; i < now.getDate(); i++) {
-              const day = subDays(now, i);
-              monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
-            }
-            dateFilter = { datesCalled: { $in: monthDates } };
-            dateFilter1 = { day: { $in: monthDates } };
-            break;
-
-          case DateOption.Total:
-            dateFilter = {};
-            dateFilter1 = {};
-            break;
-          case DateOption.LAST_SCHEDULE:
-            const recentJob = await jobModel
-              .findOne({})
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob) return "No jobs found for today's filter.";
-            const dateToCheck = recentJob.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck } };
-            dateFilter1 = { day: { $gte: dateToCheck } };
-            break;
-
-          default:
-            const recentJob1 = await jobModel
-              .findOne({ agentId })
-              .sort({ createdAt: -1 })
-              .lean();
-            if (!recentJob1) return "No jobs found for today's filter.";
-            const dateToCheck1 = recentJob1.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck1 } };
-            dateFilter1 = { day: { $gte: dateToCheck1 } };
-            break;
+              dateFilter = { datesCalled: { $in: weekdays } };
+              dateFilter1 = { day: { $in: weekdays } };
+              break;
+            case DateOption.ThisMonth:
+              const monthDates: string[] = [];
+              for (let i = 0; i < now.getDate(); i++) {
+                const day = subDays(now, i);
+                monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+              }
+              dateFilter = { datesCalled: { $in: monthDates } };
+              dateFilter1 = { day: { $in: monthDates } };
+              break;
+            case DateOption.Total:
+              dateFilter = {};
+              dateFilter1 = {};
+              break;
+            default:
+              dateFilter = {};
+              dateFilter1 = {};
+              break;
+          }
+        } else if (jobId) {
+          const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
+          if (job && job.createdAt) {
+            const createdAtDate = new Date(job.createdAt)
+              .toISOString()
+              .split("T")[0];
+            dateFilter = { datesCalled: createdAtDate };
+            dateFilter1 = { day: createdAtDate };
+            tag = { tag: job.tagProcessedFor };
+          }
         }
-        // Build query dynamically
         let query: any = {
           agentId,
           isDeleted: false,
           ...dateFilter,
+          ...tag,
         };
 
         // Only add status to the query if it's provided
@@ -2815,5 +2809,35 @@ export class Server {
         }
       },
     );
+  }
+  getDatesAgentsHaveBeenCalled() {
+    this.app.post("/agent/date", async (req: Request, res: Response) => {
+      try {
+        const { agentId } = req.body;
+
+        // Fetch jobs for the given agentId
+        const results = await jobModel.find({ agentId });
+
+        // Map each result to an object containing 'date' and 'tag'
+        const dateTagArray = results.map((job: any) => {
+          const createdAt = new Date(job.createdAt).toISOString().split("T")[0]; // Format date as YYYY-MM-DD
+          const tag = job.tagProcessedFor || "unknown"; // Default to 'unknown' if tag is missing
+
+          return {
+            date: createdAt,
+            tag: tag,
+            jobId: job.job.jobId,
+          };
+        });
+
+        // Send the array of objects as the response
+        res.status(200).json({ dateTagArray });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .json({ message: "An error occurred while fetching data." });
+      }
+    });
   }
 }
