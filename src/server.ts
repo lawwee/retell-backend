@@ -942,12 +942,11 @@ export class Server {
       const todayString = todays.toISOString().split("T")[0];
       const today = new Date();
       const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, "0"); // Months are 0-based
+      const month = String(today.getMonth() + 1).padStart(2, "0");
       const day = String(today.getDate()).padStart(2, "0");
       const hours = String(today.getHours()).padStart(2, "0");
       const minutes = String(today.getMinutes()).padStart(2, "0");
 
-      // Format the string as YYYY-MM-DD HH:mm
       const todayStringWithTime = `${year}-${month}-${day} ${hours}:${minutes}`;
       try {
         if (payload.event === "call_started") {
