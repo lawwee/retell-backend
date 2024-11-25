@@ -406,47 +406,47 @@ export class Server {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
         try {
-          // const callRegister = await this.retellClient.call.registerPhoneCall({
-          //   agent_id: agentId,
-          //   from_number: fromNumber,
-          //   to_number: toNumber,
-          //   retell_llm_dynamic_variables: {
-          //     user_firstname: result.firstname,
-          //     user_email: result.email,
-          //   },
-          // });
-          // const registerCallResponse2 =
-          //   await this.retellClient.call.createPhoneCall({
-          //     from_number: fromNumber,
-          //     to_number: toNumber,
-          //     override_agent_id: agentId,
-          //     retell_llm_dynamic_variables: {
-          //       user_firstname: result.firstname,
-          //       user_email: result.email,
-          //     },
-          //   });
-
           if (!result.lastname || result.lastname.trim() === "") {
             result.lastname = ".";
           }
-          const callRegister = await this.retellClient.call.register({
+          const callRegister = await this.retellClient.call.registerPhoneCall({
             agent_id: agentId,
-            audio_encoding: "s16le",
-            audio_websocket_protocol: "twilio",
-            sample_rate: 24000,
-            end_call_after_silence_ms: 15000,
-          });
-          const registerCallResponse2 = await this.retellClient.call.create({
             from_number: fromNumber,
             to_number: toNumber,
-            override_agent_id: agentId,
-            drop_call_if_machine_detected: true,
             retell_llm_dynamic_variables: {
               user_firstname: result.firstname,
               user_email: result.email,
-              user_lastname: result.lastname,
             },
           });
+          const registerCallResponse2 =
+            await this.retellClient.call.createPhoneCall({
+              from_number: fromNumber,
+              to_number: toNumber,
+              override_agent_id: agentId,
+              retell_llm_dynamic_variables: {
+                user_firstname: result.firstname,
+                user_email: result.email,
+              },
+            });
+
+          // const callRegister = await this.retellClient.call.register({
+          //   agent_id: agentId,
+          //   audio_encoding: "s16le",
+          //   audio_websocket_protocol: "twilio",
+          //   sample_rate: 24000,
+          //   end_call_after_silence_ms: 15000,
+          // });
+          // const registerCallResponse2 = await this.retellClient.call.create({
+          //   from_number: fromNumber,
+          //   to_number: toNumber,
+          //   override_agent_id: agentId,
+          //   drop_call_if_machine_detected: true,
+          //   retell_llm_dynamic_variables: {
+          //     user_firstname: result.firstname,
+          //     user_email: result.email,
+          //     user_lastname: result.lastname,
+          //   },
+          // });
           await contactModel.findByIdAndUpdate(userId, {
             callId: registerCallResponse2.call_id,
             isusercalled: true,
@@ -512,7 +512,6 @@ export class Server {
       } else {
         validDateOption = DateOption.LAST_SCHEDULE;
       }
-      
 
       try {
         const result = await getAllContact(
@@ -569,7 +568,6 @@ export class Server {
       },
     );
   }
-
   // createPhoneCall() {
   //   this.app.post(
   //     "/create-phone-call/:agentId",
@@ -1177,6 +1175,27 @@ export class Server {
   }
   async handleCallAnalyzed(payload: any) {
     try {
+      const url = process.env.CAN_URL;
+      const apiKey = process.env.CAN_KEY; 
+      const eventBody = {payload};
+
+      axios
+        .post(url, eventBody, {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Canonical-Api-Key": apiKey,
+          },
+        })
+        .then((response) => {
+          console.log("Response:", response.data);
+        })
+        .catch((error) => {
+          console.error(
+            "Error:",
+            error.response ? error.response.data : error.message,
+          );
+        });
+
       const data = {
         retellCallSummary: payload.data.call_analysis.call_summary,
       };
@@ -1273,66 +1292,64 @@ export class Server {
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
 
-      
-          switch (dateOption) {
-            case DateOption.Today:
-              dateFilter = { datesCalled: today };
-              dateFilter1 = { day: today };
-              break;
-            case DateOption.Yesterday:
-              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
-              const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
-                timeZone,
-              });
-              dateFilter = { datesCalled: yesterday };
-              dateFilter1 = { day: yesterday };
-              break;
-            case DateOption.ThisWeek:
-              const weekdays: string[] = [];
-              for (let i = 0; i < 7; i++) {
-                const day = subDays(zonedNow, i);
-                const dayOfWeek = day.getDay();
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                  weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
-                }
+        switch (dateOption) {
+          case DateOption.Today:
+            dateFilter = { datesCalled: today };
+            dateFilter1 = { day: today };
+            break;
+          case DateOption.Yesterday:
+            const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+            const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+              timeZone,
+            });
+            dateFilter = { datesCalled: yesterday };
+            dateFilter1 = { day: yesterday };
+            break;
+          case DateOption.ThisWeek:
+            const weekdays: string[] = [];
+            for (let i = 0; i < 7; i++) {
+              const day = subDays(zonedNow, i);
+              const dayOfWeek = day.getDay();
+              if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
               }
-              console.log(weekdays);
-              dateFilter = { datesCalled: { $in: weekdays } };
-              dateFilter1 = { day: { $in: weekdays } };
-              break;
+            }
+            console.log(weekdays);
+            dateFilter = { datesCalled: { $in: weekdays } };
+            dateFilter1 = { day: { $in: weekdays } };
+            break;
 
-            case DateOption.ThisMonth:
-              const monthDates: string[] = [];
-              for (let i = 0; i < now.getDate(); i++) {
-                const day = subDays(now, i);
-                monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
-              }
-              dateFilter = { datesCalled: { $in: monthDates } };
-              dateFilter1 = { day: { $in: monthDates } };
-              break;
+          case DateOption.ThisMonth:
+            const monthDates: string[] = [];
+            for (let i = 0; i < now.getDate(); i++) {
+              const day = subDays(now, i);
+              monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+            }
+            dateFilter = { datesCalled: { $in: monthDates } };
+            dateFilter1 = { day: { $in: monthDates } };
+            break;
 
-            case DateOption.Total:
+          case DateOption.Total:
+            dateFilter = {};
+            dateFilter1 = {};
+            break;
+          default:
+            const recentJob = await jobModel
+              .findOne({ agentId: { $in: agentIds } })
+              .sort({ createdAt: -1 })
+              .lean();
+
+            if (!recentJob) {
               dateFilter = {};
               dateFilter1 = {};
-              break;
-            default:
-              const recentJob = await jobModel
-                .findOne({ agentId: { $in: agentIds } })
-                .sort({ createdAt: -1 })
-                .lean();
-          
-            
-              if (!recentJob) {
-                dateFilter = {};
-                dateFilter1 = {};
-              } else {
-                const dateToCheck = recentJob.scheduledTime.split("T")[0];
-                dateFilter = { datesCalled:  dateToCheck  };
-                dateFilter1 = { day:  dateToCheck  };
-              }
-              break;
-          }
-        
+            } else {
+              const dateToCheck = recentJob.scheduledTime.split("T")[0];
+              dateFilter = { datesCalled: dateToCheck };
+              dateFilter1 = { day: dateToCheck };
+            }
+            break;
+        }
+
         //}
 
         if (startDate) {
@@ -2541,7 +2558,7 @@ export class Server {
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {
-        const { agentId, dateOption , status, jobId } = req.body;
+        const { agentId, dateOption, status, jobId } = req.body;
         const timeZone = "America/Los_Angeles"; // PST time zone
         const now = new Date();
         const zonedNow = toZonedTime(now, timeZone);
@@ -2550,7 +2567,7 @@ export class Server {
         let dateFilter1 = {};
         let tag = {};
 
-        console.log("dateOption", dateOption)
+        console.log("dateOption", dateOption);
         if (dateOption || dateOption === "") {
           switch (dateOption) {
             case DateOption.Today:
@@ -2596,7 +2613,7 @@ export class Server {
                 .sort({ createdAt: -1 })
                 .lean();
               if (recentJob) {
-                const dateToCheck = recentJob.scheduledTime.split("T")[0]
+                const dateToCheck = recentJob.scheduledTime.split("T")[0];
                 dateFilter = { datesCalled: dateToCheck };
                 dateFilter1 = { day: dateToCheck };
               } else {
@@ -2616,7 +2633,7 @@ export class Server {
             tag = { tag: job.tagProcessedFor };
           }
         }
-        console.log(dateFilter)
+        console.log(dateFilter);
         let query: any = {
           agentId,
           isDeleted: false,

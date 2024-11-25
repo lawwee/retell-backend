@@ -125,19 +125,23 @@ export const scheduleCronJob = async (
           };
 
           try {
-            await retellClient.call.register({
+            
+            await retellClient.call.registerPhoneCall({
               agent_id: agentId,
-              audio_encoding: "s16le",
-              audio_websocket_protocol: "twilio",
-              sample_rate: 24000,
-              end_call_after_silence_ms: 15000,
+              from_number: fromNumber,
+              to_number: formatPhoneNumber(postdata.toNumber),
+              retell_llm_dynamic_variables: {
+                user_firstname: contact.firstname,
+                user_email: contact.email,
+                user_lasname: contact.lastname,
+                job_id: jobId,
+              },
             });
 
-            const registerCallResponse2 = await retellClient.call.create({
+            const registerCallResponse2 = await retellClient.call.createPhoneCall({
               from_number: fromNumber,
               to_number: formatPhoneNumber(postdata.toNumber),
               override_agent_id: agentId,
-              drop_call_if_machine_detected: true,
               retell_llm_dynamic_variables: {
                 user_firstname: contact.firstname,
                 user_email: contact.email,
