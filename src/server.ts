@@ -2835,7 +2835,7 @@ export class Server {
           return {
             date: createdAt,
             tag: tag,
-            jobId: job.job.jobId,
+            jobId: job.jobId,
           };
         });
 
