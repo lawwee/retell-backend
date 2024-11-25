@@ -56,21 +56,22 @@ export const getAllContact = async (
   agentId: string,
   page: number,
   limit: number,
-  jobId?: string, 
-  dateOption?: DateOption, 
+  jobId?: string,
+  dateOption?: DateOption,
 ) => {
   try {
     const skip = (page - 1) * limit;
     let dateFilter = {};
     let dateFilter1 = {};
-    let tag = {}
+    let tag = {};
 
     const timeZone = "America/Los_Angeles";
     const now = new Date();
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+
     if (dateOption) {
-      // Handle the logic for dateOption
+      
       switch (dateOption) {
         case DateOption.Today:
           dateFilter = { datesCalled: today };
@@ -103,43 +104,49 @@ export const getAllContact = async (
           dateFilter = { datesCalled: { $in: monthDates } };
           dateFilter1 = { day: { $in: monthDates } };
           break;
-        case DateOption.Total:
-          dateFilter = {};
-          dateFilter1 = {};
-          break;
         default:
+          const recentJob = await jobModel
+            .findOne({ agentId })
+            .sort({ createdAt: -1 })
+            .lean();
+
+          if (recentJob) {
+            const dateToCheck = recentJob.scheduledTime.split("T")[0];
+            
+            dateFilter = { datesCalled: dateToCheck };
+            dateFilter1 = { day: dateToCheck };
+          } else {
+            dateFilter = {};
+            dateFilter1 = {};
+          }
+          break;
+        case DateOption.Total:
           dateFilter = {};
           dateFilter1 = {};
           break;
       }
     } else if (jobId) {
-  
-      const job = await jobModel.findOne({jobId,agentId}).lean<any>();
+      const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
       if (job && job.createdAt) {
-        const createdAtDate = new Date(job.createdAt).toISOString().split("T")[0]; // Format createdAt to YYYY-MM-DD
+        const createdAtDate = new Date(job.createdAt)
+          .toISOString()
+          .split("T")[0]; 
         dateFilter = { datesCalled: createdAtDate };
         dateFilter1 = { day: createdAtDate };
-        tag = {tag: job.tagProcessedFor}
-      } 
+        tag = { tag: job.tagProcessedFor };
+      }
     }
+  
     const foundContacts = await contactModel
-      .find({ agentId, isDeleted: false, ...dateFilter,...tag })
+      .find({ agentId, isDeleted: false, ...dateFilter, ...tag })
       .sort({ createdAt: "desc" })
       .populate("referenceToCallId")
       .skip(skip)
       .limit(limit);
-  
 
-    // const totalCount = await contactModel.countDocuments({
-    //   agentId,
-    //   isDeleted: { $ne: true },
-    // });
+   
     const totalCount = await contactModel
-    .countDocuments({ agentId, isDeleted: false, ...dateFilter,...tag })
-    .sort({ createdAt: "desc" })
-    .populate("referenceToCallId")
-    .skip(skip)
-    .limit(limit);
+      .countDocuments({ agentId, isDeleted: false, ...dateFilter, ...tag })
 
     const totalContactForAgent = await contactModel.countDocuments({
       agentId,

@@ -71,10 +71,15 @@ const ContactSchema = new Schema<IContact>(
     jobProcessedWithId: {
       type: [String],
       default: [],
-    },isOnDNCList:{
+    },
+    isOnDNCList: {
       type: Boolean,
-      default: false
-    }  },
+      default: false,
+    },
+    timesCalled: {
+      type: String
+    }
+  },
   { timestamps: true },
 );
 
@@ -101,7 +106,7 @@ const jobschema = new Schema<Ijob>(
     },
     scheduledTime: { type: String },
     shouldContinueProcessing: { type: Boolean, default: true },
-    tagProcessedFor:{type:String}
+    tagProcessedFor: { type: String },
   },
   { timestamps: true },
 );
@@ -118,9 +123,9 @@ const transcriptSchema = new Schema(
     agentSemtiment: { type: String },
     disconnectionReason: { type: String },
     analyzedTranscript: { type: String },
-    agentId:{type:String},
-    callBackDate:{type: String},
-    callDuration:{type:String}
+    agentId: { type: String },
+    callBackDate: { type: String },
+    callDuration: { type: String },
   },
   { timestamps: true },
 );

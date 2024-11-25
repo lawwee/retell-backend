@@ -509,8 +509,10 @@ export class Server {
           return res.status(400).json({ error: "Invalid date option" });
         }
         validDateOption = dateOption as DateOption;
+      } else {
+        validDateOption = DateOption.LAST_SCHEDULE;
       }
-      console.log(validDateOption);
+      
 
       try {
         const result = await getAllContact(
@@ -795,6 +797,7 @@ export class Server {
           answeredByVM: false,
           datesCalled: [],
           isusercalled: false,
+          timesCalled: "",
         });
         res.json({ result });
       },
@@ -947,13 +950,19 @@ export class Server {
       const hours = String(today.getHours()).padStart(2, "0");
       const minutes = String(today.getMinutes()).padStart(2, "0");
 
-      const todayStringWithTime = `${year}-${month}-${day} ${hours}:${minutes}`;
+      const todayStringWithTime = `${year}-${month}-${day}`;
+      const time = `${hours}:${minutes}`;
       try {
         if (payload.event === "call_started") {
           console.log(`call started for: ${payload.data.call_id}`);
           await this.handleCallStarted(payload.data);
         } else if (payload.event === "call_ended") {
-          await this.handleCallEnded(payload, todayString, todayStringWithTime);
+          await this.handleCallEnded(
+            payload,
+            todayString,
+            todayStringWithTime,
+            time,
+          );
         } else if (payload.event === "call_analyzed") {
           await this.handleCallAnalyzed(payload);
         }
@@ -977,6 +986,7 @@ export class Server {
     payload: any,
     todayString: any,
     todaysDateForDatesCalled: any,
+    time: any,
   ) {
     try {
       const {
@@ -1130,6 +1140,7 @@ export class Server {
             status: callStatus,
             $push: { datesCalled: todaysDateForDatesCalled },
             referenceToCallId: results._id,
+            timesCalled: time,
             linktocallLogModel: linkToCallLogModelId,
           },
         );
@@ -1262,22 +1273,7 @@ export class Server {
         const zonedNow = toZonedTime(now, timeZone);
         const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
 
-        if (!dateOption) {
-          dateOption = DateOption.LAST_SCHEDULE;
-          const recentJob = await jobModel
-            .findOne({ agentId: { $in: agentIds } })
-            .sort({ createdAt: -1 })
-            .lean();
-          console.log(recentJob);
-          if (!recentJob) {
-            dateFilter = {};
-            dateFilter1 = {};
-          } else {
-            const dateToCheck = recentJob.scheduledTime.split("T")[0];
-            dateFilter = { datesCalled: { $gte: dateToCheck } };
-            dateFilter1 = { day: { $gte: dateToCheck } };
-          }
-        } else {
+      
           switch (dateOption) {
             case DateOption.Today:
               dateFilter = { datesCalled: today };
@@ -1319,23 +1315,25 @@ export class Server {
               dateFilter = {};
               dateFilter1 = {};
               break;
-            case DateOption.LAST_SCHEDULE:
+            default:
               const recentJob = await jobModel
                 .findOne({ agentId: { $in: agentIds } })
                 .sort({ createdAt: -1 })
                 .lean();
-              console.log(recentJob);
+          
+            
               if (!recentJob) {
                 dateFilter = {};
                 dateFilter1 = {};
               } else {
                 const dateToCheck = recentJob.scheduledTime.split("T")[0];
-                dateFilter = { datesCalled: { $gte: dateToCheck } };
-                dateFilter1 = { day: { $gte: dateToCheck } };
+                dateFilter = { datesCalled:  dateToCheck  };
+                dateFilter1 = { day:  dateToCheck  };
               }
               break;
           }
-        }
+        
+        //}
 
         if (startDate) {
           dateFilter = {
@@ -1362,7 +1360,6 @@ export class Server {
             },
           };
         }
-
         const foundContacts = await contactModel
           .find({ agentId: { $in: agentIds }, isDeleted: false, ...dateFilter })
           .sort({ createdAt: "desc" })
@@ -2544,7 +2541,7 @@ export class Server {
   populateUserGet() {
     this.app.post("/user/populate", async (req: Request, res: Response) => {
       try {
-        const { agentId, dateOption, status, jobId } = req.body;
+        const { agentId, dateOption , status, jobId } = req.body;
         const timeZone = "America/Los_Angeles"; // PST time zone
         const now = new Date();
         const zonedNow = toZonedTime(now, timeZone);
@@ -2553,7 +2550,8 @@ export class Server {
         let dateFilter1 = {};
         let tag = {};
 
-        if (dateOption) {
+        console.log("dateOption", dateOption)
+        if (dateOption || dateOption === "") {
           switch (dateOption) {
             case DateOption.Today:
               dateFilter = { datesCalled: today };
@@ -2593,8 +2591,18 @@ export class Server {
               dateFilter1 = {};
               break;
             default:
-              dateFilter = {};
-              dateFilter1 = {};
+              const recentJob = await jobModel
+                .findOne({ agentId })
+                .sort({ createdAt: -1 })
+                .lean();
+              if (recentJob) {
+                const dateToCheck = recentJob.scheduledTime.split("T")[0]
+                dateFilter = { datesCalled: dateToCheck };
+                dateFilter1 = { day: dateToCheck };
+              } else {
+                dateFilter = {};
+                dateFilter1 = {};
+              }
               break;
           }
         } else if (jobId) {
@@ -2608,6 +2616,7 @@ export class Server {
             tag = { tag: job.tagProcessedFor };
           }
         }
+        console.log(dateFilter)
         let query: any = {
           agentId,
           isDeleted: false,
