@@ -2567,8 +2567,20 @@ export class Server {
         let dateFilter1 = {};
         let tag = {};
 
-        console.log("dateOption", dateOption);
-        if (dateOption || dateOption === "") {
+
+
+        if (jobId) {
+          const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
+          if (job && job.createdAt) {
+            const createdAtDate = new Date(job.createdAt)
+              .toISOString()
+              .split("T")[0];
+            dateFilter = { datesCalled: createdAtDate };
+            dateFilter1 = { day: createdAtDate };
+            tag = { tag: job.tagProcessedFor };
+          }
+        }
+        else if (dateOption || dateOption === "") {
           switch (dateOption) {
             case DateOption.Today:
               dateFilter = { datesCalled: today };
@@ -2621,16 +2633,6 @@ export class Server {
                 dateFilter1 = {};
               }
               break;
-          }
-        } else if (jobId) {
-          const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
-          if (job && job.createdAt) {
-            const createdAtDate = new Date(job.createdAt)
-              .toISOString()
-              .split("T")[0];
-            dateFilter = { datesCalled: createdAtDate };
-            dateFilter1 = { day: createdAtDate };
-            tag = { tag: job.tagProcessedFor };
           }
         }
         console.log(dateFilter);

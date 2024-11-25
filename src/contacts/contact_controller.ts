@@ -70,7 +70,17 @@ export const getAllContact = async (
     const zonedNow = toZonedTime(now, timeZone);
     const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
 
-    if (dateOption) {
+    if (jobId) {
+      const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
+      if (job && job.createdAt) {
+        const createdAtDate = new Date(job.createdAt)
+          .toISOString()
+          .split("T")[0]; 
+        dateFilter = { datesCalled: createdAtDate };
+        dateFilter1 = { day: createdAtDate };
+        tag = { tag: job.tagProcessedFor };
+      }
+    } else if (dateOption) {
       
       switch (dateOption) {
         case DateOption.Today:
@@ -125,18 +135,7 @@ export const getAllContact = async (
           dateFilter1 = {};
           break;
       }
-    } else if (jobId) {
-      const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
-      if (job && job.createdAt) {
-        const createdAtDate = new Date(job.createdAt)
-          .toISOString()
-          .split("T")[0]; 
-        dateFilter = { datesCalled: createdAtDate };
-        dateFilter1 = { day: createdAtDate };
-        tag = { tag: job.tagProcessedFor };
-      }
-    }
-  
+    } 
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: false, ...dateFilter, ...tag })
       .sort({ createdAt: "desc" })
