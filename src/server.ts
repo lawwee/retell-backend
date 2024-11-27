@@ -71,6 +71,7 @@ import {
 import callHistoryModel from "./contacts/history_model";
 import { formatPhoneNumber } from "./helper-fuction/formatter";
 import { script } from "./script";
+import { getAllLLM, getOneLLM, updateAgent, updateLLM } from "./LLM/llm-fuctions";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -116,6 +117,7 @@ export class Server {
       apiKey: process.env.OPENAI_APIKEY,
     });
 
+    this.updateAgent();
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
@@ -162,6 +164,9 @@ export class Server {
     this.resetPassword();
     this.testingZap();
     this.getCallHistory();
+    this.getAllLLM();
+    this.getOneLLM();
+    this.updateLLM()
 
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
@@ -1176,8 +1181,8 @@ export class Server {
   async handleCallAnalyzed(payload: any) {
     try {
       const url = process.env.CAN_URL;
-      const apiKey = process.env.CAN_KEY; 
-      const eventBody = {payload};
+      const apiKey = process.env.CAN_KEY;
+      const eventBody = { payload };
 
       axios
         .post(url, eventBody, {
@@ -2567,8 +2572,6 @@ export class Server {
         let dateFilter1 = {};
         let tag = {};
 
-
-
         if (jobId) {
           const job = await jobModel.findOne({ jobId, agentId }).lean<any>();
           if (job && job.createdAt) {
@@ -2579,8 +2582,7 @@ export class Server {
             dateFilter1 = { day: createdAtDate };
             tag = { tag: job.tagProcessedFor };
           }
-        }
-        else if (dateOption || dateOption === "") {
+        } else if (dateOption || dateOption === "") {
           switch (dateOption) {
             case DateOption.Today:
               dateFilter = { datesCalled: today };
@@ -2868,4 +2870,126 @@ export class Server {
       }
     });
   }
+  getOneLLM() {
+    this.app.post("/get-llm", async (req: Request, res: Response) => {
+      const { llm_id } = req.body;
+
+      // Validate if LLM ID is provided
+      if (!llm_id) {
+        return res.status(400).json({
+          success: false,
+          message: "LLM ID is required.",
+        });
+      }
+
+      try {
+        const result = await getOneLLM(llm_id);
+
+        if (result.success) {
+          return res.status(200).json({
+            success: true,
+            data: result.data,
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: result.message,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching LLM from Retell:", error);
+        return res.status(500).json({
+          success: false,
+          message: "An unexpected error occurred while fetching LLM data.",
+        });
+      }
+    });
+  }
+  getAllLLM() {
+    this.app.post("/list-llm", async (req: Request, res: Response) => {
+      try {
+        const result: any = await getAllLLM();
+
+        if (result.success) {
+          return res.status(200).json({
+            success: true,
+            data: result.data,
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: result.message,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching all LLMs from Retell:", error);
+        return res.status(500).json({
+          success: false,
+          message: "An unexpected error occurred while fetching all LLM data.",
+        });
+      }
+    });
+  }
+  updateAgent() {
+    this.app.post("/update-agent", async (req: Request, res: Response) => {
+      const { agentId, payload } = req.body;
+      if (!agentId) {
+        return res.status(400).json({
+          success: false,
+          message: "Agent ID is required.",
+        });
+      }
+      const result = await updateAgent(agentId, payload);
+      if (result.success) {
+        return res.status(200).json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    });
+  }
+  updateLLM() {
+    this.app.post('/update-llm', async (req: Request, res: Response) => {
+      const { llm_id, payload } = req.body;
+  
+      // Validate input
+      if (!llm_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'LLM ID is required.',
+        });
+      }
+  
+      if (!payload || typeof payload !== 'object') {
+        return res.status(400).json({
+          success: false,
+          message: 'A valid payload is required.',
+        });
+      }
+  
+      try {
+        const result = await updateLLM(llm_id, payload);
+  
+        if (result.success) {
+          return res.status(200).json({
+            success: true,
+            message: result.message,
+            data: result.data,
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: result.message,
+          });
+        }
+      } catch (error) {
+        console.error('Error updating LLM:', error);
+  
+        return res.status(500).json({
+          success: false,
+          message: 'An unexpected error occurred while updating the LLM.',
+        });
+      }
+    });
+  }
+  
 }
