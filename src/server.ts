@@ -71,7 +71,7 @@ import {
 import callHistoryModel from "./contacts/history_model";
 import { formatPhoneNumber } from "./helper-fuction/formatter";
 import { script } from "./script";
-import { getAllLLM, getOneLLM, revertLLM, updateAgent, updateLLM } from "./LLM/llm-fuctions";
+import { getAllLLM, getOneLLM, revertAgent, revertLLM, updateAgent, updateLLM } from "./LLM/llm-fuctions";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -168,7 +168,7 @@ export class Server {
     this.getOneLLM();
     this.updateLLM()
     this.revertLLM()
-
+    this.revertAgent()
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -3039,5 +3039,53 @@ export class Server {
       }
     })
   }
+  revertAgent(){
+    this.app.post("/revert-agent", async(req: Request, res: Response)=> {
+      const { agentId, update_index } = req.body;
+
+      console
+     
+      if (!agentId || typeof agentId !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "LLM ID is required and must be a string.",
+        });
+      }
+    
+      if (!update_index || typeof update_index !== "number") {
+        return res.status(400).json({
+          success: false,
+          message: "A valid update index is required and must be a number.",
+        });
+      }
+    
+      try {
+      
+        const result = await revertAgent(agentId, update_index);
+    
+        
+        if (result.success) {
+          return res.status(200).json({
+            success: true,
+            message: result.message,
+            data: result.data, 
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: result.message,
+          });
+        }
+      } catch (error) {
+        console.error("Error in /revert-llm endpoint:", error);
+    
+        return res.status(500).json({
+          success: false,
+          message: "An unexpected error occurred while reverting the LLM.",
+        });
+      }
+    })
+  }
+  
   
 }

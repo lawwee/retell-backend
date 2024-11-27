@@ -1,7 +1,7 @@
 import Retell from "retell-sdk";
 import { AgentUpdateParams } from "retell-sdk/resources/agent";
 import { LlmUpdateParams } from "retell-sdk/resources/llm";
-import { LLMUpdateHistory } from "./lllm-schema";
+import { AgentUpdateHistory, LLMUpdateHistory } from "./lllm-schema";
 
 const client = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -134,7 +134,6 @@ export async function updateAgent(
   }>,
 ) {
   try {
-    // Filter payload strictly against the allowed keys
     const allowedKeys: Array<keyof typeof payload> = [
       "agent_name",
       "ambient_sound",
@@ -167,17 +166,15 @@ export async function updateAgent(
       "webhook_url",
     ];
 
-    // Use type assertion to ensure filteredPayload matches the type
     const filteredPayload: Partial<typeof payload> = Object.keys(payload)
       .filter((key): key is keyof typeof payload =>
         allowedKeys.includes(key as keyof typeof payload),
       )
       .reduce((obj: any, key) => {
-        obj[key] = payload[key as keyof typeof payload]; // Safely assign key-value pair
+        obj[key] = payload[key as keyof typeof payload];
         return obj;
       }, {} as Partial<typeof payload>);
 
-    // Ensure there are valid fields to update
     if (Object.keys(filteredPayload).length === 0) {
       return {
         success: false,
@@ -185,13 +182,27 @@ export async function updateAgent(
       };
     }
 
-    // Update the agent using the filtered payload
-    const agentResponse = await client.agent.update(agentId, filteredPayload);
+    const previousData = await client.agent.retrieve(agentId);
+    const result = await client.agent.update(agentId, filteredPayload);
+
+    const lastUpdate = await AgentUpdateHistory.findOne({ agentId })
+      .sort({ createdAt: "desc" })
+      .lean();
+
+    const newUpdateIndex = lastUpdate ? lastUpdate.updateIndex + 1 : 1;
+
+    await AgentUpdateHistory.create({
+      agentId,
+      previousData,
+      updatedData: result,
+      updateIndex: newUpdateIndex,
+      timestamp: Date.now(),
+    });
 
     return {
       success: true,
       message: "Agent updated successfully.",
-      data: agentResponse,
+      data: result,
     };
   } catch (error) {
     const errorMessage =
@@ -263,16 +274,14 @@ export async function updateLLM(
 
     const result = await client.llm.update(llmid, filteredPayload);
 
-    const lastUpdate = await LLMUpdateHistory.findOne({ llm_id:llmid })
+    const lastUpdate = await LLMUpdateHistory.findOne({ llm_id: llmid })
       .sort({ createdAt: "desc" })
       .lean();
 
-    
-    
     const newUpdateIndex = lastUpdate ? lastUpdate.updateIndex + 1 : 1;
 
     await LLMUpdateHistory.create({
-      llm_id:llmid,
+      llm_id: llmid,
       previousData,
       updatedData: result,
       updateIndex: newUpdateIndex,
@@ -313,7 +322,7 @@ export async function revertLLM(llmid: string, updateIndex: number) {
     }
 
     const historyRecord = await LLMUpdateHistory.findOne({
-      llm_id:llmid,
+      llm_id: llmid,
       updateIndex,
     }).lean();
 
@@ -335,14 +344,84 @@ export async function revertLLM(llmid: string, updateIndex: number) {
 
     const result = await client.llm.update(llmid, previousData);
 
-    const lastUpdate = await LLMUpdateHistory.findOne({ llm_id:llmid })
+    const lastUpdate = await LLMUpdateHistory.findOne({ llm_id: llmid })
       .sort({ createdAt: "desc" })
       .lean();
 
     const newUpdateIndex = lastUpdate ? lastUpdate.updateIndex + 1 : 1;
 
     await LLMUpdateHistory.create({
-      llm_id:llmid,
+      llm_id: llmid,
+      previousData: result,
+      updatedData: previousData,
+      updateIndex: newUpdateIndex,
+      timestamp: Date.now(),
+    });
+
+    return {
+      success: true,
+      message: `LLM reverted successfully to update index ${updateIndex}.`,
+      data: result,
+    };
+  } catch (error) {
+    console.error("Error reverting LLM:", error);
+
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred.";
+
+    return {
+      success: false,
+      message: errorMessage,
+    };
+  }
+}
+export async function revertAgent(agentId: string, updateIndex: number) {
+  try {
+    if (!agentId || typeof agentId !== "string") {
+      return {
+        success: false,
+        message: "Invalid LLM ID. Please provide a valid llmid.",
+      };
+    }
+
+    if (!updateIndex || typeof updateIndex !== "number") {
+      return {
+        success: false,
+        message: "Invalid update index. Please provide a valid number.",
+      };
+    }
+
+    const historyRecord = await AgentUpdateHistory.findOne({
+      agentId,
+      updateIndex,
+    }).lean();
+
+    if (!historyRecord) {
+      return {
+        success: false,
+        message: `No history found for LLM ID ${agentId} at update index ${updateIndex}.`,
+      };
+    }
+
+    const { previousData } = historyRecord;
+
+    if (!previousData) {
+      return {
+        success: false,
+        message: `No previous data available for LLM ID ${agentId} at update index ${updateIndex}.`,
+      };
+    }
+
+    const result = await client.llm.update(agentId, previousData);
+
+    const lastUpdate = await AgentUpdateHistory.findOne({ agentId })
+      .sort({ createdAt: "desc" })
+      .lean();
+
+    const newUpdateIndex = lastUpdate ? lastUpdate.updateIndex + 1 : 1;
+
+    await AgentUpdateHistory.create({
+      agentId,
       previousData: result,
       updatedData: previousData,
       updateIndex: newUpdateIndex,
