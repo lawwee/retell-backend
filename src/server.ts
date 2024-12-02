@@ -71,7 +71,16 @@ import {
 import callHistoryModel from "./contacts/history_model";
 import { formatPhoneNumber } from "./helper-fuction/formatter";
 import { script } from "./script";
-import { getAllLLM, getOneLLM, revertAgent, revertLLM, updateAgent, updateLLM } from "./LLM/llm-fuctions";
+import {
+  getAllLLM,
+  getOneLLM,
+  revertAgent,
+  revertLLM,
+  updateAgent,
+  updateLLM,
+} from "./LLM/llm-fuctions";
+import { dailyGraphModel } from "./Schedule-Fuctions/graphModel";
+import { updateStatsByHour } from "./Schedule-Fuctions/graphController";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -138,6 +147,7 @@ export class Server {
     this.getAllJob();
     this.stopSpecificJob();
     this.deleteAll();
+    //this.dummy()
     this.adminSideLogsToCsv();
     this.statsForAgent();
     this.clientSideToCsv();
@@ -161,14 +171,15 @@ export class Server {
     this.script();
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
+    this.graphChart();
     this.resetPassword();
     this.testingZap();
     this.getCallHistory();
     this.getAllLLM();
     this.getOneLLM();
-    this.updateLLM()
-    this.revertLLM()
-    this.revertAgent()
+    this.updateLLM();
+    this.revertLLM();
+    this.revertAgent();
     this.retellClient = new Retell({
       apiKey: process.env.RETELL_API_KEY,
     });
@@ -1148,6 +1159,8 @@ export class Server {
             linktocallLogModel: linkToCallLogModelId,
           },
         );
+        const timestamp = new Date();
+        await updateStatsByHour(agent_id, todayString, timestamp);
         // if (analyzedTranscript.message.content === "Scheduled") {
         //   const data = {
         //     firstname: resultForUserUpdate.firstname,
@@ -2949,27 +2962,27 @@ export class Server {
     });
   }
   updateLLM() {
-    this.app.post('/update-llm', async (req: Request, res: Response) => {
+    this.app.post("/update-llm", async (req: Request, res: Response) => {
       const { llm_id, payload } = req.body;
-  
+
       // Validate input
       if (!llm_id) {
         return res.status(400).json({
           success: false,
-          message: 'LLM ID is required.',
+          message: "LLM ID is required.",
         });
       }
-  
-      if (!payload || typeof payload !== 'object') {
+
+      if (!payload || typeof payload !== "object") {
         return res.status(400).json({
           success: false,
-          message: 'A valid payload is required.',
+          message: "A valid payload is required.",
         });
       }
-  
+
       try {
         const result = await updateLLM(llm_id, payload);
-  
+
         if (result.success) {
           return res.status(200).json({
             success: true,
@@ -2983,45 +2996,43 @@ export class Server {
           });
         }
       } catch (error) {
-        console.error('Error updating LLM:', error);
-  
+        console.error("Error updating LLM:", error);
+
         return res.status(500).json({
           success: false,
-          message: 'An unexpected error occurred while updating the LLM.',
+          message: "An unexpected error occurred while updating the LLM.",
         });
       }
     });
   }
-  revertLLM(){
-    this.app.post("/revert-llm", async(req: Request, res: Response)=> {
+  revertLLM() {
+    this.app.post("/revert-llm", async (req: Request, res: Response) => {
       const { llm_id, update_index } = req.body;
 
-      console
-     
+      console;
+
       if (!llm_id || typeof llm_id !== "string") {
         return res.status(400).json({
           success: false,
           message: "LLM ID is required and must be a string.",
         });
       }
-    
+
       if (!update_index || typeof update_index !== "number") {
         return res.status(400).json({
           success: false,
           message: "A valid update index is required and must be a number.",
         });
       }
-    
+
       try {
-      
         const result = await revertLLM(llm_id, update_index);
-    
-        
+
         if (result.success) {
           return res.status(200).json({
             success: true,
             message: result.message,
-            data: result.data, 
+            data: result.data,
           });
         } else {
           return res.status(400).json({
@@ -3031,44 +3042,42 @@ export class Server {
         }
       } catch (error) {
         console.error("Error in /revert-llm endpoint:", error);
-    
+
         return res.status(500).json({
           success: false,
           message: "An unexpected error occurred while reverting the LLM.",
         });
       }
-    })
+    });
   }
-  revertAgent(){
-    this.app.post("/revert-agent", async(req: Request, res: Response)=> {
+  revertAgent() {
+    this.app.post("/revert-agent", async (req: Request, res: Response) => {
       const { agentId, update_index } = req.body;
 
-      console
-     
+      console;
+
       if (!agentId || typeof agentId !== "string") {
         return res.status(400).json({
           success: false,
           message: "LLM ID is required and must be a string.",
         });
       }
-    
+
       if (!update_index || typeof update_index !== "number") {
         return res.status(400).json({
           success: false,
           message: "A valid update index is required and must be a number.",
         });
       }
-    
+
       try {
-      
         const result = await revertAgent(agentId, update_index);
-    
-        
+
         if (result.success) {
           return res.status(200).json({
             success: true,
             message: result.message,
-            data: result.data, 
+            data: result.data,
           });
         } else {
           return res.status(400).json({
@@ -3078,14 +3087,76 @@ export class Server {
         }
       } catch (error) {
         console.error("Error in /revert-llm endpoint:", error);
-    
+
         return res.status(500).json({
           success: false,
           message: "An unexpected error occurred while reverting the LLM.",
         });
       }
-    })
+    });
   }
+  graphChart() {
+    this.app.post("/graph-stats", async (req: Request, res: Response) => {
+      try {
+        const { agentId } = req.body;
+
+        const todays = new Date();
+        todays.setHours(0, 0, 0, 0);
+        const todayString = todays.toISOString().split("T")[0];
+        if (!agentId) {
+          return res
+            .status(400)
+            .json({ error: "agentId and day are required" });
+        }
+
+
+        const stats = await dailyGraphModel.findOne({
+          agentId,
+          date: todayString,
+        });
+      
+        if (!stats) {
+          return res
+            .status(404)
+            .json({ message: "No stats found for the given agent and day" });
+        }
+
+        const hourlyCalls = stats.hourlyCalls;
+
+        const filteredCalls = Array.from(hourlyCalls)
+          .filter(([hour]) => {
+            const hourInt = parseInt(hour.split(":")[0], 10);
+            return hourInt >= 9 && hourInt < 15;
+          })
+          .map(([hour, count]) => ({ x: hour, y: count }));
+
+        res.json(filteredCalls);
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+        res.status(500).json({ error: "An error occurred" });
+      }
+    });
+  }
+  // dummy(){
+  //   this.app.post("/test-update-stats", async (req: Request, res: Response) => {
+  //     const { agentId, timestamp } = req.body;
+    
+  //     // Validate request body
+  //     if (!agentId ) {
+  //       return res.status(400).json({ message: "agentId, date, and timestamp are required." });
+  //     }
+    
+  //     const todays = new Date();
+  //     todays.setHours(0, 0, 0, 0);
+  //     const todayString = todays.toISOString().split("T")[0];
   
-  
+  //     try {
+  //       const updatedStats = await updateStatsByHour(agentId, todayString, new Date(todays));
+  //       res.status(200).json({ message: "Stats updated successfully", updatedStats });
+  //     } catch (error: any) {
+  //       console.error("Error in /test-update-stats:", error);
+  //       res.status(500).json({ message: "Failed to update stats", error: error.message });
+  //     }
+  //   });
+  // }
 }

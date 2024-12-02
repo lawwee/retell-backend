@@ -36,7 +36,6 @@ export const scheduleCronJob = async (
       tagProcessedFor: lowerCaseTag,
       callstatus: { $in: [jobstatus.ON_CALL, jobstatus.QUEUED] },
       shouldContinueProcessing: true,
-      
     });
 
     if (existingJob) {
@@ -54,7 +53,6 @@ export const scheduleCronJob = async (
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
       tagProcessedFor: lowerCaseTag,
-      
     });
 
     const contactLimit = parseInt(limit);
@@ -64,7 +62,7 @@ export const scheduleCronJob = async (
         status: callstatusenum.NOT_CALLED,
         isDeleted: false,
         ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
-        isOnDNCList:false
+        isOnDNCList: false,
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });
@@ -88,10 +86,8 @@ export const scheduleCronJob = async (
           .limit(contactLimit)
           .sort({ createdAt: "desc" });
         for (const contact of contactss) {
-          // Fetch the latest job state in each iteration
           currentJob = await jobModel.findOne({ jobId });
 
-          // Time constraint check
           const now = moment().tz("America/Los_Angeles");
           if (
             now.hour() > CUTOFF_HOUR ||
@@ -107,7 +103,6 @@ export const scheduleCronJob = async (
             break;
           }
 
-          // Check if the job should stop processing
           if (!currentJob || currentJob.shouldContinueProcessing === false) {
             console.log("Job processing stopped by user flag.");
             await jobModel.findOneAndUpdate(
@@ -125,7 +120,6 @@ export const scheduleCronJob = async (
           };
 
           try {
-            
             await retellClient.call.registerPhoneCall({
               agent_id: agentId,
               from_number: fromNumber,
@@ -138,17 +132,18 @@ export const scheduleCronJob = async (
               },
             });
 
-            const registerCallResponse2 = await retellClient.call.createPhoneCall({
-              from_number: fromNumber,
-              to_number: formatPhoneNumber(postdata.toNumber),
-              override_agent_id: agentId,
-              retell_llm_dynamic_variables: {
-                user_firstname: contact.firstname,
-                user_email: contact.email,
-                user_lasname: contact.lastname,
-                job_id: jobId,
-              },
-            });
+            const registerCallResponse2 =
+              await retellClient.call.createPhoneCall({
+                from_number: fromNumber,
+                to_number: formatPhoneNumber(postdata.toNumber),
+                override_agent_id: agentId,
+                retell_llm_dynamic_variables: {
+                  user_firstname: contact.firstname,
+                  user_email: contact.email,
+                  user_lasname: contact.lastname,
+                  job_id: jobId,
+                },
+              });
 
             await contactModel.findByIdAndUpdate(contact._id, {
               callId: registerCallResponse2.call_id,
@@ -161,58 +156,12 @@ export const scheduleCronJob = async (
               { $inc: { processedContacts: 1 } },
             );
             console.log(`Call successful for contact: ${contact.firstname}`);
-
-            // // Wait for 2 seconds between calls
-            // await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            // const updatedContact = await contactModel.findOne({
-            //   $or: [
-            //     { callId: registerCallResponse2.call_id },
-            //     { _id: contact._id.toString() },
-            //   ],
-            // });
-            // if (updatedContact?.status === "dial_no_answer") {
-            //   console.log(
-            //     `User ${contact.firstname} didn't answer, calling again...`,
-            //   );
-
-            //   const retryCallResponse = await retellClient.call.create({
-            //     from_number: fromNumber,
-            //     to_number: formatPhoneNumber(postdata.toNumber),
-            //     override_agent_id: agentId,
-            //     drop_call_if_machine_detected: true,
-            //     retell_llm_dynamic_variables: {
-            //       user_firstname: contact.firstname,
-            //       user_email: contact.email,
-            //     },
-            //   });
-
-            //   await contactModel.findByIdAndUpdate(contact._id, {
-            //     callId: retryCallResponse.call_id,
-            //   });
-
-            //   console.log(
-            //     `Retry call initiated for contact: ${contact.firstname}`,
-            //   );
-            // } else {
-            //   console.log(
-            //     `User ${contact.firstname} answered or the status changed, skipping recall.`,
-            //   );
-            // }
           } catch (error) {
             console.log("Error during call processing:", error);
           }
           await new Promise((resolve) => setTimeout(resolve, 4000));
         }
 
-        // console.log("Contacts processed, starting recall...");
-        // await searchAndRecallContacts(
-        //   contactLimit,
-        //   agentId,
-        //   fromNumber,
-        //   jobId,
-        //   lowerCaseTag,
-        // );
         await jobModel.findOneAndUpdate(
           { jobId },
           { callstatus: jobstatus.CALLED, shouldContinueProcessing: false },
