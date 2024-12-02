@@ -169,6 +169,7 @@ export class Server {
     // this.updateSentimentMetadata()
     this.updateUserTag();
     this.script();
+    this.getSpecificSchedule()
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
     this.graphChart();
