@@ -98,6 +98,8 @@ export interface Ijob {
   shouldContinueProcessing: boolean;
   tagProcessedFor:string,
   createdAt:Date,
+  completedPercent: string
+  totalContactToProcess: number
 }
 
 export interface Ilogs {

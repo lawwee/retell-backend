@@ -3159,4 +3159,15 @@ export class Server {
   //     }
   //   });
   // }
+  getSpecificSchedule(){
+    this.app.post("/get-schedule", async (req:Request, res:Response) => {
+      try {
+        const  {jobId} = req.body
+        const result = await jobModel.findOne({jobId})
+        res.json({result})
+      } catch (error) {
+        console.log(error)
+      }
+    })
+  }
 }
