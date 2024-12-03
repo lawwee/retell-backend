@@ -172,10 +172,12 @@ export class Server {
     this.getSpecificSchedule()
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
-    this.graphChart();
+    this.graphChartAdmin();
+    this.graphChartClient()
     this.resetPassword();
     this.testingZap();
-    this.getCallHistory();
+    this.getCallHistoryClient();
+    this.getCallHistoryAdmin()
     this.getAllLLM();
     this.getOneLLM();
     this.updateLLM();
@@ -586,53 +588,7 @@ export class Server {
       },
     );
   }
-  // createPhoneCall() {
-  //   this.app.post(
-  //     "/create-phone-call/:agentId",
-  //     authmiddleware,
-  //     isAdmin,
-  //     async (req: Request, res: Response) => {
-  //       const { fromNumber, toNumber, userId } = req.body;
-  //       const agentId = req.params.agentId;
-  //       if (!agentId || !fromNumber || !toNumber || !userId) {
-  //         return res.json({ status: "error", message: "Invalid request" });
-  //       }
-  //       function formatPhoneNumber(phoneNumber: string) {
-  //         // Remove any existing "+" and non-numeric characters
-  //         let digitsOnly = phoneNumber.replace(/[^0-9]/g, "");
 
-  //         // Check if the phone number starts with "1" (after the "+" is removed)
-  //         if (phoneNumber.startsWith("+1")) {
-  //           return `+${digitsOnly}`;
-  //         }
-
-  //         // Add "+1" prefix if it doesn't already start with "1"
-  //         return `+1${digitsOnly}`;
-  //       }
-  //       const newToNumber = formatPhoneNumber(toNumber);
-  //       try {
-  //         await this.twilioClient.RegisterPhoneAgent(
-  //           fromNumber,
-  //           agentId,
-  //           userId,
-  //         );
-  //         const result = await this.twilioClient.CreatePhoneCall(
-  //           fromNumber,
-  //           newToNumber,
-  //           agentId,
-  //           userId,
-  //         );
-  //         res.json({ result });
-  //       } catch (error) {
-  //         console.log(error);
-  //         res.json({
-  //           status: "error",
-  //           message: "Error while creating phone call",
-  //         });
-  //       }
-  //     },
-  //   );
-  // }
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
@@ -1370,7 +1326,7 @@ export class Server {
             break;
         }
 
-        //}
+
 
         if (startDate) {
           dateFilter = {
@@ -2762,16 +2718,49 @@ export class Server {
       }
     });
   }
-  getCallHistory() {
-    this.app.post("/call-history", async (req: Request, res: Response) => {
+  getCallHistoryClient() {
+    this.app.post("/call-history-client", async (req: Request, res: Response) => {
       try {
+        const {agentIds} = req.body
         const page = parseInt(req.body.page) || 1;
         const pageSize = 20;
 
         const skip = (page - 1) * pageSize;
 
         const callHistories = await callHistoryModel
-          .find({}, { callId: 0 })
+          .find({agentId:{$in: agentIds}}, { callId: 0 })
+          .sort({ startTimestamp: -1 })
+          .skip(skip)
+          .limit(pageSize);
+
+        const totalCount = await callHistoryModel.countDocuments();
+        const totalPages = Math.ceil(totalCount / pageSize);
+        res.json({
+          success: true,
+          page,
+          totalPages,
+          totalCount,
+          callHistories,
+        });
+      } catch (error) {
+        console.error("Error fetching call history:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal Server Error" });
+      }
+    });
+  }
+  getCallHistoryAdmin() {
+    this.app.post("/call-history-admin", async (req: Request, res: Response) => {
+      try {
+        const {agentId} = req.body
+        const page = parseInt(req.body.page) || 1;
+        const pageSize = 20;
+
+        const skip = (page - 1) * pageSize;
+
+        const callHistories = await callHistoryModel
+          .find({agentId}, { callId: 0 })
           .sort({ startTimestamp: -1 })
           .skip(skip)
           .limit(pageSize);
@@ -3096,8 +3085,8 @@ export class Server {
       }
     });
   }
-  graphChart() {
-    this.app.post("/graph-stats", async (req: Request, res: Response) => {
+  graphChartAdmin() {
+    this.app.post("/graph-stats-admin", async (req: Request, res: Response) => {
       try {
         const { agentId } = req.body;
 
@@ -3138,28 +3127,6 @@ export class Server {
       }
     });
   }
-  // dummy(){
-  //   this.app.post("/test-update-stats", async (req: Request, res: Response) => {
-  //     const { agentId, timestamp } = req.body;
-    
-  //     // Validate request body
-  //     if (!agentId ) {
-  //       return res.status(400).json({ message: "agentId, date, and timestamp are required." });
-  //     }
-    
-  //     const todays = new Date();
-  //     todays.setHours(0, 0, 0, 0);
-  //     const todayString = todays.toISOString().split("T")[0];
-  
-  //     try {
-  //       const updatedStats = await updateStatsByHour(agentId, todayString, new Date(todays));
-  //       res.status(200).json({ message: "Stats updated successfully", updatedStats });
-  //     } catch (error: any) {
-  //       console.error("Error in /test-update-stats:", error);
-  //       res.status(500).json({ message: "Failed to update stats", error: error.message });
-  //     }
-  //   });
-  // }
   getSpecificSchedule(){
     this.app.post("/get-schedule", async (req: Request, res: Response) => {
       try {
@@ -3177,7 +3144,7 @@ export class Server {
         if (!result) {
           return res.status(404).json({ message: "No job found" });
         }
-    
+      
         res.json({ result });
       } catch (error) {
         console.error("Error fetching schedule:", error);
@@ -3186,4 +3153,58 @@ export class Server {
     });
     
   }
+  graphChartClient() {
+    this.app.post("/graph-stats-client", async (req: Request, res: Response) => {
+        try {
+            const { agentIds } = req.body;
+
+            const todays = new Date();
+            todays.setHours(0, 0, 0, 0);
+            const todayString = todays.toISOString().split("T")[0];
+
+            if (!agentIds || !Array.isArray(agentIds) || agentIds.length === 0) {
+                return res.status(400).json({ error: "agentIds and day are required" });
+            }
+
+            // Find all stats for the given agentIds and today
+            const stats = await dailyGraphModel.find({
+                agentId: { $in: agentIds },
+                date: todayString,
+            });
+
+            if (stats.length === 0) {
+                return res.status(404).json({ message: "No stats found for the given agents and day" });
+            }
+
+            // Initialize an object to accumulate hourly calls
+            const aggregatedCalls: { [hour: string]: number } = {};
+
+            // Aggregate hourlyCalls from all stats
+            stats.forEach(stat => {
+                const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+
+                hourlyCalls.forEach((count: number, hour: string) => {
+                    const hourInt = parseInt(hour.split(":")[0], 10);
+                    if (hourInt >= 9 && hourInt < 15) {
+                        if (!aggregatedCalls[hour]) {
+                            aggregatedCalls[hour] = 0;
+                        }
+                        aggregatedCalls[hour] += count;
+                    }
+                });
+            });
+
+            // Convert aggregatedCalls to the desired format
+            const filteredCalls = Object.entries(aggregatedCalls).map(([hour, count]) => ({
+                x: hour,
+                y: count,
+            }));
+
+            res.json(filteredCalls);
+        } catch (error) {
+            console.error("Error fetching stats:", error);
+            res.status(500).json({ error: "An error occurred" });
+        }
+    });
+}
 }
