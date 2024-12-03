@@ -2496,39 +2496,48 @@ export class Server {
     });
   }
   getCallHistoryClient() {
-    this.app.post(
-      "/call-history-client",
-      async (req: Request, res: Response) => {
-        try {
-          const { agentIds } = req.body;
-          const page = parseInt(req.body.page) || 1;
-          const pageSize = 100;
-
-          const skip = (page - 1) * pageSize;
-
-          const callHistories = await callHistoryModel
-            .find({ agentId: { $in: agentIds } }, { callId: 0 })
-            .sort({ startTimestamp: -1 })
-            .skip(skip)
-            .limit(pageSize);
-
-          const totalCount = await callHistoryModel.countDocuments();
-          const totalPages = Math.ceil(totalCount / pageSize);
-          res.json({
-            success: true,
-            page,
-            totalPages,
-            totalCount,
-            callHistories,
-          });
-        } catch (error) {
-          console.error("Error fetching call history:", error);
-          res
-            .status(500)
-            .json({ success: false, message: "Internal Server Error" });
-        }
-      },
-    );
+    this.app.post("/call-history-client", async (req: Request, res: Response) => {
+      try {
+        const { agentIds } = req.body;
+        const page = parseInt(req.body.page) || 1;
+        const pageSize = 100;
+        const skip = (page - 1) * pageSize;
+  
+        const callHistory = await callHistoryModel
+          .find({ agentId: { $in: agentIds } }, { callId: 0 })
+          .sort({ startTimestamp: -1 })
+          .skip(skip)
+          .limit(pageSize);
+  
+        const callHistories = callHistory.map(history => ({
+          firstname: history.userFirstname || "",
+          lastname: history.userLastname || "",
+          email: history.userEmail || "",
+          phone: history.toNumber || "",
+          agentId: history.agentId || "",
+          transcript: history.transcript || "",
+          summary: history.callAnalyzedData.callAnalysis.callSummary || "",
+          sentiment: history.callAnalyzedData.callAnalysis.userSentiment || "" ,
+          timestamp: history.endTimestamp || "",
+          duration: history.durationMs||"",
+          status: history.callStatus || "",
+        }));
+  
+        const totalCount = await callHistoryModel.countDocuments({ agentId: { $in: agentIds } });
+        const totalPages = Math.ceil(totalCount / pageSize);
+  
+        res.json({
+          success: true,
+          page,
+          totalPages,
+          totalCount,
+          callHistories,
+        });
+      } catch (error) {
+        console.error("Error fetching call history:", error);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
+      }
+    });
   }
   getCallHistoryAdmin() {
     this.app.post(
@@ -2538,17 +2547,31 @@ export class Server {
           const { agentId } = req.body;
           const page = parseInt(req.body.page) || 1;
           const pageSize = 100;
-
           const skip = (page - 1) * pageSize;
-
-          const callHistories = await callHistoryModel
+    
+          const callHistory = await callHistoryModel
             .find({ agentId }, { callId: 0 })
             .sort({ startTimestamp: -1 })
             .skip(skip)
             .limit(pageSize);
-
-          const totalCount = await callHistoryModel.countDocuments();
+    
+          const callHistories = callHistory.map(history => ({
+            firstname: history.userFirstname || "",
+            lastname: history.userLastname || "",
+            email: history.userEmail || "",
+            phone: history.toNumber|| "",
+            agentId: history.agentId || "",
+            transcript: history.transcript || "",
+            summary: history.callAnalyzedData.callAnalysis.callSummary || "",
+            sentiment: history.callAnalyzedData.callAnalysis.userSentiment || "",
+            timestamp: history.endTimestamp || "",
+            duration: history.durationMs || "",
+            status: history.callStatus || "",
+          }));
+    
+          const totalCount = await callHistoryModel.countDocuments({ agentId });
           const totalPages = Math.ceil(totalCount / pageSize);
+    
           res.json({
             success: true,
             page,
@@ -2558,9 +2581,7 @@ export class Server {
           });
         } catch (error) {
           console.error("Error fetching call history:", error);
-          res
-            .status(500)
-            .json({ success: false, message: "Internal Server Error" });
+          res.status(500).json({ success: false, message: "Internal Server Error" });
         }
       },
     );
