@@ -169,15 +169,16 @@ export class Server {
     // this.updateSentimentMetadata()
     this.updateUserTag();
     this.script();
-    this.getSpecificSchedule()
+    this.getSpecificScheduleAdmin();
+    this.getSpecificScheduleClient()
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
     this.graphChartAdmin();
-    this.graphChartClient()
+    this.graphChartClient();
     this.resetPassword();
     this.testingZap();
     this.getCallHistoryClient();
-    this.getCallHistoryAdmin()
+    this.getCallHistoryAdmin();
     this.getAllLLM();
     this.getOneLLM();
     this.updateLLM();
@@ -194,229 +195,7 @@ export class Server {
     this.app.listen(port);
     console.log("Listening on " + port);
   }
-  // handleRetellLlmWebSocket() {
-  //   this.app.ws(
-  //     "/llm-websocket/:call_id",
-  //     async (ws: WebSocket, req: Request) => {
-  //       const callId = req.params.call_id;
-  //       const user = await contactModel.findOne({ callId });
-  //       const config: CustomLlmResponse = {
-  //         response_type: "config",
-  //         config: {
-  //           auto_reconnect: true,
-  //           call_details: true,
-  //         },
-  //       };
-  //       ws.send(JSON.stringify(config));
-  //       if (user.agentId === "214e92da684138edf44368d371da764c") {
-  //         console.log("Call started with ethan/ olivia");
-  //         const client = new ethanDemoLlmClient();
-  //         client.BeginMessage(ws, user.firstname, user.email);
-  //         ws.on("error", (err) => {
-  //           console.error("Error received in LLM websocket client: ", err);
-  //         });
-  //         ws.on("close", async (err) => {
-  //           console.error("Closing llm ws for: ", callId);
-  //         });
-  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
-  //           await contactModel.findOneAndUpdate(
-  //             { callId },
-  //             { status: "on call" },
-  //           );
-  //           if (isBinary) {
-  //             console.error("Got binary message instead of text in websocket.");
-  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
-  //           }
-  //           const request: CustomLlmRequest = JSON.parse(data.toString());
-  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-  //           // Not all of them need to be handled, only response_required and reminder_required.
-  //           if (request.interaction_type === "ping_pong") {
-  //             let pingpongResponse: CustomLlmResponse = {
-  //               response_type: "ping_pong",
-  //               timestamp: request.timestamp,
-  //             };
-  //             ws.send(JSON.stringify(pingpongResponse));
-  //           } else if (request.interaction_type === "call_details") {
-  //             // print call detailes
-  //           } else if (request.interaction_type === "update_only") {
-  //             // process live transcript update if needed
-  //           } else if (
-  //             request.interaction_type === "reminder_required" ||
-  //             request.interaction_type === "response_required"
-  //           ) {
-  //             client.DraftResponse(request, ws);
-  //           }
-  //         });
-  //       }
 
-  //       if (user.agentId === "0411eeeb12d17a340941e91a98a766d0") {
-  //         console.log("Call started with chloe");
-  //         const client = new chloeDemoLlmClient();
-  //         client.BeginMessage(ws, user.firstname, user.email);
-  //         ws.on("error", (err) => {
-  //           console.error("Error received in LLM websocket client: ", err);
-  //         });
-  //         ws.on("close", async (err) => {
-  //           console.error("Closing llm ws for: ", callId);
-  //         });
-  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
-  //           await contactModel.findOneAndUpdate(
-  //             { callId },
-  //             { status: "on call" },
-  //           );
-  //           if (isBinary) {
-  //             console.error("Got binary message instead of text in websocket.");
-  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
-  //           }
-  //           const request: CustomLlmRequest = JSON.parse(data.toString());
-  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-  //           // Not all of them need to be handled, only response_required and reminder_required.
-  //           if (request.interaction_type === "ping_pong") {
-  //             let pingpongResponse: CustomLlmResponse = {
-  //               response_type: "ping_pong",
-  //               timestamp: request.timestamp,
-  //             };
-  //             ws.send(JSON.stringify(pingpongResponse));
-  //           } else if (request.interaction_type === "call_details") {
-  //             // print call detailes
-  //           } else if (request.interaction_type === "update_only") {
-  //             // process live transcript update if needed
-  //           } else if (
-  //             request.interaction_type === "reminder_required" ||
-  //             request.interaction_type === "response_required"
-  //           ) {
-  //             client.DraftResponse(request, ws);
-  //           }
-  //         });
-  //       }
-
-  //       if (user.agentId === "86f0db493888f1da69b7d46bfaecd360") {
-  //         console.log("Call started with daniel/emily");
-  //         const client = new danielDemoLlmClient();
-  //         client.BeginMessage(ws, user.firstname, user.email);
-  //         ws.on("error", (err) => {
-  //           console.error("Error received in LLM websocket client: ", err);
-  //         });
-  //         ws.on("close", async (err) => {
-  //           console.error("Closing llm ws for: ", callId);
-  //         });
-  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
-  //           await contactModel.findOneAndUpdate(
-  //             { callId },
-  //             { status: "on call" },
-  //           );
-
-  //           if (isBinary) {
-  //             console.error("Got binary message instead of text in websocket.");
-  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
-  //           }
-  //           const request: CustomLlmRequest = JSON.parse(data.toString());
-  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-  //           // Not all of them need to be handled, only response_required and reminder_required.
-  //           if (request.interaction_type === "ping_pong") {
-  //             let pingpongResponse: CustomLlmResponse = {
-  //               response_type: "ping_pong",
-  //               timestamp: request.timestamp,
-  //             };
-  //             ws.send(JSON.stringify(pingpongResponse));
-  //           } else if (request.interaction_type === "call_details") {
-  //             // print call detailes
-  //           } else if (request.interaction_type === "update_only") {
-  //             // process live transcript update if needed
-  //           } else if (
-  //             request.interaction_type === "reminder_required" ||
-  //             request.interaction_type === "response_required"
-  //           ) {
-  //             client.DraftResponse(request, ws);
-  //           }
-  //         });
-  //       }
-
-  //       if (user.agentId === "40878d8bd2d1a6fea9756ae2368bab6e") {
-  //         console.log("Call started with kathrine");
-  //         const client = new danielDemoLlmClient();
-  //         client.BeginMessage(ws, user.firstname, user.email);
-  //         ws.on("error", (err) => {
-  //           console.error("Error received in LLM websocket client: ", err);
-  //         });
-  //         ws.on("close", async (err) => {
-  //           console.error("Closing llm ws for: ", callId);
-  //         });
-  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
-  //           await contactModel.findOneAndUpdate(
-  //             { callId },
-  //             { status: "on call" },
-  //           );
-
-  //           if (isBinary) {
-  //             console.error("Got binary message instead of text in websocket.");
-  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
-  //           }
-  //           const request: CustomLlmRequest = JSON.parse(data.toString());
-  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-  //           // Not all of them need to be handled, only response_required and reminder_required.
-  //           if (request.interaction_type === "ping_pong") {
-  //             let pingpongResponse: CustomLlmResponse = {
-  //               response_type: "ping_pong",
-  //               timestamp: request.timestamp,
-  //             };
-  //             ws.send(JSON.stringify(pingpongResponse));
-  //           } else if (request.interaction_type === "call_details") {
-  //             // print call detailes
-  //           } else if (request.interaction_type === "update_only") {
-  //             // process live transcript update if needed
-  //           } else if (
-  //             request.interaction_type === "reminder_required" ||
-  //             request.interaction_type === "response_required"
-  //           ) {
-  //             client.DraftResponse(request, ws);
-  //           }
-  //         });
-  //       }
-
-  //       if (user.agentId === "1000") {
-  //         console.log("Call started with new agent");
-  //         const client = new unknownagent();
-  //         client.BeginMessage(ws, user.firstname, user.email);
-  //         ws.on("error", (err) => {
-  //           console.error("Error received in LLM websocket client: ", err);
-  //         });
-  //         ws.on("close", async (err) => {
-  //           console.error("Closing llm ws for: ", callId);
-  //         });
-  //         ws.on("message", async (data: RawData, isBinary: boolean) => {
-  //           await contactModel.findOneAndUpdate(
-  //             { callId },
-  //             { status: "on call" },
-  //           );
-  //           if (isBinary) {
-  //             console.error("Got binary message instead of text in websocket.");
-  //             ws.close(1002, "Cannot find corresponding Retell LLM.");
-  //           }
-  //           const request: CustomLlmRequest = JSON.parse(data.toString());
-  //           // There are 5 types of interaction_type: call_details, pingpong, update_only, response_required, and reminder_required.
-  //           // Not all of them need to be handled, only response_required and reminder_required.
-  //           if (request.interaction_type === "ping_pong") {
-  //             let pingpongResponse: CustomLlmResponse = {
-  //               response_type: "ping_pong",
-  //               timestamp: request.timestamp,
-  //             };
-  //             ws.send(JSON.stringify(pingpongResponse));
-  //           } else if (request.interaction_type === "call_details") {
-  //             // print call detailes
-  //           } else if (request.interaction_type === "update_only") {
-  //             // process live transcript update if needed
-  //           } else if (
-  //             request.interaction_type === "reminder_required" ||
-  //             request.interaction_type === "response_required"
-  //           ) {
-  //             client.DraftResponse(request, ws);
-  //           }
-  //         });
-  //       }
-  //     },
-  //   );
-  // }
   createPhoneCall2() {
     this.app.post(
       "/create-llm-phone-call",
@@ -1326,8 +1105,6 @@ export class Server {
             break;
         }
 
-
-
         if (startDate) {
           dateFilter = {
             datesCalled: {
@@ -2009,15 +1786,15 @@ export class Server {
   }
   testingCalendly() {
     this.app.post("/test-calender", async (req: Request, res: Response) => {
-      // Replace with your event type and date/time
+    
       const eventTypeSlug = "test-event-type";
       const dateTime = "2024-08-10T03:00:00+01:00";
 
-      // Construct the scheduling link
+  
       const schedulingLink = `https://calendly.com/hydradaboss06/${eventTypeSlug}/${dateTime}?month=2024-08&date=2024-08-10`;
 
       try {
-        // Make a POST request to Calendly API to add invitees
+
         const response = await axios.post(
           "https://calendly.com/api/booking/invitees",
           {
@@ -2719,68 +2496,74 @@ export class Server {
     });
   }
   getCallHistoryClient() {
-    this.app.post("/call-history-client", async (req: Request, res: Response) => {
-      try {
-        const {agentIds} = req.body
-        const page = parseInt(req.body.page) || 1;
-        const pageSize = 20;
+    this.app.post(
+      "/call-history-client",
+      async (req: Request, res: Response) => {
+        try {
+          const { agentIds } = req.body;
+          const page = parseInt(req.body.page) || 1;
+          const pageSize = 20;
 
-        const skip = (page - 1) * pageSize;
+          const skip = (page - 1) * pageSize;
 
-        const callHistories = await callHistoryModel
-          .find({agentId:{$in: agentIds}}, { callId: 0 })
-          .sort({ startTimestamp: -1 })
-          .skip(skip)
-          .limit(pageSize);
+          const callHistories = await callHistoryModel
+            .find({ agentId: { $in: agentIds } }, { callId: 0 })
+            .sort({ startTimestamp: -1 })
+            .skip(skip)
+            .limit(pageSize);
 
-        const totalCount = await callHistoryModel.countDocuments();
-        const totalPages = Math.ceil(totalCount / pageSize);
-        res.json({
-          success: true,
-          page,
-          totalPages,
-          totalCount,
-          callHistories,
-        });
-      } catch (error) {
-        console.error("Error fetching call history:", error);
-        res
-          .status(500)
-          .json({ success: false, message: "Internal Server Error" });
-      }
-    });
+          const totalCount = await callHistoryModel.countDocuments();
+          const totalPages = Math.ceil(totalCount / pageSize);
+          res.json({
+            success: true,
+            page,
+            totalPages,
+            totalCount,
+            callHistories,
+          });
+        } catch (error) {
+          console.error("Error fetching call history:", error);
+          res
+            .status(500)
+            .json({ success: false, message: "Internal Server Error" });
+        }
+      },
+    );
   }
   getCallHistoryAdmin() {
-    this.app.post("/call-history-admin", async (req: Request, res: Response) => {
-      try {
-        const {agentId} = req.body
-        const page = parseInt(req.body.page) || 1;
-        const pageSize = 20;
+    this.app.post(
+      "/call-history-admin",
+      async (req: Request, res: Response) => {
+        try {
+          const { agentId } = req.body;
+          const page = parseInt(req.body.page) || 1;
+          const pageSize = 20;
 
-        const skip = (page - 1) * pageSize;
+          const skip = (page - 1) * pageSize;
 
-        const callHistories = await callHistoryModel
-          .find({agentId}, { callId: 0 })
-          .sort({ startTimestamp: -1 })
-          .skip(skip)
-          .limit(pageSize);
+          const callHistories = await callHistoryModel
+            .find({ agentId }, { callId: 0 })
+            .sort({ startTimestamp: -1 })
+            .skip(skip)
+            .limit(pageSize);
 
-        const totalCount = await callHistoryModel.countDocuments();
-        const totalPages = Math.ceil(totalCount / pageSize);
-        res.json({
-          success: true,
-          page,
-          totalPages,
-          totalCount,
-          callHistories,
-        });
-      } catch (error) {
-        console.error("Error fetching call history:", error);
-        res
-          .status(500)
-          .json({ success: false, message: "Internal Server Error" });
-      }
-    });
+          const totalCount = await callHistoryModel.countDocuments();
+          const totalPages = Math.ceil(totalCount / pageSize);
+          res.json({
+            success: true,
+            page,
+            totalPages,
+            totalCount,
+            callHistories,
+          });
+        } catch (error) {
+          console.error("Error fetching call history:", error);
+          res
+            .status(500)
+            .json({ success: false, message: "Internal Server Error" });
+        }
+      },
+    );
   }
   secondscript() {
     this.app.post("/script1", async (req: Request, res: Response) => {
@@ -3099,12 +2882,11 @@ export class Server {
             .json({ error: "agentId and day are required" });
         }
 
-
         const stats = await dailyGraphModel.findOne({
           agentId,
           date: todayString,
         });
-      
+
         if (!stats) {
           return res
             .status(404)
@@ -3127,84 +2909,115 @@ export class Server {
       }
     });
   }
-  getSpecificSchedule(){
-    this.app.post("/get-schedule", async (req: Request, res: Response) => {
+  getSpecificScheduleAdmin() {
+    this.app.post("/get-schedule-admin", async (req: Request, res: Response) => {
       try {
         const { jobId } = req.body;
-    
+
         let result;
-    
+
         if (jobId) {
           result = await jobModel.findOne({ jobId });
         } else {
-          
           result = await jobModel.findOne().sort({ createdAt: -1 });
         }
-    
+
         if (!result) {
           return res.status(404).json({ message: "No job found" });
         }
-      
+
         res.json({ result });
       } catch (error) {
         console.error("Error fetching schedule:", error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
-    
+  }
+  getSpecificScheduleClient() {
+    this.app.post("/get-schedule-client", async (req: Request, res: Response) => {
+      try {
+        const { jobIds } = req.body;
+
+        let result;
+
+        if (jobIds) {
+          result = await jobModel.findOne({ jobId :{$in:jobIds}});
+        } else {
+          result = await jobModel.findOne().sort({ createdAt: -1 });
+        }
+
+        if (!result) {
+          return res.status(404).json({ message: "No job found" });
+        }
+
+        res.json({ result });
+      } catch (error) {
+        console.error("Error fetching schedule:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
   }
   graphChartClient() {
-    this.app.post("/graph-stats-client", async (req: Request, res: Response) => {
+    this.app.post(
+      "/graph-stats-client",
+      async (req: Request, res: Response) => {
         try {
-            const { agentIds } = req.body;
+          const { agentIds } = req.body;
 
-            const todays = new Date();
-            todays.setHours(0, 0, 0, 0);
-            const todayString = todays.toISOString().split("T")[0];
+          const todays = new Date();
+          todays.setHours(0, 0, 0, 0);
+          const todayString = todays.toISOString().split("T")[0];
 
-            if (!agentIds || !Array.isArray(agentIds) || agentIds.length === 0) {
-                return res.status(400).json({ error: "agentIds and day are required" });
-            }
+          if (!agentIds || !Array.isArray(agentIds) || agentIds.length === 0) {
+            return res
+              .status(400)
+              .json({ error: "agentIds and day are required" });
+          }
 
-            // Find all stats for the given agentIds and today
-            const stats = await dailyGraphModel.find({
-                agentId: { $in: agentIds },
-                date: todayString,
+          // Find all stats for the given agentIds and today
+          const stats = await dailyGraphModel.find({
+            agentId: { $in: agentIds },
+            date: todayString,
+          });
+
+          if (stats.length === 0) {
+            return res
+              .status(404)
+              .json({ message: "No stats found for the given agents and day" });
+          }
+
+          // Initialize an object to accumulate hourly calls
+          const aggregatedCalls: { [hour: string]: number } = {};
+
+          // Aggregate hourlyCalls from all stats
+          stats.forEach((stat) => {
+            const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+
+            hourlyCalls.forEach((count: number, hour: string) => {
+              const hourInt = parseInt(hour.split(":")[0], 10);
+              if (hourInt >= 9 && hourInt < 15) {
+                if (!aggregatedCalls[hour]) {
+                  aggregatedCalls[hour] = 0;
+                }
+                aggregatedCalls[hour] += count;
+              }
             });
+          });
 
-            if (stats.length === 0) {
-                return res.status(404).json({ message: "No stats found for the given agents and day" });
-            }
+          // Convert aggregatedCalls to the desired format
+          const filteredCalls = Object.entries(aggregatedCalls).map(
+            ([hour, count]) => ({
+              x: hour,
+              y: count,
+            }),
+          );
 
-            // Initialize an object to accumulate hourly calls
-            const aggregatedCalls: { [hour: string]: number } = {};
-
-            // Aggregate hourlyCalls from all stats
-            stats.forEach(stat => {
-                const hourlyCalls = stat.hourlyCalls as Map<string, number>;
-
-                hourlyCalls.forEach((count: number, hour: string) => {
-                    const hourInt = parseInt(hour.split(":")[0], 10);
-                    if (hourInt >= 9 && hourInt < 15) {
-                        if (!aggregatedCalls[hour]) {
-                            aggregatedCalls[hour] = 0;
-                        }
-                        aggregatedCalls[hour] += count;
-                    }
-                });
-            });
-
-            // Convert aggregatedCalls to the desired format
-            const filteredCalls = Object.entries(aggregatedCalls).map(([hour, count]) => ({
-                x: hour,
-                y: count,
-            }));
-
-            res.json(filteredCalls);
+          res.json(filteredCalls);
         } catch (error) {
-            console.error("Error fetching stats:", error);
-            res.status(500).json({ error: "An error occurred" });
+          console.error("Error fetching stats:", error);
+          res.status(500).json({ error: "An error occurred" });
         }
-    });
-}
+      },
+    );
+  }
 }
