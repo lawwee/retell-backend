@@ -2500,9 +2500,9 @@ export class Server {
       "/call-history-client",
       async (req: Request, res: Response) => {
         try {
-          const { agentIds, limit } = req.body;
+          const { agentIds } = req.body;
           const page = parseInt(req.body.page) || 1;
-          const pageSize = limit;
+          const pageSize = 100;
 
           const skip = (page - 1) * pageSize;
 
@@ -2535,9 +2535,9 @@ export class Server {
       "/call-history-admin",
       async (req: Request, res: Response) => {
         try {
-          const { agentId, limit } = req.body;
+          const { agentId } = req.body;
           const page = parseInt(req.body.page) || 1;
-          const pageSize = limit;
+          const pageSize = 100;
 
           const skip = (page - 1) * pageSize;
 

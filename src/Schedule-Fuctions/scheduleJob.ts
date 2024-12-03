@@ -325,35 +325,35 @@ export const scheduleCronJob = async (
               agentId,
             };
 
-            // const registerCallResponse = await retellClient.call.registerPhoneCall({
-            //   agent_id: agentId,
-            //   from_number: fromNumber,
-            //   to_number: formatPhoneNumber(postdata.toNumber),
-            //   retell_llm_dynamic_variables: {
-            //     user_firstname: contact.firstname,
-            //     user_email: contact.email,
-            //     user_lasname: contact.lastname,
-            //     job_id: jobId,
-            //   },
-            // });
+            const registerCallResponse = await retellClient.call.registerPhoneCall({
+              agent_id: agentId,
+              from_number: fromNumber,
+              to_number: formatPhoneNumber(postdata.toNumber),
+              retell_llm_dynamic_variables: {
+                user_firstname: contact.firstname,
+                user_email: contact.email,
+                user_lasname: contact.lastname,
+                job_id: jobId,
+              },
+            });
 
-            // await retellClient.call.createPhoneCall({
-            //   from_number: fromNumber,
-            //   to_number: formatPhoneNumber(postdata.toNumber),
-            //   override_agent_id: agentId,
-            //   retell_llm_dynamic_variables: {
-            //     user_firstname: contact.firstname,
-            //     user_email: contact.email,
-            //     user_lasname: contact.lastname,
-            //     job_id: jobId,
-            //   },
-            // });
+            await retellClient.call.createPhoneCall({
+              from_number: fromNumber,
+              to_number: formatPhoneNumber(postdata.toNumber),
+              override_agent_id: agentId,
+              retell_llm_dynamic_variables: {
+                user_firstname: contact.firstname,
+                user_email: contact.email,
+                user_lasname: contact.lastname,
+                job_id: jobId,
+              },
+            });
 
-            // await contactModel.findByIdAndUpdate(contact._id, {
-            //   callId: registerCallResponse.call_id,
-            //   $push: { jobProcessedWithId: jobId },
-            //   isusercalled: true,
-            // });
+            await contactModel.findByIdAndUpdate(contact._id, {
+              callId: registerCallResponse.call_id,
+              $push: { jobProcessedWithId: jobId },
+              isusercalled: true,
+            });
 
             const updatedProcessedContacts = currentJob.processedContacts + 1;
             const currentPercentage =
