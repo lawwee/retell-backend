@@ -3161,14 +3161,29 @@ export class Server {
   //   });
   // }
   getSpecificSchedule(){
-    this.app.post("/get-schedule", async (req:Request, res:Response) => {
+    this.app.post("/get-schedule", async (req: Request, res: Response) => {
       try {
-        const  {jobId} = req.body
-        const result = await jobModel.findOne({jobId})
-        res.json({result})
+        const { jobId } = req.body;
+    
+        let result;
+    
+        if (jobId) {
+          result = await jobModel.findOne({ jobId });
+        } else {
+          
+          result = await jobModel.findOne().sort({ createdAt: -1 });
+        }
+    
+        if (!result) {
+          return res.status(404).json({ message: "No job found" });
+        }
+    
+        res.json({ result });
       } catch (error) {
-        console.log(error)
+        console.error("Error fetching schedule:", error);
+        res.status(500).json({ error: "Internal server error" });
       }
-    })
+    });
+    
   }
 }
