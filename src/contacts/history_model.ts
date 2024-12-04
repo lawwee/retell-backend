@@ -11,7 +11,7 @@ interface ICallData extends Document {
   callStatus: string;
   startTimestamp: number;
   endTimestamp: number;
-  durationMs: number;
+  durationMs: string;
   transcript: string;
   publicLogUrl: string;
   disconnectionReason: string;
@@ -34,58 +34,52 @@ interface ICallData extends Document {
   callEndedData?: {
     endReason?: string;
   };
-  callAnalyzedData?: {
-    callAnalysis: {
-      callSummary: string;
-      inVoicemail: boolean;
-      userSentiment: string;
-      callSuccessful: boolean;
-      agentTaskCompletionRating: string;
-      callCompletionRating: string;
-      customAnalysisData: object;
-    };
-  };
+
+  callSummary: string;
+  inVoicemail: boolean;
+  userSentiment: string;
+  callSuccessful: boolean;
+  agentTaskCompletionRating: string;
+  callCompletionRating: string;
+  customAnalysisData: object;
 }
 
 const CallDataSchema = new Schema<ICallData>(
   {
-    callId: { type: String, required: true },
-    agentId: { type: String, required: true },
+    callId: { type: String },
+    agentId: { type: String },
 
-    userFirstname: { type: String, required: true },
-    userEmail: { type: String, required: true },
+    userFirstname: { type: String },
+    userEmail: { type: String },
     userLastname: { type: String },
 
-    callStatus: { type: String, required: true },
-    startTimestamp: { type: Number, required: true },
-    endTimestamp: { type: Number, required: true },
-    durationMs: { type: Number, required: true },
-    transcript: { type: String, required: true },
-    publicLogUrl: { type: String, required: true },
-    disconnectionReason: { type: String, required: true },
+    callStatus: { type: String },
+    startTimestamp: { type: Number },
+    endTimestamp: { type: Number },
+    durationMs: { type: String },
+    transcript: { type: String },
+    publicLogUrl: { type: String },
+    disconnectionReason: { type: String },
     costMetadata: {
-      telecommunication: { type: String, required: true },
-      llmModel: { type: String, required: true },
-      voiceProvider: { type: String, required: true },
+      telecommunication: { type: String },
+      llmModel: { type: String },
+      voiceProvider: { type: String },
     },
-    callType: { type: String, required: true },
-    fromNumber: { type: String, required: true },
-    toNumber: { type: String, required: true },
+    callType: { type: String },
+    fromNumber: { type: String },
+    toNumber: { type: String },
     direction: { type: String },
     callEndedData: {
       endReason: { type: String },
     },
-    callAnalyzedData: {
-      callAnalysis: {
-        callSummary: { type: String },
-        inVoicemail: { type: Boolean },
-        userSentiment: { type: String },
-        callSuccessful: { type: Boolean },
-        agentTaskCompletionRating: { type: String },
-        callCompletionRating: { type: String },
-        customAnalysisData: { type: Object },
-      },
-    },
+
+    callSummary: { type: String },
+    inVoicemail: { type: Boolean },
+    userSentiment: { type: String },
+    callSuccessful: { type: Boolean },
+    agentTaskCompletionRating: { type: String },
+    callCompletionRating: { type: String },
+    customAnalysisData: { type: Object },
   },
   { timestamps: true },
 );

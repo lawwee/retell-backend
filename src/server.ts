@@ -761,40 +761,21 @@ export class Server {
       let callStatus;
       let statsUpdate: any = { $inc: {} };
 
-      const callData = {
-        callId: call_id,
-        agentId: agent_id,
-        userFirstname: retell_llm_dynamic_variables?.user_firstname || null,
-        userLastname: retell_llm_dynamic_variables?.user_lastname || null,
-        userEmail: retell_llm_dynamic_variables?.user_email || null,
-        recordingUrl: recording_url || null,
-        disconnectionReason: disconnection_reason || null,
-        callStatus:
-          payload.event === "call_analyzed"
-            ? call_analysis?.user_sentiment
-            : null,
-        startTimestamp: start_timestamp || null,
-        endTimestamp: end_timestamp || null,
-        durationMs: end_timestamp - start_timestamp || 0,
-        transcript: transcript || null,
-        transcriptObject: payload.data.transcript_object || [],
-        transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
-        publicLogUrl: public_log_url || null,
-        callType: payload.data.call_type || null,
-        costMetadata: cost_metadata || {},
+      
+      function convertMsToHourMinSec(ms: number): string {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
 
-        callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
-        optOutSensitiveDataStorage:
-          payload.data.opt_out_sensitive_data_storage || false,
-        fromNumber: from_number || null,
-        toNumber: to_number || null,
-        direction: direction || null,
-      };
-      await callHistoryModel.findOneAndUpdate(
-        { callId: call_id, agentId: agent_id },
-        { $set: callData },
-        { upsert: true, returnOriginal: false },
-      );
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+          2,
+          "0",
+        )}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      
+  
       if (payload.event === "call_ended") {
         const isCallFailed = disconnection_reason === "dial_failed";
         const isCallTransferred = disconnection_reason === "call_transfer";
@@ -811,18 +792,6 @@ export class Server {
         const isMachine = analyzedTranscript.message.content === "voicemail";
         const isIVR = analyzedTranscript.message.content === "ivr";
         const callbackdate = await reviewCallback(transcript);
-
-        function convertMsToHourMinSec(ms: number): string {
-          const totalSeconds = Math.floor(ms / 1000);
-          const hours = Math.floor(totalSeconds / 3600);
-          const minutes = Math.floor((totalSeconds % 3600) / 60);
-          const seconds = totalSeconds % 60;
-
-          return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-            2,
-            "0",
-          )}:${String(seconds).padStart(2, "0")}`;
-        }
 
         const newDuration = convertMsToHourMinSec(payload.call.duration_ms);
         const callEndedUpdateData = {
@@ -871,6 +840,37 @@ export class Server {
           callStatus = callstatusenum.CALLED;
         }
 
+        const callData = {
+          callId: call_id,
+          agentId: agent_id,
+          userFirstname: retell_llm_dynamic_variables?.user_firstname || null,
+          userLastname: retell_llm_dynamic_variables?.user_lastname || null,
+          userEmail: retell_llm_dynamic_variables?.user_email || null,
+          recordingUrl: recording_url || null,
+          disconnectionReason: disconnection_reason || null,
+          callStatus: payload.data.call_status,
+          startTimestamp: start_timestamp || null,
+          endTimestamp: end_timestamp || null,
+          durationMs: convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
+          transcript: transcript || null,
+          transcriptObject: payload.data.transcript_object || [],
+          transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
+          publicLogUrl: public_log_url || null,
+          callType: payload.data.call_type || null,
+          costMetadata: cost_metadata || {},
+          callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
+          optOutSensitiveDataStorage:
+            payload.data.opt_out_sensitive_data_storage || false,
+          fromNumber: from_number || null,
+          toNumber: to_number || null,
+          direction: direction || null,
+          
+        };
+        await callHistoryModel.findOneAndUpdate(
+          { callId: call_id, agentId: agent_id },
+          { $set: callData },
+          { upsert: true, returnOriginal: false },
+        );
         const jobidfromretell = retell_llm_dynamic_variables.job_id
           ? retell_llm_dynamic_variables.job_id
           : null;
@@ -957,6 +957,15 @@ export class Server {
       const results = await EventModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
         { $set: data },
+        { upsert: true, returnOriginal: false },
+      );
+      const data2 = {
+        callSummary: payload.data.call_analysis.call_summary,
+        userSentiment: payload.data.call_analysis.user_sentiment
+      }
+      await callHistoryModel.findOneAndUpdate(
+        { callId: payload.call.call_id, agentId: payload.call.agent_id },
+        { $set: data2 },
         { upsert: true, returnOriginal: false },
       );
     } catch (error) {
@@ -2516,8 +2525,8 @@ export class Server {
           phone: history.toNumber || "",
           agentId: history.agentId || "",
           transcript: history.transcript || "",
-          summary: history.callAnalyzedData.callAnalysis.callSummary || "",
-          sentiment: history.callAnalyzedData.callAnalysis.userSentiment || "" ,
+          summary: history.callSummary || "",
+          sentiment: history.userSentiment || "" ,
           timestamp: history.endTimestamp || "",
           duration: history.durationMs||"",
           status: history.callStatus || "",
@@ -2574,10 +2583,10 @@ export class Server {
             phone: history.toNumber|| "",
             agentId: history.agentId || "",
             transcript: history.transcript || "",
-            summary: history.callAnalyzedData.callAnalysis.callSummary || "",
-            sentiment: history.callAnalyzedData.callAnalysis.userSentiment || "",
+            summary: history.callSummary || "",
+            sentiment: history.userSentiment || "",
             timestamp: history.endTimestamp || "",
-            duration: convertMsToHourMinSec(history.durationMs) || "",
+            duration: history.durationMs || "",
             status: history.callStatus || "",
           }));
     
