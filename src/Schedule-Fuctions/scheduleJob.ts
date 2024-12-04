@@ -325,7 +325,7 @@ export const scheduleCronJob = async (
               agentId,
             };
 
-            const registerCallResponse = await retellClient.call.registerPhoneCall({
+             await retellClient.call.registerPhoneCall({
               agent_id: agentId,
               from_number: fromNumber,
               to_number: formatPhoneNumber(postdata.toNumber),
@@ -337,7 +337,7 @@ export const scheduleCronJob = async (
               },
             });
 
-            await retellClient.call.createPhoneCall({
+            const registerCallResponse = await retellClient.call.createPhoneCall({
               from_number: fromNumber,
               to_number: formatPhoneNumber(postdata.toNumber),
               override_agent_id: agentId,
