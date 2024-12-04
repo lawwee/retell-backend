@@ -932,22 +932,22 @@ export class Server {
       const apiKey = process.env.CAN_KEY;
       const eventBody = { payload };
 
-      axios
-        .post(url, eventBody, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Canonical-Api-Key": apiKey,
-          },
-        })
-        .then((response) => {
-          console.log("Response:", response.data);
-        })
-        .catch((error) => {
-          console.error(
-            "Error:",
-            error.response ? error.response.data : error.message,
-          );
-        });
+      // axios
+      //   .post(url, eventBody, {
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //       "X-Canonical-Api-Key": apiKey,
+      //     },
+      //   })
+      //   .then((response) => {
+      //     console.log("Response:", response.data);
+      //   })
+      //   .catch((error) => {
+      //     console.error(
+      //       "Error:",
+      //       error.response ? error.response.data : error.message,
+      //     );
+      //   });
 
       const data = {
         retellCallSummary: payload.data.call_analysis.call_summary,
