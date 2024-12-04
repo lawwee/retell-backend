@@ -143,6 +143,7 @@ export const getAllContact = async (
       .skip(skip)
       .limit(limit);
 
+      console.log({agentId, dateFilter, tag})
    
     const totalCount = await contactModel
       .countDocuments({ agentId, isDeleted: false, ...dateFilter, ...tag })

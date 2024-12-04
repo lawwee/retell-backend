@@ -3,11 +3,9 @@ import mongoose, { Schema, Document } from "mongoose";
 interface ICallData extends Document {
   callId: string;
   agentId: string;
-
   userFirstname: string;
   userEmail: string;
   userLastname: string;
-
   callStatus: string;
   startTimestamp: number;
   endTimestamp: number;
@@ -15,11 +13,9 @@ interface ICallData extends Document {
   transcript: string;
   publicLogUrl: string;
   disconnectionReason: string;
-  costMetadata: {
-    telecommunication: string;
-    llmModel: string;
-    voiceProvider: string;
-  };
+  telecommunication: string;
+  llmModel: string;
+  voiceProvider: string;
   callCost: {
     productCosts: any[];
     totalDurationUnitPrice: number;
@@ -31,10 +27,7 @@ interface ICallData extends Document {
   fromNumber: string;
   toNumber: string;
   direction: string;
-  callEndedData?: {
-    endReason?: string;
-  };
-
+  endReason?: string;
   callSummary: string;
   inVoicemail: boolean;
   userSentiment: string;
@@ -42,17 +35,17 @@ interface ICallData extends Document {
   agentTaskCompletionRating: string;
   callCompletionRating: string;
   customAnalysisData: object;
+  recordingUrl:{type: string}
+
 }
 
 const CallDataSchema = new Schema<ICallData>(
   {
     callId: { type: String },
     agentId: { type: String },
-
     userFirstname: { type: String },
     userEmail: { type: String },
     userLastname: { type: String },
-
     callStatus: { type: String },
     startTimestamp: { type: Number },
     endTimestamp: { type: Number },
@@ -60,19 +53,14 @@ const CallDataSchema = new Schema<ICallData>(
     transcript: { type: String },
     publicLogUrl: { type: String },
     disconnectionReason: { type: String },
-    costMetadata: {
-      telecommunication: { type: String },
-      llmModel: { type: String },
-      voiceProvider: { type: String },
-    },
+    telecommunication: { type: String },
+    llmModel: { type: String },
+    voiceProvider: { type: String },
     callType: { type: String },
     fromNumber: { type: String },
     toNumber: { type: String },
     direction: { type: String },
-    callEndedData: {
-      endReason: { type: String },
-    },
-
+    endReason: { type: String },
     callSummary: { type: String },
     inVoicemail: { type: Boolean },
     userSentiment: { type: String },
@@ -80,6 +68,7 @@ const CallDataSchema = new Schema<ICallData>(
     agentTaskCompletionRating: { type: String },
     callCompletionRating: { type: String },
     customAnalysisData: { type: Object },
+    recordingUrl:{type: String}
   },
   { timestamps: true },
 );

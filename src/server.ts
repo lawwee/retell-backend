@@ -857,13 +857,11 @@ export class Server {
           transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
           publicLogUrl: public_log_url || null,
           callType: payload.data.call_type || null,
-          costMetadata: cost_metadata || {},
-          callAnalysis: payload.event === "call_analyzed" ? call_analysis : null,
-          optOutSensitiveDataStorage:
-            payload.data.opt_out_sensitive_data_storage || false,
+          customAnalysisData: payload.event === "call_analyzed" ? call_analysis : null,
           fromNumber: from_number || null,
           toNumber: to_number || null,
           direction: direction || null,
+          userSentiment:analyzedTranscript
           
         };
         await callHistoryModel.findOneAndUpdate(
@@ -959,9 +957,10 @@ export class Server {
         { $set: data },
         { upsert: true, returnOriginal: false },
       );
+      const analyzedTranscript = await reviewTranscript(payload.data.transcript);
       const data2 = {
         callSummary: payload.data.call_analysis.call_summary,
-        userSentiment: payload.data.call_analysis.user_sentiment
+        userSentiment: analyzedTranscript.message.content
       }
       await callHistoryModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },

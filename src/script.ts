@@ -1,58 +1,86 @@
+import { contactModel, EventModel } from "./contacts/contact_model";
+import {
+  reviewCallback,
+  reviewTranscript,
+} from "./helper-fuction/transcript-review";
+import { format } from "date-fns";
+import OpenAI from "openai";
+import { callstatusenum } from "./utils/types";
 import callHistoryModel from "./contacts/history_model";
 import Retell from "retell-sdk";
-
 const retell = new Retell({
   apiKey: process.env.RETELL_API_KEY,
 });
 
 export async function script() {
   try {
-    // Fetch the first 1000 contacts from callHistoryModel in descending order by creation date
-    const contacts = await callHistoryModel.find().sort({ createdAt: -1 }).limit(5000).exec();
+    const contacts = await callHistoryModel.find().limit(1000).exec();
 
-    let processedCount = 0; // Initialize a counter for processed contacts
-
-    // Process each contact
     for (const contact of contacts) {
-      try {
-        console.log(`Processing contact with callId: ${contact.callId}`); // Log the callId
+      console.log(contact.callId);
+      const callResponse = await retell.call.retrieve(contact.callId);
 
-        // Retrieve call details from Retell
-        const callResponse = await retell.call.retrieve(contact.callId);
-
-        // Check if callResponse is valid
-        if (callResponse) {
-          const { user_firstname, user_lastname } = callResponse.retell_llm_dynamic_variables as {
+      if (callResponse) {
+        const { user_firstname, user_lastname } =
+          callResponse.retell_llm_dynamic_variables as {
             user_firstname: string;
             user_lastname: string;
           };
+        let callStatus;
+        let analyzedTranscript;
+        const disconnection_reason = callResponse.disconnection_reason;
+        const isCallFailed = disconnection_reason === "dial_failed";
+        const isCallTransferred = disconnection_reason === "call_transfer";
+        // const isMachine = disconnection_reason === "voicemail_reached";
+        const isDialNoAnswer = disconnection_reason === "dial_no_answer";
+        const isCallInactivity = disconnection_reason === "inactivity";
+        const isCallAnswered =
+          disconnection_reason === "user_hangup" ||
+          disconnection_reason === "agent_hangup";
 
-          const status = callResponse.call_status;
-          const summary = callResponse.call_analysis.call_summary;
-          const sentiment = callResponse.call_analysis.user_sentiment;
+        analyzedTranscript = await reviewTranscript(callResponse.transcript);
+        const isCallScheduled =
+          analyzedTranscript.message.content === "scheduled";
+        const isMachine = analyzedTranscript.message.content === "voicemail";
+        const isIVR = analyzedTranscript.message.content === "ivr";
 
-          if (user_firstname) {
-            // Update the contact's fields
-            contact.userFirstname = user_firstname || contact.userFirstname;
-            contact.userLastname = user_lastname || contact.userLastname;
-            contact.callSummary = summary;
-            contact.userSentiment = sentiment;
-            contact.callStatus = status;
-
-            // Save the updated contact
-            await contact.save();
-            processedCount++; // Increment the counter
-            console.log(`Processed contact ${processedCount}: ${contact.callId}`); // Log processed count
-          }
+        if (isMachine) {
+          callStatus = callstatusenum.VOICEMAIL;
+        } else if (isIVR) {
+          callStatus = callstatusenum.IVR;
+        } else if (isCallFailed) {
+          callStatus = callstatusenum.FAILED;
+        } else if (isCallTransferred) {
+          callStatus = callstatusenum.TRANSFERRED;
+        } else if (isDialNoAnswer) {
+          callStatus = callstatusenum.NO_ANSWER;
+        } else if (isCallScheduled) {
+          callStatus = callstatusenum.SCHEDULED;
+        } else if (isCallInactivity) {
+          callStatus = callstatusenum.INACTIVITY;
+        } else if (isCallAnswered) {
+          callStatus = callstatusenum.CALLED;
         }
-      } catch (contactError) {
-        console.error(`Error processing contact with callId ${contact.callId}:`, contactError);
-        // Skip to the next contact
+
+        // const analyzedTranscript = await reviewTranscript(callResponse.transcript);
+        const status = callStatus;
+        const summary = callResponse.call_analysis.call_summary;
+        const sentiment = analyzedTranscript.message.content;
+
+        if (user_firstname) {
+          contact.userFirstname = user_firstname || contact.userFirstname;
+          contact.userLastname = user_lastname || contact.userLastname;
+          contact.callSummary = summary;
+          contact.userSentiment = sentiment;
+          contact.callStatus = status;
+
+          await contact.save();
+        }
       }
     }
 
-    console.log(`Total contacts processed successfully: ${processedCount}`);
+    console.log("Contacts updated successfully.");
   } catch (error) {
-    console.error('Error occurred while fetching contacts:', error);
+    console.error("Error occurred:", error);
   }
 }

@@ -332,7 +332,7 @@ export const scheduleCronJob = async (
               retell_llm_dynamic_variables: {
                 user_firstname: contact.firstname,
                 user_email: contact.email,
-                user_lasname: contact.lastname,
+                user_lastname: contact.lastname,
                 job_id: jobId,
               },
             });
@@ -344,7 +344,7 @@ export const scheduleCronJob = async (
               retell_llm_dynamic_variables: {
                 user_firstname: contact.firstname,
                 user_email: contact.email,
-                user_lasname: contact.lastname,
+                user_lastname: contact.lastname,
                 job_id: jobId,
               },
             });
