@@ -289,7 +289,7 @@ export const scheduleCronJob = async (
         );
 
         for (const contact of contacts) {
-          console.log(contacts)
+          
           currentJob = await jobModel.findOne({ jobId });
           const now = moment().tz("America/Los_Angeles");
 
