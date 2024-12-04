@@ -861,7 +861,7 @@ export class Server {
           fromNumber: from_number || null,
           toNumber: to_number || null,
           direction: direction || null,
-          userSentiment:analyzedTranscript
+          userSentiment:analyzedTranscript.message.content
           
         };
         await callHistoryModel.findOneAndUpdate(
