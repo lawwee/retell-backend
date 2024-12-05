@@ -36,6 +36,7 @@ interface ICallData extends Document {
   callCompletionRating: string;
   customAnalysisData: object;
   recordingUrl:{type: string}
+  agentName:{type:string}
 
 }
 
@@ -68,7 +69,8 @@ const CallDataSchema = new Schema<ICallData>(
     agentTaskCompletionRating: { type: String },
     callCompletionRating: { type: String },
     customAnalysisData: { type: Object },
-    recordingUrl:{type: String}
+    recordingUrl:{type: String},
+    agentName:{type:String}
   },
   { timestamps: true },
 );

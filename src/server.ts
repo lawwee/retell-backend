@@ -2555,7 +2555,7 @@ export class Server {
             lastname: history.userLastname || "",
             email: history.userEmail || "",
             phone: history.toNumber || "",
-            agentId: history.agentId || "",
+            agentId: history.agentName || "",
             transcript: history.transcript || "",
             summary: history.callSummary || "",
             sentiment: history.userSentiment || "",
@@ -2617,7 +2617,7 @@ export class Server {
             lastname: history.userLastname || "",
             email: history.userEmail || "",
             phone: history.toNumber || "",
-            agentId: history.agentId || "",
+            agentId: history.agentName || "",
             transcript: history.transcript || "",
             summary: history.callSummary || "",
             sentiment: history.userSentiment || "",
@@ -3106,7 +3106,6 @@ export class Server {
       }
     });
   }
-  
 
   getSpecificScheduleAdmin() {
     this.app.post(
@@ -3124,7 +3123,7 @@ export class Server {
           }
 
           if (!result) {
-            return res.status(404).json({ message: "No job found" });
+            return res.status(404).json({ message: "No Running job found" });
           }
 
           res.json({ result });
