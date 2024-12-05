@@ -877,6 +877,7 @@ export class Server {
           toNumber: to_number || null,
           direction: direction || null,
           agentName: agentNameEnum,
+          date: todayString
         };
         await callHistoryModel.findOneAndUpdate(
           { callId: call_id, agentId: agent_id },
@@ -2550,11 +2551,70 @@ export class Server {
       "/call-history-client",
       async (req: Request, res: Response) => {
         try {
-          const { agentIds } = req.body;
+          const { agentIds , dateOption} = req.body;
           const page = parseInt(req.body.page) || 1;
           const pageSize = 100;
           const skip = (page - 1) * pageSize;
 
+          let dateFilter;
+          let dateFilter1;
+          const timeZone = "America/Los_Angeles";
+          const now = new Date();
+          const zonedNow = toZonedTime(now, timeZone);
+          const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+          switch (dateOption) {
+            case DateOption.Today:
+              dateFilter = { datesCalled: today };
+              dateFilter1 = { day: today };
+              break;
+            case DateOption.Yesterday:
+              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+              const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+                timeZone,
+              });
+              dateFilter = { datesCalled: yesterday };
+              dateFilter1 = { day: yesterday };
+              break;
+            case DateOption.ThisWeek:
+              const weekdays: string[] = [];
+              for (let i = 0; i < 7; i++) {
+                const day = subDays(zonedNow, i);
+                const dayOfWeek = day.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                  weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+                }
+              }
+              dateFilter = { datesCalled: { $in: weekdays } };
+              dateFilter1 = { day: { $in: weekdays } };
+              break;
+            case DateOption.ThisMonth:
+              const monthDates: string[] = [];
+              for (let i = 0; i < now.getDate(); i++) {
+                const day = subDays(now, i);
+                monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+              }
+              dateFilter = { datesCalled: { $in: monthDates } };
+              dateFilter1 = { day: { $in: monthDates } };
+              break;
+            default:
+              const recentJob = await callHistoryModel
+                .findOne({ agentId:{$in:agentIds} })
+                .sort({ createdAt: -1 })
+                .lean();
+
+              if (recentJob) {
+                dateFilter = { datesCalled: recentJob.date };
+                dateFilter1 = { day: recentJob.date };
+              } else {
+                dateFilter = {};
+                dateFilter1 = {};
+              }
+              break;
+            case DateOption.Total:
+              dateFilter = {};
+              dateFilter1 = {};
+              break;
+          }
           const callHistory = await callHistoryModel
             .find({ agentId: { $in: agentIds } }, { callId: 0 })
             .sort({ startTimestamp: -1 })
@@ -2601,27 +2661,75 @@ export class Server {
       "/call-history-admin",
       async (req: Request, res: Response) => {
         try {
-          const { agentId } = req.body;
+          const { agentId, dateOption } = req.body;
           const page = parseInt(req.body.page) || 1;
           const pageSize = 100;
           const skip = (page - 1) * pageSize;
 
+          let dateFilter;
+          let dateFilter1;
+          const timeZone = "America/Los_Angeles";
+          const now = new Date();
+          const zonedNow = toZonedTime(now, timeZone);
+          const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
+          switch (dateOption) {
+            case DateOption.Today:
+              dateFilter = { datesCalled: today };
+              dateFilter1 = { day: today };
+              break;
+            case DateOption.Yesterday:
+              const zonedYesterday = toZonedTime(subDays(now, 1), timeZone);
+              const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
+                timeZone,
+              });
+              dateFilter = { datesCalled: yesterday };
+              dateFilter1 = { day: yesterday };
+              break;
+            case DateOption.ThisWeek:
+              const weekdays: string[] = [];
+              for (let i = 0; i < 7; i++) {
+                const day = subDays(zonedNow, i);
+                const dayOfWeek = day.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                  weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
+                }
+              }
+              dateFilter = { datesCalled: { $in: weekdays } };
+              dateFilter1 = { day: { $in: weekdays } };
+              break;
+            case DateOption.ThisMonth:
+              const monthDates: string[] = [];
+              for (let i = 0; i < now.getDate(); i++) {
+                const day = subDays(now, i);
+                monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
+              }
+              dateFilter = { datesCalled: { $in: monthDates } };
+              dateFilter1 = { day: { $in: monthDates } };
+              break;
+            default:
+              const recentJob = await callHistoryModel
+                .findOne({ agentId })
+                .sort({ createdAt: -1 })
+                .lean();
+
+              if (recentJob) {
+                dateFilter = { datesCalled: recentJob.date };
+                dateFilter1 = { day: recentJob.date };
+              } else {
+                dateFilter = {};
+                dateFilter1 = {};
+              }
+              break;
+            case DateOption.Total:
+              dateFilter = {};
+              dateFilter1 = {};
+              break;
+          }
           const callHistory = await callHistoryModel
-            .find({ agentId }, { callId: 0 })
+            .find({ agentId, ...dateFilter }, { callId: 0 })
             .sort({ startTimestamp: -1 })
             .skip(skip)
             .limit(pageSize);
-
-          function convertMsToHourMinSec(ms: number): string {
-            const totalSeconds = Math.floor(ms / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-
-            return `${String(hours).padStart(2, "0")}:${String(
-              minutes,
-            ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-          }
 
           const callHistories = callHistory.map((history) => ({
             firstname: history.userFirstname || "",
@@ -2972,7 +3080,7 @@ export class Server {
           return res.status(400).json({ error: "agentId is required" });
         }
 
-        // Default to "lastSchedule" if dateOption is not provided
+        // Default to "last-schedule" if dateOption is not provided
         const selectedDateOption = dateOption || "last-schedule";
 
         const todays = new Date();
@@ -2982,65 +3090,93 @@ export class Server {
         let stats: any;
         let response: any;
 
+        // Generate a template for hours from 09:00 to 15:00
+        const createHourlyTemplate = () => {
+          return Array.from({ length: 7 }, (_, index) => ({
+            x: `${(9 + index).toString().padStart(2, "0")}:00`,
+            y: 0,
+          }));
+        };
+
         if (selectedDateOption === "daily") {
-          stats = await dailyGraphModel.findOne({
-            agentId,
-            date: todayString,
-          });
+          stats = await dailyGraphModel.findOne({ agentId, date: todayString });
 
-          if (!stats) {
-            return res
-              .status(404)
-              .json({ message: "No stats found for the given agent and day" });
+          // Initialize response with hourly template
+          response = createHourlyTemplate();
+
+          if (stats) {
+            const hourlyCalls: Map<string, number> =
+              stats.hourlyCalls || new Map();
+
+            // Update the response with actual data
+            hourlyCalls.forEach((count, hour) => {
+              const hourIndex = parseInt(hour.split(":")[0], 10) - 9; // 9 AM is the first index
+              if (hourIndex >= 0 && hourIndex < 7) {
+                response[hourIndex].y = count; // Update the count for the corresponding hour
+              }
+            });
           }
-
-          const hourlyCalls: Map<string, number> = stats.hourlyCalls;
-
-          const filteredCalls = Array.from(hourlyCalls.entries())
-            .filter(([hour]: [string, number]) => {
-              const hourInt = parseInt(hour.split(":")[0], 10);
-              return hourInt >= 9 && hourInt < 15;
-            })
-            .map(([hour, count]: [string, number]) => ({ x: hour, y: count }));
-
-          response = filteredCalls;
         } else if (selectedDateOption === "weekly") {
+          const todays = new Date();
+          todays.setHours(0, 0, 0, 0);
+
           const weekDays: string[] = [];
           const currentDay = new Date(todays);
-          currentDay.setDate(currentDay.getDate() - currentDay.getDay() + 1); // Start of the week (Monday)
+
+          // Set currentDay to the most recent Monday
+          currentDay.setDate(
+            currentDay.getDate() - ((currentDay.getDay() + 6) % 7),
+          );
+
+          // Collect Monday to Friday
           for (let i = 0; i < 5; i++) {
             weekDays.push(currentDay.toISOString().split("T")[0]);
             currentDay.setDate(currentDay.getDate() + 1);
           }
 
+          // Fetch stats for the collected weekDays
           stats = await dailyGraphModel.find({
             agentId,
             date: { $in: weekDays },
           });
 
-          const weeklyData = weekDays
-            .map((day) => {
-              const dayStats = stats.find((s: any) => s.date === day);
-              const dayName = new Date(day).toLocaleDateString("en-US", {
-                weekday: "long",
-              });
+          // Predefined structure for the response
+          const predefinedStructure = [
+            { x: "Monday", y: 0 },
+            { x: "Tuesday", y: 0 },
+            { x: "Wednesday", y: 0 },
+            { x: "Thursday", y: 0 },
+            { x: "Friday", y: 0 },
+          ];
 
-              if (!dayStats) return { x: dayName, y: 0 };
+          // Populate the predefined structure with actual data
+          weekDays.forEach((day) => {
+            const dayName = new Date(day).toLocaleDateString("en-US", {
+              weekday: "long",
+            });
 
-              const hourlyCalls: Map<string, number> = dayStats.hourlyCalls;
+            const dayStats = stats.find((s: any) => s.date === day);
+            const hourlyCalls: Map<string, number> = dayStats
+              ? dayStats.hourlyCalls
+              : new Map();
 
-              const hourlySum = Array.from(hourlyCalls.entries())
-                .filter(([hour]: [string, number]) => {
-                  const hourInt = parseInt(hour.split(":")[0], 10);
-                  return hourInt >= 9 && hourInt < 15;
-                })
-                .reduce((sum, [, count]: [string, number]) => sum + count, 0);
+            const hourlySum = Array.from(hourlyCalls.entries())
+              .filter(([hour]: [string, number]) => {
+                const hourInt = parseInt(hour.split(":")[0], 10);
+                return hourInt >= 9 && hourInt < 15; // Only count calls between 9 AM and 3 PM
+              })
+              .reduce((sum, [, count]: [string, number]) => sum + count, 0);
 
-              return { x: dayName, y: hourlySum };
-            })
-            .filter((data) => data !== null); // Remove null entries
+            // Update the corresponding day in the predefined structure
+            const dayEntry = predefinedStructure.find(
+              (entry) => entry.x === dayName,
+            );
+            if (dayEntry) {
+              dayEntry.y = hourlySum; // Update the count
+            }
+          });
 
-          response = weeklyData;
+          response = predefinedStructure; // Set the response to the populated structure
         } else if (selectedDateOption === "monthly") {
           stats = await dailyGraphModel.find({ agentId });
 
@@ -3096,22 +3232,21 @@ export class Server {
             date: lastScheduleDate,
           });
 
-          if (!stats || stats.length === 0) {
-            return res
-              .status(404)
-              .json({ message: "No stats found for the last schedule date." });
+          // Initialize response with hourly template
+          response = createHourlyTemplate();
+
+          if (stats && stats.length > 0) {
+            const hourlyCalls: Map<string, number> =
+              stats[0].hourlyCalls || new Map();
+
+            // Update the response with actual data
+            hourlyCalls.forEach((count, hour) => {
+              const hourIndex = parseInt(hour.split(":")[0], 10) - 9; // 9 AM is the first index
+              if (hourIndex >= 0 && hourIndex < 7) {
+                response[hourIndex].y = count; // Update the count for the corresponding hour
+              }
+            });
           }
-
-          const hourlyCalls: Map<string, number> = stats[0].hourlyCalls;
-
-          const filteredCalls = Array.from(hourlyCalls.entries())
-            .filter(([hour]: [string, number]) => {
-              const hourInt = parseInt(hour.split(":")[0], 10);
-              return hourInt >= 9 && hourInt < 15;
-            })
-            .map(([hour, count]: [string, number]) => ({ x: hour, y: count }));
-
-          response = filteredCalls;
         } else {
           return res.status(400).json({ error: "Invalid dateOption" });
         }
@@ -3130,8 +3265,10 @@ export class Server {
       async (req: Request, res: Response) => {
         try {
           const { agentId } = req.body;
-          if(!agentId){
-            return res.status(400).json({message:"Please provide an agentId"})
+          if (!agentId) {
+            return res
+              .status(400)
+              .json({ message: "Please provide an agentId" });
           }
           const result = await jobModel.findOne({
             agentId,
@@ -3156,8 +3293,8 @@ export class Server {
         try {
           const { agentIds } = req.body;
 
-          if(!agentIds){
-            return res.status(400).json({message:"Please provide agentIds"})
+          if (!agentIds) {
+            return res.status(400).json({ message: "Please provide agentIds" });
           }
           const result = await jobModel.findOne({
             agentId: { $in: agentIds },
