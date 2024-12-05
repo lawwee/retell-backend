@@ -2948,48 +2948,158 @@ export class Server {
       }
     });
   }
+
   graphChartAdmin() {
     this.app.post("/graph-stats-admin", async (req: Request, res: Response) => {
       try {
-        const { agentId } = req.body;
+        const { agentId, dateOption }: { agentId: string; dateOption?: string } = req.body;
   
         if (!agentId) {
-          return res
-            .status(400)
-            .json({ error: "agentId and day are required" });
+          return res.status(400).json({ error: "agentId is required" });
         }
+  
+        // Default to "lastSchedule" if dateOption is not provided
+        const selectedDateOption = dateOption || "lastSchedule";
   
         const todays = new Date();
         todays.setHours(0, 0, 0, 0);
         const todayString = todays.toISOString().split("T")[0];
   
-        console.log("Today's date:", todayString);
+        let stats: any;
+        let response: any;
   
-        // Fetch stats for the specified agent and date
-        const stats = await dailyGraphModel.findOne({
-          agentId,
-          date: todayString,
-        });
+        if (selectedDateOption === "daily") {
+          stats = await dailyGraphModel.findOne({
+            agentId,
+            date: todayString,
+          });
   
-        if (!stats) {
-          return res
-            .status(404)
-            .json({ message: "No stats found for the given agent and day" });
+          if (!stats) {
+            return res
+              .status(404)
+              .json({ message: "No stats found for the given agent and day" });
+          }
+  
+          const hourlyCalls: Map<string, number> = stats.hourlyCalls;
+  
+          const filteredCalls = Array.from(hourlyCalls.entries())
+            .filter(([hour]: [string, number]) => {
+              const hourInt = parseInt(hour.split(":")[0], 10);
+              return hourInt >= 9 && hourInt < 15;
+            })
+            .map(([hour, count]: [string, number]) => ({ x: hour, y: count }));
+  
+          response = filteredCalls;
+        } else if (selectedDateOption === "weekly") {
+          const weekDays: string[] = [];
+          const currentDay = new Date(todays);
+          currentDay.setDate(currentDay.getDate() - currentDay.getDay() + 1); // Start of the week (Monday)
+          for (let i = 0; i < 5; i++) {
+            weekDays.push(currentDay.toISOString().split("T")[0]);
+            currentDay.setDate(currentDay.getDate() + 1);
+          }
+  
+          stats = await dailyGraphModel.find({
+            agentId,
+            date: { $in: weekDays },
+          });
+  
+          const weeklyData = weekDays
+            .map((day) => {
+              const dayStats = stats.find((s: any) => s.date === day);
+              const dayName = new Date(day).toLocaleDateString("en-US", {
+                weekday: "long",
+              });
+  
+              if (!dayStats) return { x: dayName, y: 0 };
+  
+              const hourlyCalls: Map<string, number> = dayStats.hourlyCalls;
+  
+              const hourlySum = Array.from(hourlyCalls.entries())
+                .filter(([hour]: [string, number]) => {
+                  const hourInt = parseInt(hour.split(":")[0], 10);
+                  return hourInt >= 9 && hourInt < 15;
+                })
+                .reduce((sum, [, count]: [string, number]) => sum + count, 0);
+  
+              return { x: dayName, y: hourlySum };
+            })
+            .filter((data) => data !== null); // Remove null entries
+  
+          response = weeklyData;
+        } else if (selectedDateOption === "monthly") {
+          stats = await dailyGraphModel.find({ agentId });
+  
+          const monthlyData = Array(12)
+            .fill(0)
+            .map((_, monthIndex) => {
+              const monthStats = stats.filter(
+                (s: any) => new Date(s.date).getMonth() === monthIndex
+              );
+  
+              const monthlySum = monthStats.reduce((sum: number, stat: any) => {
+                const hourlyCalls: Map<string, number> = stat.hourlyCalls;
+  
+                const hourlyCallsSum = Array.from(hourlyCalls.entries())
+                  .filter(([hour]: [string, number]) => {
+                    const hourInt = parseInt(hour.split(":")[0], 10);
+                    return hourInt >= 9 && hourInt < 15;
+                  })
+                  .reduce((sum, [, count]: [string, number]) => sum + count, 0);
+  
+                return sum + hourlyCallsSum;
+              }, 0);
+  
+              const monthName = new Date(0, monthIndex).toLocaleString("en-US", {
+                month: "long",
+              });
+  
+              return { x: monthName, y: monthlySum };
+            });
+  
+          response = monthlyData;
+        } else if (selectedDateOption === "lastSchedule") {
+          // Find the most recent schedule date
+          const lastStat = await dailyGraphModel
+            .find({ agentId })
+            .sort({ date: -1 })
+            .limit(1);
+  
+          if (!lastStat || lastStat.length === 0) {
+            return res
+              .status(404)
+              .json({ message: "No stats found for the last schedule." });
+          }
+  
+          const lastScheduleDate = lastStat[0].date;
+  
+          // Fetch stats for the last schedule date
+          stats = await dailyGraphModel.find({
+            agentId,
+            date: lastScheduleDate,
+          });
+  
+          if (!stats || stats.length === 0) {
+            return res
+              .status(404)
+              .json({ message: "No stats found for the last schedule date." });
+          }
+  
+          const hourlyCalls: Map<string, number> = stats[0].hourlyCalls;
+  
+          const filteredCalls = Array.from(hourlyCalls.entries())
+            .filter(([hour]: [string, number]) => {
+              const hourInt = parseInt(hour.split(":")[0], 10);
+              return hourInt >= 9 && hourInt < 15;
+            })
+            .map(([hour, count]: [string, number]) => ({ x: hour, y: count }));
+  
+          response = filteredCalls;
+        } else {
+          return res.status(400).json({ error: "Invalid dateOption" });
         }
   
-        // Retrieve and process hourlyCalls (stored as a Map)
-        const hourlyCalls = stats.hourlyCalls;
-  
-        // Convert the Map to an array and filter/map the data
-        const filteredCalls = Array.from(hourlyCalls.entries()) // Convert Map to [key, value] array
-          .filter(([hour]) => {
-            const hourInt = parseInt(hour.split(":")[0], 10); // Parse the hour
-            console.log(hourInt)
-            return hourInt >= 9 && hourInt < 15; // Filter hours between 9:00 and 15:00
-          })
-          .map(([hour, count]) => ({ x: hour, y: count })); // Map to desired format
-  
-        res.json(filteredCalls);
+        res.json(response);
       } catch (error) {
         console.error("Error fetching stats:", error);
         res.status(500).json({ error: "An error occurred" });
@@ -2997,6 +3107,7 @@ export class Server {
     });
   }
   
+
   getSpecificScheduleAdmin() {
     this.app.post(
       "/get-schedule-admin",
@@ -3051,68 +3162,195 @@ export class Server {
       },
     );
   }
+
   graphChartClient() {
     this.app.post(
       "/graph-stats-client",
       async (req: Request, res: Response) => {
         try {
-          const { agentIds } = req.body;
-
-          const todays = new Date();
-          todays.setHours(0, 0, 0, 0);
-          const todayString = todays.toISOString().split("T")[0];
-
+          const { agentIds, dateOption } = req.body;
+  
           if (!agentIds || !Array.isArray(agentIds) || agentIds.length === 0) {
-            return res
-              .status(400)
-              .json({ error: "agentIds and day are required" });
-          }
-
-          // Find all stats for the given agentIds and today
-          const stats = await dailyGraphModel.find({
-            agentId: { $in: agentIds },
-            date: todayString,
-          });
-
-          if (stats.length === 0) {
-            return res
-              .status(404)
-              .json({ message: "No stats found for the given agents and day" });
-          }
-
-          // Initialize an object to accumulate hourly calls
-          const aggregatedCalls: { [hour: string]: number } = {};
-
-          // Aggregate hourlyCalls from all stats
-          stats.forEach((stat) => {
-            const hourlyCalls = stat.hourlyCalls as Map<string, number>;
-
-            hourlyCalls.forEach((count: number, hour: string) => {
-              const hourInt = parseInt(hour.split(":")[0], 10);
-              if (hourInt >= 9 && hourInt < 15) {
-                if (!aggregatedCalls[hour]) {
-                  aggregatedCalls[hour] = 0;
-                }
-                aggregatedCalls[hour] += count;
-              }
+            return res.status(400).json({
+              error: "agentIds are required",
             });
-          });
-
-          // Convert aggregatedCalls to the desired format
-          const filteredCalls = Object.entries(aggregatedCalls).map(
-            ([hour, count]) => ({
+          }
+  
+          // Default to "lastSchedule" if dateOption is not provided
+          const selectedDateOption = dateOption || "lastSchedule";
+  
+          let stats: any[];
+          let response: any[];
+  
+          if (selectedDateOption === "daily") {
+            const todays = new Date();
+            todays.setHours(0, 0, 0, 0);
+            const todayString = todays.toISOString().split("T")[0];
+  
+            stats = await dailyGraphModel.find({
+              agentId: { $in: agentIds },
+              date: todayString,
+            });
+  
+            if (stats.length === 0) {
+              return res.status(404).json({
+                message: "No stats found for the given agents and day",
+              });
+            }
+  
+            const aggregatedCalls: { [hour: string]: number } = {};
+  
+            stats.forEach((stat) => {
+              const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+  
+              hourlyCalls.forEach((count: number, hour: string) => {
+                const hourInt = parseInt(hour.split(":")[0], 10);
+                if (hourInt >= 9 && hourInt < 15) {
+                  if (!aggregatedCalls[hour]) {
+                    aggregatedCalls[hour] = 0;
+                  }
+                  aggregatedCalls[hour] += count;
+                }
+              });
+            });
+  
+            response = Object.entries(aggregatedCalls).map(([hour, count]) => ({
               x: hour,
               y: count,
-            }),
-          );
-
-          res.json(filteredCalls);
+            }));
+          } else if (selectedDateOption === "weekly") {
+            const todays = new Date();
+            todays.setHours(0, 0, 0, 0);
+  
+            const weekDays = [];
+            const currentDay = new Date(todays);
+            currentDay.setDate(currentDay.getDate() - currentDay.getDay() + 1); // Start from Monday
+            for (let i = 0; i < 5; i++) {
+              weekDays.push(currentDay.toISOString().split("T")[0]);
+              currentDay.setDate(currentDay.getDate() + 1);
+            }
+  
+            stats = await dailyGraphModel.find({
+              agentId: { $in: agentIds },
+              date: { $in: weekDays },
+            });
+  
+            const weeklyData = weekDays.map((day) => {
+              const dayName = new Date(day).toLocaleDateString("en-US", {
+                weekday: "long",
+              });
+  
+              const dailyStats = stats.filter((s) => s.date === day);
+  
+              const dailySum = dailyStats.reduce((sum, stat) => {
+                const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+  
+                const hourlySum = Array.from(hourlyCalls.entries())
+                  .filter(([hour]) => {
+                    const hourInt = parseInt(hour.split(":")[0], 10);
+                    return hourInt >= 9 && hourInt < 15;
+                  })
+                  .reduce((sum, [, count]) => sum + count, 0);
+  
+                return sum + hourlySum;
+              }, 0);
+  
+              return { x: dayName, y: dailySum };
+            });
+  
+            response = weeklyData;
+          } else if (selectedDateOption === "monthly") {
+            stats = await dailyGraphModel.find({
+              agentId: { $in: agentIds },
+            });
+  
+            const monthlyData = Array(12)
+              .fill(0)
+              .map((_, monthIndex) => {
+                const monthStats = stats.filter(
+                  (s) => new Date(s.date).getMonth() === monthIndex
+                );
+  
+                const monthlySum = monthStats.reduce((sum, stat) => {
+                  const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+  
+                  const hourlySum = Array.from(hourlyCalls.entries())
+                    .filter(([hour]) => {
+                      const hourInt = parseInt(hour.split(":")[0], 10);
+                      return hourInt >= 9 && hourInt < 15;
+                    })
+                    .reduce((sum, [, count]) => sum + count, 0);
+  
+                  return sum + hourlySum;
+                }, 0);
+  
+                const monthName = new Date(0, monthIndex).toLocaleString(
+                  "en-US",
+                  { month: "long" }
+                );
+  
+                return { x: monthName, y: monthlySum };
+              });
+  
+            response = monthlyData;
+          } else if (selectedDateOption === "lastSchedule") {
+            // Find the most recent schedule date
+            const lastStat = await dailyGraphModel
+              .find({ agentId: { $in: agentIds } })
+              .sort({ date: -1 })
+              .limit(1);
+  
+            if (!lastStat || lastStat.length === 0) {
+              return res
+                .status(404)
+                .json({ message: "No stats found for the last schedule." });
+            }
+  
+            const lastScheduleDate = lastStat[0].date;
+  
+            // Fetch stats for the last schedule date
+            stats = await dailyGraphModel.find({
+              agentId: { $in: agentIds },
+              date: lastScheduleDate,
+            });
+  
+            if (stats.length === 0) {
+              return res.status(404).json({
+                message: "No stats found for the given agents on the last schedule date.",
+              });
+            }
+  
+            const aggregatedCalls: { [hour: string]: number } = {};
+  
+            stats.forEach((stat) => {
+              const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+  
+              hourlyCalls.forEach((count: number, hour: string) => {
+                const hourInt = parseInt(hour.split(":")[0], 10);
+                if (hourInt >= 9 && hourInt < 15) {
+                  if (!aggregatedCalls[hour]) {
+                    aggregatedCalls[hour] = 0;
+                  }
+                  aggregatedCalls[hour] += count;
+                }
+              });
+            });
+  
+            response = Object.entries(aggregatedCalls).map(([hour, count]) => ({
+              x: hour,
+              y: count,
+            }));
+          } else {
+            return res.status(400).json({ error: "Invalid dateOption" });
+          }
+  
+          res.json(response);
         } catch (error) {
           console.error("Error fetching stats:", error);
           res.status(500).json({ error: "An error occurred" });
         }
-      },
+      }
     );
   }
- 
+  
 }
