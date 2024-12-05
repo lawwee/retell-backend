@@ -2973,7 +2973,7 @@ export class Server {
         }
 
         // Default to "lastSchedule" if dateOption is not provided
-        const selectedDateOption = dateOption || "lastSchedule";
+        const selectedDateOption = dateOption || "last-schedule";
 
         const todays = new Date();
         todays.setHours(0, 0, 0, 0);
@@ -3075,7 +3075,7 @@ export class Server {
             });
 
           response = monthlyData;
-        } else if (selectedDateOption === "lastSchedule") {
+        } else if (selectedDateOption === "last-schedule") {
           // Find the most recent schedule date
           const lastStat = await dailyGraphModel
             .find({ agentId })
@@ -3191,7 +3191,7 @@ export class Server {
           }
 
           // Default to "lastSchedule" if dateOption is not provided
-          const selectedDateOption = dateOption || "lastSchedule";
+          const selectedDateOption = dateOption || "last-schedule";
 
           let stats: any[];
           let response: any[];
@@ -3307,7 +3307,7 @@ export class Server {
               });
 
             response = monthlyData;
-          } else if (selectedDateOption === "lastSchedule") {
+          } else if (selectedDateOption === "last-schedule") {
             // Find the most recent schedule date
             const lastStat = await dailyGraphModel
               .find({ agentId: { $in: agentIds } })
