@@ -52,6 +52,7 @@ const userSchema = new Schema(
       type: String,
     },
     loginDetails: [loginSchema],
+    
   },
   {
     timestamps: true,
