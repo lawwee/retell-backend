@@ -1,7 +1,7 @@
 import { contactModel, EventModel } from "./contacts/contact_model";
 import {
   reviewCallback,
-  reviewTranscript,
+  reviewTranscriptForSentiment,
 } from "./helper-fuction/transcript-review";
 import { format } from "date-fns";
 import OpenAI from "openai";
@@ -38,7 +38,7 @@ export async function script() {
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
 
-        analyzedTranscript = await reviewTranscript(callResponse.transcript);
+        analyzedTranscript = await reviewTranscriptForSentiment(callResponse.transcript);
         const isCallScheduled =
           analyzedTranscript.message.content === "scheduled";
         const isMachine = analyzedTranscript.message.content === "voicemail";

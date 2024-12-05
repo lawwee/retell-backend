@@ -13,26 +13,24 @@ export const logsToCsv = async (
   endDate?: string,
   statusOption?: "called" | "not-called" | "voicemail" | "failed" | "all",
   sentimentOption?:
-    | "not-interested"
+    | "unknown"
     | "scheduled"
     | "call-back"
-    | "incomplete"
-    | "interested"
-    | "voicemail"
-    | "dnc"
+    | "neutral"
+    | "positive"
+    | "negative"
     | "all",
   dateOption?: string,
 ) => {
   try {
     const validSentimentOptions = [
-      "not-interested",
-      "scheduled",
-      "call-back",
-      "incomplete",
-      "interested",
-      "voicemail",
-      "dnc",
-      "all",
+       "unknown",
+       "scheduled",
+       "call-back",
+       "neutral",
+       "positive",
+       "negative",
+       "all",
     ];
 
     if (sentimentOption && !validSentimentOptions.includes(sentimentOption)) {
@@ -200,21 +198,18 @@ export const logsToCsv = async (
       ],
     });
     let callSentimentStatus: string;
-    if (sentimentOption === "not-interested") {
-      callSentimentStatus = callSentimentenum.NOT_INTERESTED;
+    if (sentimentOption === "unknown") {
+      callSentimentStatus = callSentimentenum.UNKNOWN;
     } else if (sentimentOption === "scheduled") {
       callSentimentStatus = callSentimentenum.SCHEDULED;
     } else if (sentimentOption === "call-back") {
-      callSentimentStatus = callSentimentenum.CALL_BACK;
-    } else if (sentimentOption === "interested") {
-      callSentimentStatus = callSentimentenum.INTERESTED;
-    } else if (sentimentOption === "voicemail") {
-      callSentimentStatus = callSentimentenum.VOICEMAIL;
-    } else if (sentimentOption === "incomplete") {
-      callSentimentStatus = callSentimentenum.INCOMPLETE_CALL;
-    }else if (sentimentOption === "dnc") {
-      callSentimentStatus = callSentimentenum.DO_NOT_CALL
-    
+      callSentimentStatus = callSentimentenum.CALLBACK;
+    } else if (sentimentOption === "neutral") {
+      callSentimentStatus = callSentimentenum.NEUTRAL;
+    } else if (sentimentOption === "positive") {
+      callSentimentStatus = callSentimentenum.POSITIVE;
+    } else if (sentimentOption === "negative") {
+      callSentimentStatus = callSentimentenum.NEGATIVE;
     } else if (sentimentOption === "all") {
       callSentimentStatus == "";
     }
@@ -231,9 +226,9 @@ export const logsToCsv = async (
         last_date_called: contact.datesCalled,
       }))
       .filter((contact) => {
-        // If sentimentOption is provided, filter by analyzedTranscript
+       
         return (
-          !sentimentOption || // Include all contacts if sentimentOption is not provided
+          !sentimentOption || 
           contact.analyzedTranscript === callSentimentStatus
         );
       });

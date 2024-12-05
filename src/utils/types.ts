@@ -66,17 +66,25 @@ export enum callstatusenum {
   INACTIVITY = "inactivity"
 }
 
-export enum callSentimentenum{
-  NOT_INTERESTED = "not-interested",
-  SCHEDULED = "scheduled",
-  CALL_BACK = "call-back",
-  INCOMPLETE_CALL = "incomplete",
-  VOICEMAIL = "voicemail",
-  INTERESTED = "interested",
-  DO_NOT_CALL = "dnc",
-  IVR = "ivr"
-}
+// export enum callSentimentenum{
+//   NOT_INTERESTED = "not-interested",
+//   SCHEDULED = "scheduled",
+//   CALL_BACK = "call-back",
+//   INCOMPLETE_CALL = "incomplete",
+//   VOICEMAIL = "voicemail",
+//   INTERESTED = "interested",
+//   DO_NOT_CALL = "dnc",
+//   IVR = "ivr"
+// }
 
+export enum callSentimentenum{
+  POSITIVE = "positive",
+  NEGATIVE= "negative",
+  NEUTRAL = "neutral",
+  UNKNOWN = "unknown",
+  SCHEDULED = "scheduled",
+  CALLBACK= "call-back"
+}
 export interface Itranscript {
   transcript: string;
 }

@@ -52,7 +52,8 @@ import OpenAI from "openai";
 
 import {
   reviewCallback,
-  reviewTranscript,
+  reviewTranscriptForSentiment,
+  reviewTranscriptForStatus,
 } from "./helper-fuction/transcript-review";
 import jwt from "jsonwebtoken";
 import { redisConnection } from "./utils/redis";
@@ -170,7 +171,7 @@ export class Server {
     this.updateUserTag();
     this.script();
     this.getSpecificScheduleAdmin();
-    this.getSpecificScheduleClient()
+    this.getSpecificScheduleClient();
     this.bookAppointmentWithZoom();
     this.checkAvailabiltyWithZoom();
     this.graphChartAdmin();
@@ -757,11 +758,11 @@ export class Server {
         to_number,
         direction,
       } = payload.data;
-      let analyzedTranscript;
+      let analyzedTranscriptForStatus;
       let callStatus;
+      let sentimentStatus;
       let statsUpdate: any = { $inc: {} };
 
-      
       function convertMsToHourMinSec(ms: number): string {
         const totalSeconds = Math.floor(ms / 1000);
         const hours = Math.floor(totalSeconds / 3600);
@@ -774,8 +775,6 @@ export class Server {
         )}:${String(seconds).padStart(2, "0")}`;
       }
 
-      
-  
       if (payload.event === "call_ended") {
         const isCallFailed = disconnection_reason === "dial_failed";
         const isCallTransferred = disconnection_reason === "call_transfer";
@@ -785,15 +784,19 @@ export class Server {
         const isCallAnswered =
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
-
-        analyzedTranscript = await reviewTranscript(transcript);
+        analyzedTranscriptForStatus = await reviewTranscriptForStatus(
+          transcript,
+        );
         const isCallScheduled =
-          analyzedTranscript.message.content === "scheduled";
-        const isMachine = analyzedTranscript.message.content === "voicemail";
-        const isIVR = analyzedTranscript.message.content === "ivr";
+          analyzedTranscriptForStatus.message.content === "scheduled";
+        const isMachine =
+          analyzedTranscriptForStatus.message.content === "voicemail";
+        const isIVR = analyzedTranscriptForStatus.message.content === "ivr";
+
         const callbackdate = await reviewCallback(transcript);
 
         const newDuration = convertMsToHourMinSec(payload.call.duration_ms);
+
         const callEndedUpdateData = {
           callId: call_id,
           agentId: payload.call.agent_id,
@@ -801,7 +804,6 @@ export class Server {
           callDuration: newDuration,
           disconnectionReason: disconnection_reason,
           callBackDate: callbackdate,
-          analyzedTranscript: analyzedTranscript.message.content,
           ...(transcript && { transcript }),
         };
 
@@ -851,18 +853,19 @@ export class Server {
           callStatus: payload.data.call_status,
           startTimestamp: start_timestamp || null,
           endTimestamp: end_timestamp || null,
-          durationMs: convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
+          durationMs:
+            convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
           transcript: transcript || null,
           transcriptObject: payload.data.transcript_object || [],
-          transcriptWithToolCalls: payload.data.transcript_with_tool_calls || [],
+          transcriptWithToolCalls:
+            payload.data.transcript_with_tool_calls || [],
           publicLogUrl: public_log_url || null,
           callType: payload.data.call_type || null,
-          customAnalysisData: payload.event === "call_analyzed" ? call_analysis : null,
+          customAnalysisData:
+            payload.event === "call_analyzed" ? call_analysis : null,
           fromNumber: from_number || null,
           toNumber: to_number || null,
           direction: direction || null,
-          userSentiment:analyzedTranscript.message.content
-          
         };
         await callHistoryModel.findOneAndUpdate(
           { callId: call_id, agentId: agent_id },
@@ -932,6 +935,8 @@ export class Server {
       const apiKey = process.env.CAN_KEY;
       const eventBody = { payload };
 
+      let analyzedTranscriptForSentiment;
+      let sentimentStatus;
       // axios
       //   .post(url, eventBody, {
       //     headers: {
@@ -949,19 +954,48 @@ export class Server {
       //     );
       //   });
 
+      analyzedTranscriptForSentiment = await reviewTranscriptForSentiment(
+        payload.data.transcript,
+      );
+      const isScheduled =
+        analyzedTranscriptForSentiment.message.content === "scheduled";
+      const isCall_Back =
+        analyzedTranscriptForSentiment.message.content === "call-back";
+      const isNeutral = payload.data.call_analysis.user_sentiment === "Neutral";
+      const isUnknown = payload.data.call_analysis.user_sentiment === "Unknown";
+      const isPositive =
+        payload.data.call_analysis.user_sentiment === "Positive";
+      const isNegative =
+        payload.data.call_analysis.user_sentiment === "Negative";
+
+      if (isScheduled) {
+        sentimentStatus = callSentimentenum.SCHEDULED;
+      } else if (isCall_Back) {
+        sentimentStatus = callSentimentenum.CALLBACK;
+      } else if (isNeutral) {
+        sentimentStatus = callSentimentenum.NEUTRAL;
+      } else if (isPositive) {
+        sentimentStatus = callSentimentenum.POSITIVE;
+      } else if (isNegative) {
+        sentimentStatus = callSentimentenum.NEGATIVE;
+      } else if (isUnknown) {
+        sentimentStatus = callSentimentenum.UNKNOWN;
+      }
       const data = {
         retellCallSummary: payload.data.call_analysis.call_summary,
+        analyzedTranscript: sentimentStatus,
       };
       const results = await EventModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
         { $set: data },
         { upsert: true, returnOriginal: false },
       );
-      const analyzedTranscript = await reviewTranscript(payload.data.transcript);
+
+      //const analyzedTranscript = await reviewTranscript(payload.data.transcript);
       const data2 = {
         callSummary: payload.data.call_analysis.call_summary,
-        userSentiment: analyzedTranscript.message.content
-      }
+        userSentiment: sentimentStatus,
+      };
       await callHistoryModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
         { $set: data2 },
@@ -1428,12 +1462,12 @@ export class Server {
 
         // Sentiment Mapping
         const sentimentMapping: { [key: string]: string | undefined } = {
-          "not-interested": callSentimentenum.NOT_INTERESTED,
-          "call-back": callSentimentenum.CALL_BACK,
-          interested: callSentimentenum.INTERESTED,
+          negative: callSentimentenum.NEGATIVE,
+          "call-back": callSentimentenum.CALLBACK,
+          positive: callSentimentenum.POSITIVE,
           scheduled: callSentimentenum.SCHEDULED,
-          voicemail: callSentimentenum.VOICEMAIL,
-          incomplete: callSentimentenum.INCOMPLETE_CALL,
+          neutral: callSentimentenum.NEUTRAL,
+          unknown: callSentimentenum.UNKNOWN,
         };
 
         let sentimentStatus = sentimentOption
@@ -1794,15 +1828,12 @@ export class Server {
   }
   testingCalendly() {
     this.app.post("/test-calender", async (req: Request, res: Response) => {
-    
       const eventTypeSlug = "test-event-type";
       const dateTime = "2024-08-10T03:00:00+01:00";
 
-  
       const schedulingLink = `https://calendly.com/hydradaboss06/${eventTypeSlug}/${dateTime}?month=2024-08&date=2024-08-10`;
 
       try {
-
         const response = await axios.post(
           "https://calendly.com/api/booking/invitees",
           {
@@ -2504,48 +2535,55 @@ export class Server {
     });
   }
   getCallHistoryClient() {
-    this.app.post("/call-history-client", async (req: Request, res: Response) => {
-      try {
-        const { agentIds } = req.body;
-        const page = parseInt(req.body.page) || 1;
-        const pageSize = 100;
-        const skip = (page - 1) * pageSize;
-  
-        const callHistory = await callHistoryModel
-          .find({ agentId: { $in: agentIds } }, { callId: 0 })
-          .sort({ startTimestamp: -1 })
-          .skip(skip)
-          .limit(pageSize);
-  
-        const callHistories = callHistory.map(history => ({
-          firstname: history.userFirstname || "",
-          lastname: history.userLastname || "",
-          email: history.userEmail || "",
-          phone: history.toNumber || "",
-          agentId: history.agentId || "",
-          transcript: history.transcript || "",
-          summary: history.callSummary || "",
-          sentiment: history.userSentiment || "" ,
-          timestamp: history.endTimestamp || "",
-          duration: history.durationMs||"",
-          status: history.callStatus || "",
-        }));
-  
-        const totalCount = await callHistoryModel.countDocuments({ agentId: { $in: agentIds } });
-        const totalPages = Math.ceil(totalCount / pageSize);
-  
-        res.json({
-          success: true,
-          page,
-          totalPages,
-          totalCount,
-          callHistories,
-        });
-      } catch (error) {
-        console.error("Error fetching call history:", error);
-        res.status(500).json({ success: false, message: "Internal Server Error" });
-      }
-    });
+    this.app.post(
+      "/call-history-client",
+      async (req: Request, res: Response) => {
+        try {
+          const { agentIds } = req.body;
+          const page = parseInt(req.body.page) || 1;
+          const pageSize = 100;
+          const skip = (page - 1) * pageSize;
+
+          const callHistory = await callHistoryModel
+            .find({ agentId: { $in: agentIds } }, { callId: 0 })
+            .sort({ startTimestamp: -1 })
+            .skip(skip)
+            .limit(pageSize);
+
+          const callHistories = callHistory.map((history) => ({
+            firstname: history.userFirstname || "",
+            lastname: history.userLastname || "",
+            email: history.userEmail || "",
+            phone: history.toNumber || "",
+            agentId: history.agentId || "",
+            transcript: history.transcript || "",
+            summary: history.callSummary || "",
+            sentiment: history.userSentiment || "",
+            timestamp: history.endTimestamp || "",
+            duration: history.durationMs || "",
+            status: history.callStatus || "",
+          }));
+
+          const totalCount = await callHistoryModel.countDocuments({
+            agentId: { $in: agentIds },
+          });
+          const totalPages = Math.ceil(totalCount / pageSize);
+
+          res.json({
+            success: true,
+            page,
+            totalPages,
+            totalCount,
+            callHistories,
+          });
+        } catch (error) {
+          console.error("Error fetching call history:", error);
+          res
+            .status(500)
+            .json({ success: false, message: "Internal Server Error" });
+        }
+      },
+    );
   }
   getCallHistoryAdmin() {
     this.app.post(
@@ -2556,30 +2594,29 @@ export class Server {
           const page = parseInt(req.body.page) || 1;
           const pageSize = 100;
           const skip = (page - 1) * pageSize;
-    
+
           const callHistory = await callHistoryModel
             .find({ agentId }, { callId: 0 })
             .sort({ startTimestamp: -1 })
             .skip(skip)
             .limit(pageSize);
-    
-            function convertMsToHourMinSec(ms: number): string {
-              const totalSeconds = Math.floor(ms / 1000);
-              const hours = Math.floor(totalSeconds / 3600);
-              const minutes = Math.floor((totalSeconds % 3600) / 60);
-              const seconds = totalSeconds % 60;
-    
-              return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-                2,
-                "0",
-              )}:${String(seconds).padStart(2, "0")}`;
-            }
-    
-          const callHistories = callHistory.map(history => ({
+
+          function convertMsToHourMinSec(ms: number): string {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            return `${String(hours).padStart(2, "0")}:${String(
+              minutes,
+            ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+          }
+
+          const callHistories = callHistory.map((history) => ({
             firstname: history.userFirstname || "",
             lastname: history.userLastname || "",
             email: history.userEmail || "",
-            phone: history.toNumber|| "",
+            phone: history.toNumber || "",
             agentId: history.agentId || "",
             transcript: history.transcript || "",
             summary: history.callSummary || "",
@@ -2588,10 +2625,10 @@ export class Server {
             duration: history.durationMs || "",
             status: history.callStatus || "",
           }));
-    
+
           const totalCount = await callHistoryModel.countDocuments({ agentId });
           const totalPages = Math.ceil(totalCount / pageSize);
-    
+
           res.json({
             success: true,
             page,
@@ -2601,7 +2638,9 @@ export class Server {
           });
         } catch (error) {
           console.error("Error fetching call history:", error);
-          res.status(500).json({ success: false, message: "Internal Server Error" });
+          res
+            .status(500)
+            .json({ success: false, message: "Internal Server Error" });
         }
       },
     );
@@ -2913,36 +2952,43 @@ export class Server {
     this.app.post("/graph-stats-admin", async (req: Request, res: Response) => {
       try {
         const { agentId } = req.body;
-
-        const todays = new Date();
-        todays.setHours(0, 0, 0, 0);
-        const todayString = todays.toISOString().split("T")[0];
+  
         if (!agentId) {
           return res
             .status(400)
             .json({ error: "agentId and day are required" });
         }
-
+  
+        const todays = new Date();
+        todays.setHours(0, 0, 0, 0);
+        const todayString = todays.toISOString().split("T")[0];
+  
+        console.log("Today's date:", todayString);
+  
+        // Fetch stats for the specified agent and date
         const stats = await dailyGraphModel.findOne({
           agentId,
           date: todayString,
         });
-
+  
         if (!stats) {
           return res
             .status(404)
             .json({ message: "No stats found for the given agent and day" });
         }
-
+  
+        // Retrieve and process hourlyCalls (stored as a Map)
         const hourlyCalls = stats.hourlyCalls;
-
-        const filteredCalls = Array.from(hourlyCalls)
+  
+        // Convert the Map to an array and filter/map the data
+        const filteredCalls = Array.from(hourlyCalls.entries()) // Convert Map to [key, value] array
           .filter(([hour]) => {
-            const hourInt = parseInt(hour.split(":")[0], 10);
-            return hourInt >= 9 && hourInt < 15;
+            const hourInt = parseInt(hour.split(":")[0], 10); // Parse the hour
+            console.log(hourInt)
+            return hourInt >= 9 && hourInt < 15; // Filter hours between 9:00 and 15:00
           })
-          .map(([hour, count]) => ({ x: hour, y: count }));
-
+          .map(([hour, count]) => ({ x: hour, y: count })); // Map to desired format
+  
         res.json(filteredCalls);
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -2950,53 +2996,60 @@ export class Server {
       }
     });
   }
+  
   getSpecificScheduleAdmin() {
-    this.app.post("/get-schedule-admin", async (req: Request, res: Response) => {
-      try {
-        const { jobId } = req.body;
+    this.app.post(
+      "/get-schedule-admin",
+      async (req: Request, res: Response) => {
+        try {
+          const { jobId } = req.body;
 
-        let result;
+          let result;
 
-        if (jobId) {
-          result = await jobModel.findOne({ jobId });
-        } else {
-          result = await jobModel.findOne().sort({ createdAt: -1 });
+          if (jobId) {
+            result = await jobModel.findOne({ jobId });
+          } else {
+            result = await jobModel.findOne().sort({ createdAt: -1 });
+          }
+
+          if (!result) {
+            return res.status(404).json({ message: "No job found" });
+          }
+
+          res.json({ result });
+        } catch (error) {
+          console.error("Error fetching schedule:", error);
+          res.status(500).json({ error: "Internal server error" });
         }
-
-        if (!result) {
-          return res.status(404).json({ message: "No job found" });
-        }
-
-        res.json({ result });
-      } catch (error) {
-        console.error("Error fetching schedule:", error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
+      },
+    );
   }
   getSpecificScheduleClient() {
-    this.app.post("/get-schedule-client", async (req: Request, res: Response) => {
-      try {
-        const { jobIds } = req.body;
+    this.app.post(
+      "/get-schedule-client",
+      async (req: Request, res: Response) => {
+        try {
+          const { jobIds } = req.body;
 
-        let result;
+          let result;
 
-        if (jobIds) {
-          result = await jobModel.findOne({ jobId :{$in:jobIds}});
-        } else {
-          result = await jobModel.findOne().sort({ createdAt: -1 });
+          if (jobIds) {
+            result = await jobModel.findOne({ jobId: { $in: jobIds } });
+          } else {
+            result = await jobModel.findOne().sort({ createdAt: -1 });
+          }
+
+          if (!result) {
+            return res.status(404).json({ message: "No job found" });
+          }
+
+          res.json({ result });
+        } catch (error) {
+          console.error("Error fetching schedule:", error);
+          res.status(500).json({ error: "Internal server error" });
         }
-
-        if (!result) {
-          return res.status(404).json({ message: "No job found" });
-        }
-
-        res.json({ result });
-      } catch (error) {
-        console.error("Error fetching schedule:", error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
+      },
+    );
   }
   graphChartClient() {
     this.app.post(
@@ -3061,4 +3114,5 @@ export class Server {
       },
     );
   }
+ 
 }
