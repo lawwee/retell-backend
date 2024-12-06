@@ -1573,7 +1573,7 @@ export class Server {
           sentiment: history.referenceToCallId.analyzedTranscript || "",
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
-          status: history.referenceToCallId.callStatus || "",
+          status: history.referenceToCallId.retellCallStatus || "",
         }));
   
         res.json({
