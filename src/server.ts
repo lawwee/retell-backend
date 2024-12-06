@@ -1434,7 +1434,7 @@ export class Server {
           sentiment: history.referenceToCallId.analyzedTranscript || "",
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
-          status: history.referenceToCallId.callStatus || "",
+          status: history.referenceToCallId.retellCallStatus || "",
         }));
   
         res.json({
@@ -1559,7 +1559,7 @@ export class Server {
             .find(query)
             .populate("referenceToCallId")
             .skip((page - 1) * limit)
-            .limit(limit);
+            .limit(limit).sort()
         }
   
         const data = results.map((history) => ({
