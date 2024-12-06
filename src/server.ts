@@ -2671,7 +2671,7 @@ export class Server {
           const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
           switch (dateOption) {
             case DateOption.Today:
-              dateFilter = { datesCalled: today };
+              dateFilter = { date: today };
               dateFilter1 = { day: today };
               break;
             case DateOption.Yesterday:
@@ -2679,7 +2679,7 @@ export class Server {
               const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
                 timeZone,
               });
-              dateFilter = { datesCalled: yesterday };
+              dateFilter = { date: yesterday };
               dateFilter1 = { day: yesterday };
               break;
             case DateOption.ThisWeek:
@@ -2691,7 +2691,7 @@ export class Server {
                   weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
                 }
               }
-              dateFilter = { datesCalled: { $in: weekdays } };
+              dateFilter = { date: { $in: weekdays } };
               dateFilter1 = { day: { $in: weekdays } };
               break;
             case DateOption.ThisMonth:
@@ -2700,7 +2700,7 @@ export class Server {
                 const day = subDays(now, i);
                 monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
               }
-              dateFilter = { datesCalled: { $in: monthDates } };
+              dateFilter = { date: { $in: monthDates } };
               dateFilter1 = { day: { $in: monthDates } };
               break;
             default:
@@ -2710,7 +2710,7 @@ export class Server {
                 .lean();
 
               if (recentJob) {
-                dateFilter = { datesCalled: recentJob.date };
+                dateFilter = { date: recentJob.date };
                 dateFilter1 = { day: recentJob.date };
               } else {
                 dateFilter = {};
@@ -2722,8 +2722,9 @@ export class Server {
               dateFilter1 = {};
               break;
           }
+          console.log(dateFilter)
           const callHistory = await callHistoryModel
-            .find({ agentId: { $in: agentIds } }, { callId: 0 })
+            .find({ agentId: { $in: agentIds }, ...dateFilter }, { callId: 0 })
             .sort({ startTimestamp: -1 })
             .skip(skip)
             .limit(pageSize);
@@ -2745,6 +2746,7 @@ export class Server {
 
           const totalCount = await callHistoryModel.countDocuments({
             agentId: { $in: agentIds },
+            ...dateFilter
           });
           const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -2782,7 +2784,7 @@ export class Server {
           const today = format(zonedNow, "yyyy-MM-dd", { timeZone });
           switch (dateOption) {
             case DateOption.Today:
-              dateFilter = { datesCalled: today };
+              dateFilter = { date: today };
               dateFilter1 = { day: today };
               break;
             case DateOption.Yesterday:
@@ -2790,7 +2792,7 @@ export class Server {
               const yesterday = format(zonedYesterday, "yyyy-MM-dd", {
                 timeZone,
               });
-              dateFilter = { datesCalled: yesterday };
+              dateFilter = { date: yesterday };
               dateFilter1 = { day: yesterday };
               break;
             case DateOption.ThisWeek:
@@ -2802,7 +2804,7 @@ export class Server {
                   weekdays.push(format(day, "yyyy-MM-dd", { timeZone }));
                 }
               }
-              dateFilter = { datesCalled: { $in: weekdays } };
+              dateFilter = { date: { $in: weekdays } };
               dateFilter1 = { day: { $in: weekdays } };
               break;
             case DateOption.ThisMonth:
@@ -2811,7 +2813,7 @@ export class Server {
                 const day = subDays(now, i);
                 monthDates.unshift(format(day, "yyyy-MM-dd", { timeZone }));
               }
-              dateFilter = { datesCalled: { $in: monthDates } };
+              dateFilter = { date: { $in: monthDates } };
               dateFilter1 = { day: { $in: monthDates } };
               break;
             default:
@@ -2821,7 +2823,7 @@ export class Server {
                 .lean();
 
               if (recentJob) {
-                dateFilter = { datesCalled: recentJob.date };
+                dateFilter = { date: recentJob.date };
                 dateFilter1 = { day: recentJob.date };
               } else {
                 dateFilter = {};
@@ -2854,7 +2856,7 @@ export class Server {
             recordingUrl:history.recordingUrl || ""
           }));
 
-          const totalCount = await callHistoryModel.countDocuments({ agentId });
+          const totalCount = await callHistoryModel.countDocuments({ agentId , ...dateFilter});
           const totalPages = Math.ceil(totalCount / pageSize);
 
           res.json({
