@@ -1307,61 +1307,244 @@ export class Server {
       }
     });
   }
+  // searchForClient() {
+  //   this.app.post(
+  //     "/search-client",
+  //     authmiddleware,
+  //     async (req: Request, res: Response) => {
+  //       const { searchTerm, agentIds } = req.body;
+  //       if ( !agentIds) {
+  //         return res
+  //           .status(400)
+  //           .json({ error: "Search term or agent ids is required" });
+  //       }
+  //       const isValidEmail = (email: string) => {
+  //         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //         return emailRegex.test(email);
+  //       };
+
+  //       try {
+  //         const searchTerms = searchTerm
+  //           .split(",")
+  //           .map((term: string) => term.trim());
+  //         const firstTermIsEmail = isValidEmail(searchTerms[0]);
+
+  //         const searchForTerm = async (
+  //           term: string,
+  //           searchByEmail: boolean,
+  //         ) => {
+  //           const query = {
+  //             agentId: { $in: agentIds },
+  //             isDeleted: false,
+  //             $or: searchByEmail
+  //               ? [{ email: { $regex: term, $options: "i" } }]
+  //               : [
+  //                   { firstname: { $regex: term, $options: "i" } },
+  //                   { lastname: { $regex: term, $options: "i" } },
+  //                   { phone: { $regex: term, $options: "i" } },
+  //                   { email: { $regex: term, $options: "i" } },
+  //                 ],
+  //           };
+  //           console.log(query);
+  //           return await contactModel.find(query).populate("referenceToCallId");
+  //         };
+
+  //         let allResults: any[] = [];
+
+  //         for (const term of searchTerms) {
+  //           const results = await searchForTerm(term, firstTermIsEmail);
+  //           allResults = allResults.concat(results);
+  //         }
+
+  //         res.json(allResults);
+  //       } catch (error) {
+  //         res.status(500).json({ error: "Internal server error" });
+  //       }
+  //     },
+  //   );
+  // }
   searchForClient() {
-    this.app.post(
-      "/search-client",
-      authmiddleware,
-      async (req: Request, res: Response) => {
-        const { searchTerm, agentIds } = req.body;
-        if ( !agentIds) {
-          return res
-            .status(400)
-            .json({ error: "Search term or agent ids is required" });
-        }
-        const isValidEmail = (email: string) => {
+    this.app.post("/search-client", async (req: Request, res: Response) => {
+      // Extract body parameters with default values
+      const {
+        searchTerm = "",
+        startDate,
+        endDate,
+        statusOption,
+        sentimentOption,
+        agentIds,
+        tag,
+        page , // Pagination: Default page
+        limit , // Pagination: Default results per page
+      } = req.body;
+
+      if (!agentIds) {
+        return res
+          .status(400)
+          .json({ error: "AgentIDs is required for the search." });
+      }
+
+      try {
+        // Helper functions for validation and formatting
+        const isValidEmail = (email: string): boolean => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(email);
+          return emailRegex.test(email.trim());
         };
 
-        try {
-          const searchTerms = searchTerm
-            .split(",")
-            .map((term: string) => term.trim());
-          const firstTermIsEmail = isValidEmail(searchTerms[0]);
+        const isValidPhone = (phone: string): boolean => {
+          const phoneRegex = /^\+\d{10,15}$/;
+          return phoneRegex.test(phone.trim());
+        };
 
-          const searchForTerm = async (
-            term: string,
-            searchByEmail: boolean,
-          ) => {
-            const query = {
-              agentId: { $in: agentIds },
-              isDeleted: false,
-              $or: searchByEmail
-                ? [{ email: { $regex: term, $options: "i" } }]
-                : [
-                    { firstname: { $regex: term, $options: "i" } },
-                    { lastname: { $regex: term, $options: "i" } },
-                    { phone: { $regex: term, $options: "i" } },
-                    { email: { $regex: term, $options: "i" } },
-                  ],
-            };
-            console.log(query);
-            return await contactModel.find(query).populate("referenceToCallId");
-          };
+        const formatDateToDB = (dateString: string): string => {
+          const date = new Date(dateString);
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+          const day = String(date.getUTCDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
 
-          let allResults: any[] = [];
+        // Process search terms
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim())
+          .filter((term: any) => term.length > 0); // Remove empty terms
+        const firstTermIsEmail =
+          searchTerms.length > 0 && isValidEmail(searchTerms[0]);
+        const newTag = tag ? tag.toLowerCase() : "";
 
-          for (const term of searchTerms) {
-            const results = await searchForTerm(term, firstTermIsEmail);
-            allResults = allResults.concat(results);
-          }
+        // Construct query object
+        const query: any = {
+          agentId: { $in: agentIds },
+          isDeleted: false,
+        };
 
-          res.json(allResults);
-        } catch (error) {
-          res.status(500).json({ error: "Internal server error" });
+        // Add search term conditions
+        if (searchTerms.length > 0) {
+          query.$or = firstTermIsEmail
+            ? searchTerms.map((term: any) => ({
+                email: { $regex: term, $options: "i" },
+              }))
+            : searchTerms.flatMap((term: any) => [
+                { firstname: { $regex: term, $options: "i" } },
+                { lastname: { $regex: term, $options: "i" } },
+                { phone: { $regex: term, $options: "i" } },
+                { email: { $regex: term, $options: "i" } },
+              ]);
         }
-      },
-    );
+
+        // Add date range filter
+        if (startDate || endDate) {
+          query["datesCalled"] = {};
+          if (startDate && !endDate) {
+            query["datesCalled"]["$eq"] = formatDateToDB(startDate);
+          } else if (startDate && endDate) {
+            query["datesCalled"]["$gte"] = formatDateToDB(startDate);
+            query["datesCalled"]["$lte"] = formatDateToDB(endDate);
+          }
+        }
+
+        // Add tag filter
+        if (tag) {
+          query["tag"] = newTag;
+        }
+
+        // Map statusOption to enum
+        let callStatus: string | undefined;
+        switch (statusOption) {
+          case "called":
+            callStatus = callstatusenum.CALLED;
+            break;
+          case "not-called":
+            callStatus = callstatusenum.NOT_CALLED;
+            break;
+          case "voicemail":
+            callStatus = callstatusenum.VOICEMAIL;
+            break;
+          case "failed":
+            callStatus = callstatusenum.FAILED;
+            break;
+          case "transferred":
+            callStatus = callstatusenum.TRANSFERRED;
+            break;
+          case "appointment":
+            callStatus = callstatusenum.SCHEDULED;
+            break;
+          case "all":
+            callStatus = ""; // Ignore status filtering
+            break;
+          default:
+            if (statusOption) {
+              return res
+                .status(400)
+                .json({ error: "Invalid status option provided." });
+            }
+        }
+
+        if (callStatus) {
+          query["status"] = callStatus;
+        }
+
+        let queryOptions: any = {};
+        if (page && limit) {
+          queryOptions = {
+            skip: (page - 1) * limit,
+            limit: limit,
+          };
+        }
+        console.log(query)
+        // Execute query
+        const results = await contactModel
+          .find(query)
+          .populate("referenceToCallId")
+          .skip(queryOptions.skip || 0)
+          .limit(queryOptions.limit || 0) ;
+
+        
+          
+        // Sentiment Mapping
+        const sentimentMapping: { [key: string]: string | undefined } = {
+          negative: callSentimentenum.NEGATIVE,
+          "call-back": callSentimentenum.CALLBACK,
+          positive: callSentimentenum.POSITIVE,
+          scheduled: callSentimentenum.SCHEDULED,
+          neutral: callSentimentenum.NEUTRAL,
+          unknown: callSentimentenum.UNKNOWN,
+        };
+
+        const sentimentStatus = sentimentOption
+          ? sentimentMapping[sentimentOption.toLowerCase()]
+          : undefined;
+
+        if (sentimentOption && !sentimentStatus) {
+          return res
+            .status(400)
+            .json({ error: "Invalid sentiment option provided." });
+        }
+
+        // Filter results by sentiment
+        const filteredResults = results.filter((contact) => {
+          const analyzedTranscript =
+            contact.referenceToCallId?.analyzedTranscript;
+          return (
+            !sentimentOption ||
+            sentimentOption.toLowerCase() === "all" ||
+            analyzedTranscript === sentimentStatus
+          );
+        });
+
+        // Response with filtered results
+        res.json({
+          page,
+          limit,
+          total: filteredResults.length,
+          results: filteredResults
+        });
+      } catch (error) {
+        console.error("Error in searchForAdmin:", error);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    });
   }
   searchForAdmin() {
     this.app.post("/search", async (req: Request, res: Response) => {
