@@ -554,7 +554,7 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber, tag } = req.body;
+        const { hour, minute, agentId, limit, fromNumber, tag, address } = req.body;
 
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
@@ -580,6 +580,7 @@ export class Server {
           fromNumber,
           formattedDate,
           lowerCaseTag,
+          address
         );
         res.send({ jobId, scheduledTime, contacts });
       },
@@ -1435,6 +1436,7 @@ export class Server {
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
           status: history.referenceToCallId.retellCallStatus || "",
+          recordingUrl:history.referenceToCallId.recordingUrl || ""
         }));
   
         res.json({
@@ -1574,6 +1576,7 @@ export class Server {
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
           status: history.referenceToCallId.retellCallStatus || "",
+          recordingUrl:history.referenceToCallId.recordingUrl || ""
         }));
   
         res.json({
@@ -2731,6 +2734,7 @@ export class Server {
             timestamp: history.endTimestamp || "",
             duration: history.durationMs || "",
             status: history.callStatus || "",
+            recordingUrl:history.recordingUrl || ""
           }));
 
           const totalCount = await callHistoryModel.countDocuments({
@@ -2841,6 +2845,7 @@ export class Server {
             timestamp: history.endTimestamp || "",
             duration: history.durationMs || "",
             status: history.callStatus || "",
+            recordingUrl:history.recordingUrl || ""
           }));
 
           const totalCount = await callHistoryModel.countDocuments({ agentId });

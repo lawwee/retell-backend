@@ -78,7 +78,8 @@ const ContactSchema = new Schema<IContact>(
     },
     timesCalled: {
       type: String
-    }
+    },
+    address:{type:String}
   },
   { timestamps: true },
 );

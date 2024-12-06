@@ -36,6 +36,7 @@ export interface IContact {
   callBackDate:string
   isOnDNCList: boolean
   timesCalled: string
+  address:string
 }
 
 export enum DaysToBeProcessedEnum{
