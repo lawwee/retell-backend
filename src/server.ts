@@ -980,6 +980,11 @@ export class Server {
       const isNegative =
         payload.data.call_analysis.user_sentiment === "Negative";
 
+      let addressStat 
+      if(payload.call.agent_id === "" || payload.call.agent_id === ""){
+        addressStat = payload.data.call_analysis.address
+      }
+
       if (isScheduled) {
         sentimentStatus = callSentimentenum.SCHEDULED;
       } else if (isCall_Back) {
@@ -997,6 +1002,7 @@ export class Server {
         retellCallSummary: payload.data.call_analysis.call_summary,
         analyzedTranscript: sentimentStatus,
         userSentiment: sentimentStatus,
+        address:addressStat
       };
       const results = await EventModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
