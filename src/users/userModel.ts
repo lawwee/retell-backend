@@ -37,7 +37,6 @@ const userSchema = new Schema(
     },
     group: {
       type: String,
-      enum: ["BE+WELL", "TVAG", "ARS", "GSA", "LQR", "DMM"],
       required: [true, "provide a group"],
     },
     isAdmin: {
@@ -52,7 +51,7 @@ const userSchema = new Schema(
       type: String,
     },
     loginDetails: [loginSchema],
-    
+
   },
   {
     timestamps: true,

@@ -91,38 +91,59 @@ import { callSentimentenum } from "./utils/types";
 
 export async function script() {
   try {
-    // Fetch all documents where startTimestamp exists
-    const results = await EventModel.find({
-      userSentiment: { $exists: true },  analyzedTranscript: { $nin: [callSentimentenum.SCHEDULED, callSentimentenum.CALLBACK]}
-    });
-    console.log("here")
+    // Fetch all documents from the callHistoryModel
+    const results = await callHistoryModel.find({agentName:{exists:true}});
 
-    // Prepare an array for bulk update operations
-    const bulkOps = results.map(doc => {
-      
-      if (doc.userSentiment) {
-        const formattedDate = doc.userSentiment.toLowerCase()
-        console.log(`Mapping document with ID: ${doc._id}`);
-        console.log(`Formatted userSentiment to analyzedTranscript: ${formattedDate}`);
-        // Create a bulk operation for updating the document
-        return {
+    // Initialize a counter to track the number of matched documents
+    let matchCounter = 0;
+
+    // Prepare an array for bulk update operations on EventModel
+    const bulkOpsEventModel = [];
+
+    // Iterate over the documents in the callHistoryModel
+    for (const doc of results) {
+      const callId = doc.callId; // Assuming the callHistory model has a field `callId`
+
+      // Find the corresponding document in the EventModel using callId
+      const eventDoc = await EventModel.findOne({ callId });
+
+      // If a matching document is found in the EventModel
+      if (eventDoc) {
+        // Increment the matchCounter
+        matchCounter++;
+
+        // Add the update operation to the bulkOps array
+        bulkOpsEventModel.push({
           updateOne: {
-            filter: { _id: doc._id }, // Match the document by its ID
-            update: { $set: { analyzedTranscript: formattedDate } }, // Set the new date
-          }
-        };
-      }
-      return null; // Return null for documents without startTimestamp
-    }).filter(Boolean); // Filter out null entries
+            filter: { _id: eventDoc._id }, // Match the EventModel by its ID
+            update: {
+              $set: {
+                retellCallStatus: doc.callStatus,
+                duration: doc.durationMs,
+                agentName: doc.agentName,
+                timestamp: doc.endTimestamp
+                // Add any other fields you want to update
+              },
+            },
+          },
+        });
 
-    // Execute all updates in a single batch operation
-    if (bulkOps.length > 0) {
-      const result = await callHistoryModel.bulkWrite(bulkOps);
+        // Log the counter and the successful update
+        console.log(`Matched and updated ${matchCounter}: EventModel with callId: ${callId} updated.`);
+      } else {
+        // Log that no matching EventModel was found for this callId
+        console.log(`No matching EventModel found for callId: ${callId}`);
+      }
+    }
+
+    // Execute the bulk update operation if there are any updates
+    if (bulkOpsEventModel.length > 0) {
+      const result = await EventModel.bulkWrite(bulkOpsEventModel);
       console.log(`Bulk update successful: ${result.modifiedCount} documents updated.`);
     } else {
-      console.log('No documents to update.');
+      console.log("No documents to update.");
     }
   } catch (error) {
-    console.log(error);
+    console.log("Error in script:", error);
   }
 }

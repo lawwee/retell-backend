@@ -195,8 +195,6 @@ export class Server {
   createPhoneCall2() {
     this.app.post(
       "/create-llm-phone-call",
-      authmiddleware,
-      isAdmin,
       async (req: Request, res: Response) => {
         const { fromNumber, toNumber, userId, agentId } = req.body;
         const result = await contactModel.findById(userId);
@@ -771,6 +769,16 @@ export class Server {
       }
 
       if (payload.event === "call_ended") {
+        let agentNameEnum;
+        if (agent_id === "agent_1852d8aa89c3999f70ecba92b8") {
+          agentNameEnum = "ARS";
+        } else if (agent_id === "agent_6beffabb9adf0ef5bbab8e0bb2") {
+          agentNameEnum = "LQR";
+        } else if (agent_id === "agent_155d747175559aa33eee83a976") {
+          agentNameEnum = "SDR";
+        } else if (agent_id === "214e92da684138edf44368d371da764c") {
+          agentNameEnum = "TVAG";
+        }
         const isCallFailed = disconnection_reason === "dial_failed";
         const isCallTransferred = disconnection_reason === "call_transfer";
         // const isMachine = disconnection_reason === "voicemail_reached";
@@ -799,6 +807,11 @@ export class Server {
           callDuration: newDuration,
           disconnectionReason: disconnection_reason,
           callBackDate: callbackdate,
+          retellCallStatus:payload.data.call_status,
+          agentName: agentNameEnum,
+          duration:
+          convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
+          timestamp:end_timestamp,
           ...(transcript && { transcript }),
         };
 
@@ -837,16 +850,7 @@ export class Server {
           callStatus = callstatusenum.CALLED;
         }
 
-        let agentNameEnum;
-        if (agent_id === "agent_1852d8aa89c3999f70ecba92b8") {
-          agentNameEnum = "ARS";
-        } else if (agent_id === "agent_6beffabb9adf0ef5bbab8e0bb2") {
-          agentNameEnum = "LQR";
-        } else if (agent_id === "agent_155d747175559aa33eee83a976") {
-          agentNameEnum = "SDR";
-        } else if (agent_id === "214e92da684138edf44368d371da764c") {
-          agentNameEnum = "TVAG";
-        }
+       
         const callData = {
           callId: call_id,
           agentId: agent_id,
@@ -1307,6 +1311,7 @@ export class Server {
       }
     });
   }
+ 
   searchForClient() {
     this.app.post("/search-client", async (req: Request, res: Response) => {
       const {
@@ -1418,23 +1423,26 @@ export class Server {
             .limit(limit);
         }
   
-        // Map analyzedTranscript as a top-level field while keeping referenceToCallId
-        const mappedResults = results.map((result) => {
-          const { referenceToCallId, ...rest } = result._doc; // Spread remaining fields
-          return {
-            ...rest,
-            referenceToCallId, // Keep the full referenceToCallId object
-            analyzedTranscript: referenceToCallId?.analyzedTranscript || null, 
-            retelStatus: referenceToCallId?. retellCallStatus || null
-          };
-        });
+        const data = results.map((history) => ({
+          firstname: history.firstname || "",
+          lastname: history.lastname || "",
+          email: history.email || "",
+          phone: history.phone || "",
+          agentId: history.referenceToCallId.agentName || "",
+          transcript: history.referenceToCallId.transcript || "",
+          summary: history.referenceToCallId.retellCallSummary || "",
+          sentiment: history.referenceToCallId.analyzedTranscript || "",
+          timestamp: history.referenceToCallId.timestamp || "",
+          duration: history.referenceToCallId.duration || "",
+          status: history.referenceToCallId.callStatus || "",
+        }));
   
         res.json({
           page,
           limit,
           totalRecords,
           totalPages,
-          results: mappedResults,
+          results: data,
         });
       } catch (error) {
         console.error("Error in searchForAdmin:", error);
@@ -1442,189 +1450,7 @@ export class Server {
       }
     });
   }
-  
-  // searchForAdmin() {
-  //   this.app.post("/search", async (req: Request, res: Response) => {
-  //     const {
-  //       searchTerm = "",
-  //       startDate,
-  //       endDate,
-  //       statusOption,
-  //       sentimentOption,
-  //       agentId,
-  //       tag,
-  //       page = 1, // Default to page 1 if not provided
-  //       limit = 100, // Default to limit 10 if not provided
-  //     } = req.body;
-  
-  //     if (!agentId) {
-  //       return res
-  //         .status(400)
-  //         .json({ error: "Agent ID is required for the search." });
-  //     }
-  
-  //     try {
-  //       // Utility functions for validation and formatting
-  //       const isValidEmail = (email: string): boolean => {
-  //         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  //         return emailRegex.test(email.trim());
-  //       };
-  
-  //       const isValidPhone = (phone: string): boolean => {
-  //         const phoneRegex = /^\+\d{10,15}$/;
-  //         return phoneRegex.test(phone.trim());
-  //       };
-  
-  //       const formatDateToDB = (dateString: string): string => {
-  //         const date = new Date(dateString);
-  //         const year = date.getUTCFullYear();
-  //         const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  //         const day = String(date.getUTCDate()).padStart(2, "0");
-  //         return `${year}-${month}-${day}`;
-  //       };
-  
-  //       // Build search terms
-  //       const searchTerms = searchTerm
-  //         .split(",")
-  //         .map((term: string) => term.trim())
-  //         .filter((term: any) => term.length > 0);
-  //       const firstTermIsEmail =
-  //         searchTerms.length > 0 && isValidEmail(searchTerms[0]);
-  //       const newTag = tag ? tag.toLowerCase() : "";
-  
-  //       // Build the query object
-  //       const query: any = {
-  //         agentId,
-  //         isDeleted: false,
-  //       };
-  
-  //       if (searchTerms.length > 0) {
-  //         query.$or = firstTermIsEmail
-  //           ? searchTerms.map((term: any) => ({
-  //               email: { $regex: term, $options: "i" },
-  //             }))
-  //           : searchTerms.flatMap((term: any) => [
-  //               { firstname: { $regex: term, $options: "i" } },
-  //               { lastname: { $regex: term, $options: "i" } },
-  //               { phone: { $regex: term, $options: "i" } },
-  //               { email: { $regex: term, $options: "i" } },
-  //             ]);
-  //       }
-  
-  //       if (startDate || endDate) {
-  //         query["datesCalled"] = {};
-  //         if (startDate && !endDate) {
-  //           query["datesCalled"]["$eq"] = formatDateToDB(startDate);
-  //         } else if (startDate && endDate) {
-  //           query["datesCalled"]["$gte"] = formatDateToDB(startDate);
-  //           query["datesCalled"]["$lte"] = formatDateToDB(endDate);
-  //         }
-  //       }
-  
-  //       if (tag) {
-  //         query["tag"] = newTag;
-  //       }
-  
-  //       // Map status options to enums
-  //       let callStatus: string | undefined;
-  //       switch (statusOption) {
-  //         case "called":
-  //           callStatus = callstatusenum.CALLED;
-  //           break;
-  //         case "not-called":
-  //           callStatus = callstatusenum.NOT_CALLED;
-  //           break;
-  //         case "voicemail":
-  //           callStatus = callstatusenum.VOICEMAIL;
-  //           break;
-  //         case "failed":
-  //           callStatus = callstatusenum.FAILED;
-  //           break;
-  //         case "transferred":
-  //           callStatus = callstatusenum.TRANSFERRED;
-  //           break;
-  //         case "appointment":
-  //           callStatus = callstatusenum.SCHEDULED;
-  //           break;
-  //         case "all":
-  //           callStatus = "";
-  //           break;
-  //         default:
-  //           if (statusOption) {
-  //             return res
-  //               .status(400)
-  //               .json({ error: "Invalid status option provided." });
-  //           }
-  //       }
-  
-  //       if (callStatus) {
-  //         query["status"] = callStatus;
-  //       }
-  
-  //       // Map sentiment options to enums
-  //       const sentimentMapping: { [key: string]: string | undefined } = {
-  //         negative: callSentimentenum.NEGATIVE,
-  //         "call-back": callSentimentenum.CALLBACK,
-  //         positive: callSentimentenum.POSITIVE,
-  //         scheduled: callSentimentenum.SCHEDULED,
-  //         neutral: callSentimentenum.NEUTRAL,
-  //         unknown: callSentimentenum.UNKNOWN,
-  //       };
-  
-  //       const sentimentStatus = sentimentOption
-  //         ? sentimentMapping[sentimentOption.toLowerCase()]
-  //         : undefined;
-  
-  //       if (sentimentOption && !sentimentStatus) {
-  //         return res
-  //           .status(400)
-  //           .json({ error: "Invalid sentiment option provided." });
-  //       }
-  
-  //       // Fetch all results if sentimentOption is provided, otherwise paginate at the database level
-  //       const queryOptions: any = {};
-  //       if (!sentimentOption) {
-  //         queryOptions.skip = (page - 1) * limit;
-  //         queryOptions.limit = limit;
-  //       }
-  
-  //       const results = await contactModel
-  //         .find(query)
-  //         .populate("referenceToCallId")
-  //         .skip(queryOptions.skip || 0)
-  //         .limit(queryOptions.limit || 0);
-  
-  //       // Filter results based on sentimentOption (if provided)
-  //       let filteredResults = results;
-  //       if (sentimentOption) {
-  //         filteredResults = results.filter((contact) => {
-  //           const analyzedTranscript =
-  //             contact.referenceToCallId?.analyzedTranscript;
-  //           return (
-  //             sentimentOption.toLowerCase() === "all" ||
-  //             analyzedTranscript === sentimentStatus
-  //           );
-  //         });
-  
-  //         // Apply pagination AFTER filtering
-  //         const startIndex = (page - 1) * limit;
-  //         const endIndex = startIndex + limit;
-  //         filteredResults = filteredResults.slice(startIndex, endIndex);
-  //       }
-  
-  //       // Send response
-  //       res.json({
-  //         page,
-  //         limit: sentimentOption ? limit : undefined,
-  //         total: filteredResults.length,
-  //         results: filteredResults,
-  //       });
-  //     } catch (error) {
-  //       console.error("Error in searchForAdmin:", error);
-  //       return res.status(500).json({ error: "Internal server error" });
-  //     }
-  //   });
-  // }
+
   searchForAdmin() {
     this.app.post("/search", async (req: Request, res: Response) => {
       const {
@@ -1736,23 +1562,26 @@ export class Server {
             .limit(limit);
         }
   
-        // Map analyzedTranscript as a top-level field while keeping referenceToCallId
-        const mappedResults = results.map((result) => {
-          const { referenceToCallId, ...rest } = result._doc; // Spread remaining fields
-          return {
-            ...rest,
-            referenceToCallId, // Keep the full referenceToCallId object
-            analyzedTranscript: referenceToCallId?.analyzedTranscript || null, 
-            retelStatus: referenceToCallId?. retellCallStatus || null
-          };
-        });
+        const data = results.map((history) => ({
+          firstname: history.firstname || "",
+          lastname: history.lastname || "",
+          email: history.email || "",
+          phone: history.phone || "",
+          agentId: history.referenceToCallId.agentName || "",
+          transcript: history.referenceToCallId.transcript || "",
+          summary: history.referenceToCallId.retellCallSummary || "",
+          sentiment: history.referenceToCallId.analyzedTranscript || "",
+          timestamp: history.referenceToCallId.timestamp || "",
+          duration: history.referenceToCallId.duration || "",
+          status: history.referenceToCallId.callStatus || "",
+        }));
   
         res.json({
           page,
           limit,
           totalRecords,
           totalPages,
-          results: mappedResults,
+          results: data,
         });
       } catch (error) {
         console.error("Error in searchForAdmin:", error);
@@ -1761,7 +1590,6 @@ export class Server {
     });
   }
   
-
   batchDeleteUser() {
     this.app.post(
       "/batch-delete-users",
