@@ -1825,6 +1825,7 @@ export class Server {
     });
   }
 
+  
   signUpUser() {
     this.app.post("/user/signup", async (req: Request, res: Response) => {
       try {
