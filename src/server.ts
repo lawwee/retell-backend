@@ -48,12 +48,6 @@ import { logsToCsv } from "./LOGS-FUCNTION/logsToCsv";
 import { statsToCsv } from "./LOGS-FUCNTION/statsToCsv";
 import { scheduleCronJob } from "./Schedule-Fuctions/scheduleJob";
 import OpenAI from "openai";
-
-import {
-  reviewCallback,
-  reviewTranscriptForSentiment,
-  reviewTranscriptForStatus,
-} from "./helper-fuction/transcript-review";
 import jwt from "jsonwebtoken";
 import { redisConnection } from "./utils/redis";
 import { userModel } from "./users/userModel";
@@ -82,6 +76,7 @@ import {
 import { dailyGraphModel } from "./Schedule-Fuctions/graphModel";
 import { updateStatsByHour } from "./Schedule-Fuctions/graphController";
 import { DateTime } from "luxon";
+import { reviewCallback, reviewTranscript } from "./helper-fuction/transcript-review";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -784,7 +779,7 @@ export class Server {
         const isCallAnswered =
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
-        analyzedTranscriptForStatus = await reviewTranscriptForStatus(
+        analyzedTranscriptForStatus = await reviewTranscript(
           transcript,
         );
         const isCallScheduled =
@@ -822,7 +817,10 @@ export class Server {
         } else if (isIVR) {
           statsUpdate.$inc.totalAnsweredByIVR = 1;
           callStatus = callstatusenum.IVR;
-        } else if (isCallFailed) {
+        } else if (isCallScheduled) {
+          statsUpdate.$inc.totalAppointment = 1;
+          callStatus = callstatusenum.SCHEDULED;
+        }else if (isCallFailed) {
           statsUpdate.$inc.totalFailed = 1;
           callStatus = callstatusenum.FAILED;
         } else if (isCallTransferred) {
@@ -831,10 +829,7 @@ export class Server {
         } else if (isDialNoAnswer) {
           statsUpdate.$inc.totalDialNoAnswer = 1;
           callStatus = callstatusenum.NO_ANSWER;
-        } else if (isCallScheduled) {
-          statsUpdate.$inc.totalAppointment = 1;
-          callStatus = callstatusenum.SCHEDULED;
-        } else if (isCallInactivity) {
+        }  else if (isCallInactivity) {
           statsUpdate.$inc.totalCallInactivity = 1;
           callStatus = callstatusenum.INACTIVITY;
         } else if (isCallAnswered) {
@@ -966,7 +961,7 @@ export class Server {
       //     );
       //   });
 
-      analyzedTranscriptForSentiment = await reviewTranscriptForSentiment(
+      analyzedTranscriptForSentiment = await reviewTranscript(
         payload.data.transcript,
       );
       const isScheduled =
@@ -1318,7 +1313,7 @@ export class Server {
       authmiddleware,
       async (req: Request, res: Response) => {
         const { searchTerm, agentIds } = req.body;
-        if (!searchTerm || !agentIds) {
+        if ( !agentIds) {
           return res
             .status(400)
             .json({ error: "Search term or agent ids is required" });

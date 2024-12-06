@@ -5,7 +5,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_APIKEY,
 });
 
-export const reviewTranscriptForSentiment = async (transcript: string) => {
+export const reviewTranscript = async (transcript: string) => {
   try {
     const completion = await client.chat.completions.create({
       messages: [
@@ -15,42 +15,17 @@ export const reviewTranscriptForSentiment = async (transcript: string) => {
           content: `You are an expert data analyst specializing in sentiment analysis of call transcripts between AI agents and leads. Your task is to accurately categorize each conversation based on the lead's responses. Please use one of the following categories:
 
 Categories:
+interested: The lead either clearly expresses interest—agreeing to book an appointment or actively discussing next steps—or requests a follow-up, suggesting the agent call back later or follow up in the future.
+not-interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
 scheduled: The lead confirms a specific time for an appointment or meeting.
-call-back: The lead specifies they want to be called back at a later time
-Instructions
-Analyze the transcript below and assign it the most fitting category based on the lead's responses.
-If the transcript is empty or missing or does not fit any of the above categories, respond with N/A.
-Respond only with the appropriate category without any additional explanation.
-Transcript: ${transcript}`,
-        },
-      ],
-      // model: "gpt-4-turbo-preview",
-      model: "gpt-4o-mini", 
-    });
-
-    return completion.choices[0];
-  } catch (error) {
-    console.error("Error analyzing transcript:", error);
-    throw new Error("Failed to analyze transcript");
-  }
-};
-
-export const reviewTranscriptForStatus = async (transcript: string) => {
-  try {
-    const completion = await client.chat.completions.create({
-      messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        {
-          role: "user",
-          content: `You are an expert data analyst specializing in sentiment analysis of call transcripts between AI agents and leads. Your task is to accurately categorize each conversation based on the lead's responses. Please use one of the following categories:
-
-Categories:
+incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
 voicemail: Based on the content of this call transcript, identify whether this is an AM/VM (Answering Machine/Voice Mail)
+dnc: The lead explicitly says they never want to be called back again or ask to be removed from the list and not be called again
 ivr: Based on the content of this call transcript, identify whether this is an IVR (Interactive Voice Response) system.
-scheduled: The lead confirms a specific time for an appointment or meeting.
 Instructions
+
 Analyze the transcript below and assign it the most fitting category based on the lead's responses.
-If the transcript is empty or missing or does not fit any of the above categories, respond with N/A.
+If the transcript is empty or missing, respond with N/A.
 Respond only with the appropriate category without any additional explanation.
 Transcript: ${transcript}`,
         },
