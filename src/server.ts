@@ -2083,27 +2083,40 @@ export class Server {
   getAllDbTags() {
     this.app.post(
       "/get-tags",
-
       async (req: Request, res: Response) => {
-        const { agentId } = req.body;
-
+        const { agentIds } = req.body; 
+  
         try {
-          const user = await userModel.findOne(
-            { "agents.agentId": agentId },
-            { "agents.$": 1 },
-          );
-          if (user && user.agents.length > 0) {
-            res.send({ payload: user.agents[0].tag });
-          } else {
-            res.send({ payload: "Agent not found" });
+          if (!Array.isArray(agentIds) || agentIds.length === 0) {
+            return res.status(400).send({ error: "agentIds must be a non-empty array." });
           }
+  
+        
+          const users = await userModel.find(
+            { "agents.agentId": { $in: agentIds } }, 
+            { agents: 1 } )
+  
+          // Extract tags for the given agentIds
+          const tagsMap: Record<string, string[]> = {};
+  
+          users.forEach((user) => {
+            user.agents.forEach((agent) => {
+              if (agentIds.includes(agent.agentId)) {
+                tagsMap[agent.agentId] = agent.tag; 
+              }
+            });
+          });
+  
+          // Send the response
+          res.send({ payload: tagsMap });
         } catch (error) {
-          console.error("Error fetching tag:", error);
-          return "Error fetching tag";
+          console.error("Error fetching tags:", error);
+          return res.status(500).send({ error: "Error fetching tags" });
         }
-      },
+      }
     );
   }
+  
   syncStatWithMake() {
     this.app.post("/api/make", async (req: Request, res: Response) => {
       const foundContacts: IContact[] = await contactModel
