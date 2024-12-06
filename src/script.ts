@@ -12,6 +12,7 @@
 //   apiKey: process.env.RETELL_API_KEY,
 // });
 
+import { EventModel } from "./contacts/contact_model";
 import callHistoryModel from "./contacts/history_model";
 
 // export async function script() {
@@ -90,24 +91,20 @@ import callHistoryModel from "./contacts/history_model";
 export async function script() {
   try {
     // Fetch all documents where startTimestamp exists
-    const results = await callHistoryModel.find({
-      startTimestamp: { $exists: true },
+    const results = await EventModel.find({
+      userSentiment: { $exists: true },
     });
 
     // Prepare an array for bulk update operations
     const bulkOps = results.map(doc => {
-      if (doc.startTimestamp) {
-        // Convert startTimestamp (milliseconds) to a Date object
-        const date = new Date(doc.startTimestamp);
-        
-        // Format the date to YYYY-MM-DD
-        const formattedDate = date.toISOString().split("T")[0];
-
+      if (doc.userSentiment) {
+        const formattedDate = doc.userSentiment.toLowerCase()
+        console.log(formattedDate)
         // Create a bulk operation for updating the document
         return {
           updateOne: {
             filter: { _id: doc._id }, // Match the document by its ID
-            update: { $set: { date: formattedDate } }, // Set the new date
+            update: { $set: { analyzedTranscript: formattedDate } }, // Set the new date
           }
         };
       }

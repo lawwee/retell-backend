@@ -1490,6 +1490,7 @@ export class Server {
           query["status"] = callStatus;
         }
 
+      
         // Execute query
         const results = await contactModel
           .find(query)
@@ -1497,6 +1498,7 @@ export class Server {
           .skip((page - 1) * limit)
           .limit(limit);
 
+          console.log(results)
         // Sentiment Mapping
         const sentimentMapping: { [key: string]: string | undefined } = {
           negative: callSentimentenum.NEGATIVE,
@@ -3247,35 +3249,35 @@ export class Server {
             .find({ agentId })
             .sort({ date: -1 })
             .limit(1);
-
+        
+          // Check if no stats were found
           if (!lastStat || lastStat.length === 0) {
-            return res
-              .status(404)
-              .json({ message: "No stats found for the last schedule." });
-          }
-
-          const lastScheduleDate = lastStat[0].date;
-
-          // Fetch stats for the last schedule date
-          stats = await dailyGraphModel.find({
-            agentId,
-            date: lastScheduleDate,
-          });
-
-          // Initialize response with hourly template
-          response = createHourlyTemplate();
-
-          if (stats && stats.length > 0) {
-            const hourlyCalls: Map<string, number> =
-              stats[0].hourlyCalls || new Map();
-
-            // Update the response with actual data
-            hourlyCalls.forEach((count, hour) => {
-              const hourIndex = parseInt(hour.split(":")[0], 10) - 9; // 9 AM is the first index
-              if (hourIndex >= 0 && hourIndex < 7) {
-                response[hourIndex].y = count; // Update the count for the corresponding hour
-              }
+            // Return a predefined structure with all values set to 0
+            response = createHourlyTemplate();
+          } else {
+            const lastScheduleDate = lastStat[0].date;
+        
+            // Fetch stats for the last schedule date
+            stats = await dailyGraphModel.find({
+              agentId,
+              date: lastScheduleDate,
             });
+        
+            // Initialize response with hourly template
+            response = createHourlyTemplate();
+        
+            if (stats && stats.length > 0) {
+              const hourlyCalls: Map<string, number> =
+                stats[0].hourlyCalls || new Map();
+        
+              // Update the response with actual data
+              hourlyCalls.forEach((count, hour) => {
+                const hourIndex = parseInt(hour.split(":")[0], 10) - 9; // 9 AM is the first index
+                if (hourIndex >= 0 && hourIndex < 7) {
+                  response[hourIndex].y = count; // Update the count for the corresponding hour
+                }
+              });
+            }
           }
         } else {
           return res.status(400).json({ error: "Invalid dateOption" });
@@ -3490,53 +3492,47 @@ export class Server {
               .find({ agentId: { $in: agentIds } })
               .sort({ date: -1 })
               .limit(1);
-
+          
+            // If no last schedule exists, return default hourly template
             if (!lastStat || lastStat.length === 0) {
-              return res
-                .status(404)
-                .json({ message: "No stats found for the last schedule." });
-            }
-
-            const lastScheduleDate = lastStat[0].date;
-
-            // Fetch stats for the last schedule date
-            stats = await dailyGraphModel.find({
-              agentId: { $in: agentIds },
-              date: lastScheduleDate,
-            });
-
-            // Initialize response with hourly template
-            response = createHourlyTemplate();
-
-            if (stats.length === 0) {
-              return res.status(404).json({
-                message:
-                  "No stats found for the given agents on the last schedule date.",
+              response = createHourlyTemplate();
+            } else {
+              const lastScheduleDate = lastStat[0].date;
+          
+              // Fetch stats for the last schedule date
+              stats = await dailyGraphModel.find({
+                agentId: { $in: agentIds },
+                date: lastScheduleDate,
               });
-            }
-
-            const aggregatedCalls: { [hour: string]: number } = {};
-
-            stats.forEach((stat) => {
-              const hourlyCalls = stat.hourlyCalls as Map<string, number>;
-
-              hourlyCalls.forEach((count: number, hour: string) => {
-                const hourInt = parseInt(hour.split(":")[0], 10);
-                if (hourInt >= 9 && hourInt < 15) {
-                  if (!aggregatedCalls[hour]) {
-                    aggregatedCalls[hour] = 0;
+          
+              // Initialize response with hourly template
+              response = createHourlyTemplate();
+          
+              if (stats.length > 0) {
+                const aggregatedCalls: { [hour: string]: number } = {};
+          
+                stats.forEach((stat) => {
+                  const hourlyCalls = stat.hourlyCalls as Map<string, number>;
+          
+                  hourlyCalls.forEach((count: number, hour: string) => {
+                    const hourInt = parseInt(hour.split(":")[0], 10);
+                    if (hourInt >= 9 && hourInt < 15) {
+                      if (!aggregatedCalls[hour]) {
+                        aggregatedCalls[hour] = 0;
+                      }
+                      aggregatedCalls[hour] += count;
+                    }
+                  });
+                });
+          
+                // Update response with aggregated data
+                response.forEach((entry) => {
+                  if (aggregatedCalls[entry.x]) {
+                    entry.y = aggregatedCalls[entry.x];
                   }
-                  aggregatedCalls[hour] += count;
-                }
-              });
-            });
-
-            // Update response with aggregated data
-            response.forEach((entry) => {
-              if (aggregatedCalls[entry.x]) {
-                entry.y = aggregatedCalls[entry.x];
+                });
               }
-            });
+            }
           } else {
             return res.status(400).json({ error: "Invalid dateOption" });
           }
