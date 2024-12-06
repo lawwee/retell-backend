@@ -997,6 +997,7 @@ export class Server {
       const data = {
         retellCallSummary: payload.data.call_analysis.call_summary,
         analyzedTranscript: sentimentStatus,
+        userSentiment: sentimentStatus,
       };
       const results = await EventModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
@@ -1379,8 +1380,8 @@ export class Server {
         sentimentOption,
         agentId,
         tag,
-        page = 1, // Pagination: Default page
-        limit = 10, // Pagination: Default results per page
+        page , // Pagination: Default page
+        limit , // Pagination: Default results per page
       } = req.body;
 
       if (!agentId) {
@@ -1490,15 +1491,23 @@ export class Server {
           query["status"] = callStatus;
         }
 
-      
+        let queryOptions: any = {};
+        if (page && limit) {
+          queryOptions = {
+            skip: (page - 1) * limit,
+            limit: limit,
+          };
+        }
+        console.log(query)
         // Execute query
         const results = await contactModel
           .find(query)
           .populate("referenceToCallId")
-          .skip((page - 1) * limit)
-          .limit(limit);
+          .skip(queryOptions.skip || 0)
+          .limit(queryOptions.limit || 0) ;
 
-          console.log(results)
+        
+          
         // Sentiment Mapping
         const sentimentMapping: { [key: string]: string | undefined } = {
           negative: callSentimentenum.NEGATIVE,
@@ -1535,7 +1544,7 @@ export class Server {
           page,
           limit,
           total: filteredResults.length,
-          results: filteredResults,
+          results: filteredResults
         });
       } catch (error) {
         console.error("Error in searchForAdmin:", error);
@@ -3249,27 +3258,27 @@ export class Server {
             .find({ agentId })
             .sort({ date: -1 })
             .limit(1);
-        
+
           // Check if no stats were found
           if (!lastStat || lastStat.length === 0) {
             // Return a predefined structure with all values set to 0
             response = createHourlyTemplate();
           } else {
             const lastScheduleDate = lastStat[0].date;
-        
+
             // Fetch stats for the last schedule date
             stats = await dailyGraphModel.find({
               agentId,
               date: lastScheduleDate,
             });
-        
+
             // Initialize response with hourly template
             response = createHourlyTemplate();
-        
+
             if (stats && stats.length > 0) {
               const hourlyCalls: Map<string, number> =
                 stats[0].hourlyCalls || new Map();
-        
+
               // Update the response with actual data
               hourlyCalls.forEach((count, hour) => {
                 const hourIndex = parseInt(hour.split(":")[0], 10) - 9; // 9 AM is the first index
@@ -3492,28 +3501,28 @@ export class Server {
               .find({ agentId: { $in: agentIds } })
               .sort({ date: -1 })
               .limit(1);
-          
+
             // If no last schedule exists, return default hourly template
             if (!lastStat || lastStat.length === 0) {
               response = createHourlyTemplate();
             } else {
               const lastScheduleDate = lastStat[0].date;
-          
+
               // Fetch stats for the last schedule date
               stats = await dailyGraphModel.find({
                 agentId: { $in: agentIds },
                 date: lastScheduleDate,
               });
-          
+
               // Initialize response with hourly template
               response = createHourlyTemplate();
-          
+
               if (stats.length > 0) {
                 const aggregatedCalls: { [hour: string]: number } = {};
-          
+
                 stats.forEach((stat) => {
                   const hourlyCalls = stat.hourlyCalls as Map<string, number>;
-          
+
                   hourlyCalls.forEach((count: number, hour: string) => {
                     const hourInt = parseInt(hour.split(":")[0], 10);
                     if (hourInt >= 9 && hourInt < 15) {
@@ -3524,7 +3533,7 @@ export class Server {
                     }
                   });
                 });
-          
+
                 // Update response with aggregated data
                 response.forEach((entry) => {
                   if (aggregatedCalls[entry.x]) {

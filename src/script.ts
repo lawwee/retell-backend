@@ -14,6 +14,7 @@
 
 import { EventModel } from "./contacts/contact_model";
 import callHistoryModel from "./contacts/history_model";
+import { callSentimentenum } from "./utils/types";
 
 // export async function script() {
 //   try {
@@ -92,14 +93,17 @@ export async function script() {
   try {
     // Fetch all documents where startTimestamp exists
     const results = await EventModel.find({
-      userSentiment: { $exists: true },
+      userSentiment: { $exists: true },  analyzedTranscript: { $nin: [callSentimentenum.SCHEDULED, callSentimentenum.CALLBACK]}
     });
+    console.log("here")
 
     // Prepare an array for bulk update operations
     const bulkOps = results.map(doc => {
+      
       if (doc.userSentiment) {
         const formattedDate = doc.userSentiment.toLowerCase()
-        console.log(formattedDate)
+        console.log(`Mapping document with ID: ${doc._id}`);
+        console.log(`Formatted userSentiment to analyzedTranscript: ${formattedDate}`);
         // Create a bulk operation for updating the document
         return {
           updateOne: {
