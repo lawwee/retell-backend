@@ -92,7 +92,7 @@ import { callSentimentenum } from "./utils/types";
 export async function script() {
   try {
     // Fetch all documents from the callHistoryModel
-    const results = await callHistoryModel.find({agentName:{exists:true}});
+    const results = await callHistoryModel.find({agentName:{$exists:true}});
 
     // Initialize a counter to track the number of matched documents
     let matchCounter = 0;
