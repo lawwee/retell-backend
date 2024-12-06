@@ -128,6 +128,7 @@ const transcriptSchema = new Schema(
     agentId: { type: String },
     callBackDate: { type: String },
     callDuration: { type: String },
+    retellCallStatus:{type: String}
   },
   { timestamps: true },
 );
