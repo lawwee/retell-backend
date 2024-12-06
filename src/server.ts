@@ -1309,7 +1309,7 @@ export class Server {
   }
   searchForClient() {
     this.app.post(
-      "/search-logs",
+      "/search-client",
       authmiddleware,
       async (req: Request, res: Response) => {
         const { searchTerm, agentIds } = req.body;
