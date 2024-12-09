@@ -16,7 +16,6 @@ const ContactSchema = new Schema<IContact>(
     },
     email: {
       type: String,
-      required: true,
     },
     lastname: {
       type: String,
