@@ -163,7 +163,7 @@ export const logsToCsv = async (
       .find(query)
       .sort({ createdAt: "desc" })
       .select(
-        "firstname lastname email phone status referenceToCallId datesCalled",
+        "firstname lastname email phone dial_status referenceToCallId datesCalled",
       )
       .populate(
         "referenceToCallId",
@@ -190,7 +190,7 @@ export const logsToCsv = async (
         { id: "lastname", title: "lastname" },
         { id: "email", title: "email" },
         { id: "phone", title: "phone" },
-        { id: "status", title: "status" },
+        { id: "dial_status", title: "status" },
         { id: "transcript", title: "transcript" },
         { id: "call_recording_url", title: "call_recording_url" },
         { id: "analyzedTranscript", title: "analyzedTranscript" },
@@ -219,7 +219,7 @@ export const logsToCsv = async (
         lastname: contact.lastname,
         email: contact.email,
         phone: contact.phone,
-        status: contact.status,
+        status: contact.dial_status,
         transcript: contact.referenceToCallId?.transcript,
         call_recording_url: contact.referenceToCallId?.recordingUrl,
         analyzedTranscript: contact.referenceToCallId?.analyzedTranscript,

@@ -62,7 +62,7 @@ export const scheduleCronJob = async (
     const contacts = await contactModel
       .find({
         agentId,
-        status: callstatusenum.NOT_CALLED,
+        dial_status: callstatusenum.NOT_CALLED,
         isDeleted: false,
         ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
         isOnDNCList: false,
@@ -81,7 +81,7 @@ export const scheduleCronJob = async (
         const totalContacts = await contactModel
           .countDocuments({
             agentId,
-            status: callstatusenum.NOT_CALLED,
+            dial_status: callstatusenum.NOT_CALLED,
             isDeleted: false,
             ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
             isOnDNCList: false,
@@ -91,7 +91,7 @@ export const scheduleCronJob = async (
         // Log the query and the result
         console.log("Query for total contacts:", {
           agentId,
-          status: callstatusenum.NOT_CALLED,
+          dial_status: callstatusenum.NOT_CALLED,
           isDeleted: false,
           ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
           isOnDNCList: false,

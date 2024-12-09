@@ -40,7 +40,7 @@ const ContactSchema = new Schema<IContact>(
       type: String,
       required: true,
     },
-    status: {
+    dial_status: {
       type: String,
       enum: Object.values(callstatusenum),
       default: callstatusenum.NOT_CALLED,

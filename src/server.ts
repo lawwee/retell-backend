@@ -538,7 +538,7 @@ export class Server {
           query["agentId"] = agentId;
         }
         const result = await contactModel.updateMany(query, {
-          status: callstatusenum.NOT_CALLED,
+          dial_status: callstatusenum.NOT_CALLED,
           answeredByVM: false,
           datesCalled: [],
           isusercalled: false,
@@ -722,7 +722,7 @@ export class Server {
       const { call_id, agent_id } = data;
       await contactModel.findOneAndUpdate(
         { callId: call_id, agentId: agent_id },
-        { status: callstatusenum.IN_PROGRESS },
+        { dial_status: callstatusenum.IN_PROGRESS },
       );
     } catch (error) {
       console.error("Error in handleCallStarted:", error);
@@ -901,7 +901,7 @@ export class Server {
         const resultForUserUpdate = await contactModel.findOneAndUpdate(
           { callId: call_id, agentId: payload.call.agent_id },
           {
-            status: callStatus,
+            dial_status: callStatus,
             $push: { datesCalled: todaysDateForDatesCalled },
             referenceToCallId: results._id,
             timesCalled: time,
@@ -1211,12 +1211,12 @@ export class Server {
         const totalNotCalledForAgent = await contactModel.countDocuments({
           agentId: { $in: agentIds },
           isDeleted: false,
-          status: callstatusenum.NOT_CALLED,
+          dial_status: callstatusenum.NOT_CALLED,
         });
         const totalAnsweredCalls = await contactModel.countDocuments({
           agentId: { $in: agentIds },
           isDeleted: false,
-          status: callstatusenum.CALLED,
+          dial_statusstatus: callstatusenum.CALLED,
           ...dateFilter,
         });
 
@@ -1648,7 +1648,7 @@ export class Server {
             throw new Error("Please provide an agent ID");
           }
           const result = await contactModel.updateMany(
-            { agentId, status: callstatusenum.NOT_CALLED },
+            { agentId, dial_status: callstatusenum.NOT_CALLED },
             { isDeleted: true },
           );
           res.json({
@@ -2005,7 +2005,7 @@ export class Server {
       async (req: Request, res: Response) => {
         const { agentId } = req.body;
         const foundContacts = await contactModel.find({
-          status: { $ne: callstatusenum.NOT_CALLED },
+          dial_status: { $ne: callstatusenum.NOT_CALLED },
           isDeleted: false,
         });
         const totalCount = await contactModel.countDocuments({
@@ -2019,22 +2019,22 @@ export class Server {
         const totalAnsweredCalls = await contactModel.countDocuments({
           agentId,
           isDeleted: false,
-          status: callstatusenum.CALLED,
+          dial_status: callstatusenum.CALLED,
         });
         const totalNotCalledForAgent = await contactModel.countDocuments({
           agentId,
           isDeleted: false,
-          status: callstatusenum.NOT_CALLED,
+          dial_status: callstatusenum.NOT_CALLED,
         });
         const totalAnsweredByVm = await contactModel.countDocuments({
           agentId,
           isDeleted: false,
-          status: callstatusenum.VOICEMAIL,
+          dial_status: callstatusenum.VOICEMAIL,
         });
         const totalCalls = await contactModel.countDocuments({
           agentId,
           isDeleted: false,
-          status: {
+          dial_status: {
             $in: [
               callstatusenum.CALLED,
               callstatusenum.VOICEMAIL,
@@ -2555,31 +2555,31 @@ export class Server {
         if (status) {
           switch (status) {
             case "failed":
-              query.status = callstatusenum.FAILED;
+              query.dial_status = callstatusenum.FAILED;
               break;
             case "called":
-              query.status = { $ne: callstatusenum.NOT_CALLED };
+              query.dial_status = { $ne: callstatusenum.NOT_CALLED };
               break;
             case "not-called":
-              query.status = callstatusenum.NOT_CALLED;
+              query.dial_status = callstatusenum.NOT_CALLED;
               break;
             case "answered":
-              query.status = callstatusenum.CALLED;
+              query.dial_status = callstatusenum.CALLED;
               break;
             case "transferred":
-              query.status = callstatusenum.TRANSFERRED;
+              query.dial_status = callstatusenum.TRANSFERRED;
               break;
             case "voicemail":
-              query.status = callstatusenum.VOICEMAIL;
+              query.dial_status = callstatusenum.VOICEMAIL;
               break;
             case "appointment":
-              query.status = callstatusenum.SCHEDULED;
+              query.dial_status = callstatusenum.SCHEDULED;
               break;
             case "ivr":
-              query.status = callstatusenum.IVR;
+              query.dial_status = callstatusenum.IVR;
               break;
             case "inactivity":
-              query.status = callstatusenum.INACTIVITY;
+              query.dial_status = callstatusenum.INACTIVITY;
               break;
           }
         }
@@ -2637,14 +2637,22 @@ export class Server {
     );
   }
   testingZap() {
-    this.app.post("/zapTest", (req: Request, res: Response) => {
+    this.app.post("/zapTest", async (req: Request, res: Response) => {
       try {
         const data = {
           firstname: "Nick",
           lastname: "Bernadini",
           email: "info@ixperience.io",
           phone: "+1727262723",
+          AI_Voice_Agent:{
+            call_recording_url:"https://dxc03zgurdly9.cloudfront.net/call_decee1f115d524a67bcbe8f2a6/recording.wav",
+            status:"call-ended",
+            transcript:"This is test data fron intuitiveagent",
+            duration:"00:00;05",
+            timestamp:"2024-12-09"
+          }
         };
+  
         const result = axios.post(process.env.ZAP_URL, data);
         console.log("don3");
         res.send("done");
@@ -2741,7 +2749,8 @@ export class Server {
             timestamp: history.endTimestamp || "",
             duration: history.durationMs || "",
             status: history.callStatus || "",
-            recordingUrl:history.recordingUrl || ""
+            recordingUrl:history.recordingUrl || "",
+            address: history.address || ""
           }));
 
           const totalCount = await callHistoryModel.countDocuments({
@@ -2853,7 +2862,8 @@ export class Server {
             timestamp: history.endTimestamp || "",
             duration: history.durationMs || "",
             status: history.callStatus || "",
-            recordingUrl:history.recordingUrl || ""
+            recordingUrl:history.recordingUrl || "",
+            address : history.address || ""
           }));
 
           const totalCount = await callHistoryModel.countDocuments({ agentId , ...dateFilter});

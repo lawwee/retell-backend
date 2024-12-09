@@ -24,7 +24,7 @@ export interface IContact {
   isusercalled: boolean;
   isDeleted: boolean;
   callId: String;
-  status: string;
+  dial_status: string;
   agentId: string;
   referenceToCallId: any;
   linktocallLogModel: any;

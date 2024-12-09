@@ -154,7 +154,7 @@ export const getAllContact = async (
     const totalNotCalledForAgent = await contactModel.countDocuments({
       agentId,
       isDeleted: false,
-      status: callstatusenum.NOT_CALLED,
+      dial_status: callstatusenum.NOT_CALLED,
     });
 
     const stats = await DailyStatsModel.aggregate([
