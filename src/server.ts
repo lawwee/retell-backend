@@ -76,7 +76,10 @@ import {
 import { dailyGraphModel } from "./Schedule-Fuctions/graphModel";
 import { updateStatsByHour } from "./Schedule-Fuctions/graphController";
 import { DateTime } from "luxon";
-import { reviewCallback, reviewTranscript } from "./helper-fuction/transcript-review";
+import {
+  reviewCallback,
+  reviewTranscript,
+} from "./helper-fuction/transcript-review";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -126,6 +129,7 @@ export class Server {
     this.getFullStat();
     // this.handleRetellLlmWebSocket();
     this.getAllDbTags();
+    this.takeAgentId();
     this.handleContactSaving();
     this.handlecontactDelete();
     this.handlecontactGet();
@@ -554,7 +558,8 @@ export class Server {
       isAdmin,
       authmiddleware,
       async (req: Request, res: Response) => {
-        const { hour, minute, agentId, limit, fromNumber, tag, address } = req.body;
+        const { hour, minute, agentId, limit, fromNumber, tag, address } =
+          req.body;
 
         const scheduledTimePST = moment
           .tz("America/Los_Angeles")
@@ -580,7 +585,7 @@ export class Server {
           fromNumber,
           formattedDate,
           lowerCaseTag,
-          address
+          address,
         );
         res.send({ jobId, scheduledTime, contacts });
       },
@@ -788,9 +793,7 @@ export class Server {
         const isCallAnswered =
           disconnection_reason === "user_hangup" ||
           disconnection_reason === "agent_hangup";
-        analyzedTranscriptForStatus = await reviewTranscript(
-          transcript,
-        );
+        analyzedTranscriptForStatus = await reviewTranscript(transcript);
         const isCallScheduled =
           analyzedTranscriptForStatus.message.content === "scheduled";
         const isMachine =
@@ -808,11 +811,10 @@ export class Server {
           callDuration: newDuration,
           disconnectionReason: disconnection_reason,
           callBackDate: callbackdate,
-          retellCallStatus:payload.data.call_status,
+          retellCallStatus: payload.data.call_status,
           agentName: agentNameEnum,
-          duration:
-          convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
-          timestamp:end_timestamp,
+          duration: convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
+          timestamp: end_timestamp,
           ...(transcript && { transcript }),
         };
 
@@ -834,7 +836,7 @@ export class Server {
         } else if (isCallScheduled) {
           statsUpdate.$inc.totalAppointment = 1;
           callStatus = callstatusenum.SCHEDULED;
-        }else if (isCallFailed) {
+        } else if (isCallFailed) {
           statsUpdate.$inc.totalFailed = 1;
           callStatus = callstatusenum.FAILED;
         } else if (isCallTransferred) {
@@ -843,7 +845,7 @@ export class Server {
         } else if (isDialNoAnswer) {
           statsUpdate.$inc.totalDialNoAnswer = 1;
           callStatus = callstatusenum.NO_ANSWER;
-        }  else if (isCallInactivity) {
+        } else if (isCallInactivity) {
           statsUpdate.$inc.totalCallInactivity = 1;
           callStatus = callstatusenum.INACTIVITY;
         } else if (isCallAnswered) {
@@ -851,7 +853,6 @@ export class Server {
           callStatus = callstatusenum.CALLED;
         }
 
-       
         const callData = {
           callId: call_id,
           agentId: agent_id,
@@ -980,9 +981,9 @@ export class Server {
       const isNegative =
         payload.data.call_analysis.user_sentiment === "Negative";
 
-      let addressStat 
-      if(payload.call.agent_id === "" || payload.call.agent_id === ""){
-        addressStat = payload.data.call_analysis.address
+      let addressStat;
+      if (payload.call.agent_id === "" || payload.call.agent_id === "") {
+        addressStat = payload.data.call_analysis.address;
       }
 
       if (isScheduled) {
@@ -1317,7 +1318,7 @@ export class Server {
       }
     });
   }
- 
+
   searchForClient() {
     this.app.post("/search-client", async (req: Request, res: Response) => {
       const {
@@ -1331,19 +1332,19 @@ export class Server {
         page = 1,
         limit = 100,
       } = req.body;
-  
+
       if (!agentIds) {
         return res
           .status(400)
           .json({ error: "Agent IDs is required for the search." });
       }
-  
+
       try {
         const isValidEmail = (email: string): boolean => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(email.trim());
         };
-  
+
         const formatDateToDB = (dateString: string): string => {
           const date = new Date(dateString);
           const year = date.getUTCFullYear();
@@ -1351,17 +1352,17 @@ export class Server {
           const day = String(date.getUTCDate()).padStart(2, "0");
           return `${year}-${month}-${day}`;
         };
-  
+
         const searchTerms = searchTerm
           .split(",")
           .map((term: string) => term.trim())
           .filter((term: any) => term.length > 0);
-  
+
         const query: any = {
-          agentId:{$in:agentIds},
+          agentId: { $in: agentIds },
           isDeleted: false,
         };
-  
+
         if (searchTerms.length > 0) {
           query.$or = searchTerms.flatMap((term: any) => [
             { firstname: { $regex: term, $options: "i" } },
@@ -1370,7 +1371,7 @@ export class Server {
             { email: { $regex: term, $options: "i" } },
           ]);
         }
-  
+
         if (startDate || endDate) {
           query["datesCalled"] = {};
           if (startDate && !endDate) {
@@ -1380,11 +1381,11 @@ export class Server {
             query["datesCalled"]["$lte"] = formatDateToDB(endDate);
           }
         }
-  
+
         if (tag) {
           query["tag"] = tag.toLowerCase();
         }
-  
+
         const sentimentMapping: { [key: string]: string | undefined } = {
           negative: callSentimentenum.NEGATIVE,
           "call-back": callSentimentenum.CALLBACK,
@@ -1393,17 +1394,19 @@ export class Server {
           neutral: callSentimentenum.NEUTRAL,
           unknown: callSentimentenum.UNKNOWN,
         };
-  
+
         const sentimentStatus = sentimentOption
           ? sentimentMapping[sentimentOption.toLowerCase()]
           : undefined;
-  
+
         let results: any[] = [];
         let totalRecords = 0;
         let totalPages = 0;
-  
+
         if (sentimentOption) {
-          results = await contactModel.find(query).populate("referenceToCallId");
+          results = await contactModel
+            .find(query)
+            .populate("referenceToCallId");
           results = results.filter((contact) => {
             const analyzedTranscript =
               contact.referenceToCallId?.analyzedTranscript;
@@ -1412,23 +1415,23 @@ export class Server {
               analyzedTranscript === sentimentStatus
             );
           });
-  
+
           totalRecords = results.length;
           totalPages = Math.ceil(totalRecords / limit);
-  
+
           const startIndex = (page - 1) * limit;
           results = results.slice(startIndex, startIndex + limit);
         } else {
           totalRecords = await contactModel.countDocuments(query);
           totalPages = Math.ceil(totalRecords / limit);
-  
+
           results = await contactModel
             .find(query)
             .populate("referenceToCallId")
             .skip((page - 1) * limit)
             .limit(limit);
         }
-  
+
         const data = results.map((history) => ({
           firstname: history.firstname || "",
           lastname: history.lastname || "",
@@ -1441,10 +1444,10 @@ export class Server {
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
           status: history.referenceToCallId.retellCallStatus || "",
-          recordingUrl:history.referenceToCallId.recordingUrl || "", 
-          address: history.address || ""
+          recordingUrl: history.referenceToCallId.recordingUrl || "",
+          address: history.address || "",
         }));
-  
+
         res.json({
           page,
           limit,
@@ -1472,19 +1475,19 @@ export class Server {
         page = 1,
         limit = 100,
       } = req.body;
-  
+
       if (!agentId) {
         return res
           .status(400)
           .json({ error: "Agent ID is required for the search." });
       }
-  
+
       try {
         const isValidEmail = (email: string): boolean => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           return emailRegex.test(email.trim());
         };
-  
+
         const formatDateToDB = (dateString: string): string => {
           const date = new Date(dateString);
           const year = date.getUTCFullYear();
@@ -1492,17 +1495,17 @@ export class Server {
           const day = String(date.getUTCDate()).padStart(2, "0");
           return `${year}-${month}-${day}`;
         };
-  
+
         const searchTerms = searchTerm
           .split(",")
           .map((term: string) => term.trim())
           .filter((term: any) => term.length > 0);
-  
+
         const query: any = {
           agentId,
           isDeleted: false,
         };
-  
+
         if (searchTerms.length > 0) {
           query.$or = searchTerms.flatMap((term: any) => [
             { firstname: { $regex: term, $options: "i" } },
@@ -1511,7 +1514,7 @@ export class Server {
             { email: { $regex: term, $options: "i" } },
           ]);
         }
-  
+
         if (startDate || endDate) {
           query["datesCalled"] = {};
           if (startDate && !endDate) {
@@ -1521,11 +1524,11 @@ export class Server {
             query["datesCalled"]["$lte"] = formatDateToDB(endDate);
           }
         }
-  
+
         if (tag) {
           query["tag"] = tag.toLowerCase();
         }
-  
+
         const sentimentMapping: { [key: string]: string | undefined } = {
           negative: callSentimentenum.NEGATIVE,
           "call-back": callSentimentenum.CALLBACK,
@@ -1534,17 +1537,19 @@ export class Server {
           neutral: callSentimentenum.NEUTRAL,
           unknown: callSentimentenum.UNKNOWN,
         };
-  
+
         const sentimentStatus = sentimentOption
           ? sentimentMapping[sentimentOption.toLowerCase()]
           : undefined;
-  
+
         let results: any[] = [];
         let totalRecords = 0;
         let totalPages = 0;
-  
+
         if (sentimentOption) {
-          results = await contactModel.find(query).populate("referenceToCallId");
+          results = await contactModel
+            .find(query)
+            .populate("referenceToCallId");
           results = results.filter((contact) => {
             const analyzedTranscript =
               contact.referenceToCallId?.analyzedTranscript;
@@ -1553,23 +1558,24 @@ export class Server {
               analyzedTranscript === sentimentStatus
             );
           });
-  
+
           totalRecords = results.length;
           totalPages = Math.ceil(totalRecords / limit);
-  
+
           const startIndex = (page - 1) * limit;
           results = results.slice(startIndex, startIndex + limit);
         } else {
           totalRecords = await contactModel.countDocuments(query);
           totalPages = Math.ceil(totalRecords / limit);
-  
+
           results = await contactModel
             .find(query)
             .populate("referenceToCallId")
             .skip((page - 1) * limit)
-            .limit(limit).sort()
+            .limit(limit)
+            .sort();
         }
-  
+
         const data = results.map((history) => ({
           firstname: history.firstname || "",
           lastname: history.lastname || "",
@@ -1582,10 +1588,10 @@ export class Server {
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
           status: history.referenceToCallId.retellCallStatus || "",
-          recordingUrl:history.referenceToCallId.recordingUrl || "",
-          address: history.address || ""
+          recordingUrl: history.referenceToCallId.recordingUrl || "",
+          address: history.address || "",
         }));
-  
+
         res.json({
           page,
           limit,
@@ -1599,7 +1605,7 @@ export class Server {
       }
     });
   }
-  
+
   batchDeleteUser() {
     this.app.post(
       "/batch-delete-users",
@@ -2130,22 +2136,24 @@ export class Server {
   getAllDbTags() {
     this.app.post("/get-tags", async (req: Request, res: Response) => {
       const { agentIds } = req.body;
-  
+
       try {
         // Validate the input
         if (!Array.isArray(agentIds) || agentIds.length === 0) {
-          return res.status(400).send({ error: "agentIds must be a non-empty array." });
+          return res
+            .status(400)
+            .send({ error: "agentIds must be a non-empty array." });
         }
-  
+
         // Fetch users with matching agent IDs
         const users = await userModel.find(
           { "agents.agentId": { $in: agentIds } },
-          { agents: 1 } // Only fetch the `agents` field
+          { agents: 1 }, // Only fetch the `agents` field
         );
-  
+
         // Aggregate all tags into a single array
         const allTags = new Set<string>(); // Use a Set to ensure uniqueness
-  
+
         users.forEach((user) => {
           user.agents.forEach((agent) => {
             if (agentIds.includes(agent.agentId)) {
@@ -2153,10 +2161,10 @@ export class Server {
             }
           });
         });
-  
+
         // Convert Set to an array for the response
         const uniqueTagsArray = Array.from(allTags);
-  
+
         // Send the response
         res.send({ tags: uniqueTagsArray });
       } catch (error) {
@@ -2165,7 +2173,7 @@ export class Server {
       }
     });
   }
-  
+
   syncStatWithMake() {
     this.app.post("/api/make", async (req: Request, res: Response) => {
       const foundContacts: IContact[] = await contactModel
@@ -2645,15 +2653,16 @@ export class Server {
           lastname: "Bernadini",
           email: "info@ixperience.io",
           phone: "+1727262723",
-          AI_Voice_Agent:{
-            call_recording_url:"https://dxc03zgurdly9.cloudfront.net/call_decee1f115d524a67bcbe8f2a6/recording.wav",
-            status:"call-ended",
-            transcript:"This is test data fron intuitiveagent",
-            duration:"00:00;05",
-            timestamp:"2024-12-09"
-          }
+          AI_Voice_Agent: {
+            call_recording_url:
+              "https://dxc03zgurdly9.cloudfront.net/call_decee1f115d524a67bcbe8f2a6/recording.wav",
+            status: "call-ended",
+            transcript: "This is test data fron intuitiveagent",
+            duration: "00:00;05",
+            timestamp: "2024-12-09",
+          },
         };
-  
+
         const result = axios.post(process.env.ZAP_URL, data);
         console.log("don3");
         res.send("done");
@@ -2731,7 +2740,7 @@ export class Server {
               dateFilter1 = {};
               break;
           }
-          console.log(dateFilter)
+          console.log(dateFilter);
           const callHistory = await callHistoryModel
             .find({ agentId: { $in: agentIds }, ...dateFilter }, { callId: 0 })
             .sort({ startTimestamp: -1 })
@@ -2750,13 +2759,13 @@ export class Server {
             timestamp: history.endTimestamp || "",
             duration: history.durationMs || "",
             status: history.callStatus || "",
-            recordingUrl:history.recordingUrl || "",
-            address: history.address || ""
+            recordingUrl: history.recordingUrl || "",
+            address: history.address || "",
           }));
 
           const totalCount = await callHistoryModel.countDocuments({
             agentId: { $in: agentIds },
-            ...dateFilter
+            ...dateFilter,
           });
           const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -2863,11 +2872,14 @@ export class Server {
             timestamp: history.endTimestamp || "",
             duration: history.durationMs || "",
             status: history.callStatus || "",
-            recordingUrl:history.recordingUrl || "",
-            address : history.address || ""
+            recordingUrl: history.recordingUrl || "",
+            address: history.address || "",
           }));
 
-          const totalCount = await callHistoryModel.countDocuments({ agentId , ...dateFilter});
+          const totalCount = await callHistoryModel.countDocuments({
+            agentId,
+            ...dateFilter,
+          });
           const totalPages = Math.ceil(totalCount / pageSize);
 
           res.json({
@@ -3629,5 +3641,39 @@ export class Server {
         }
       },
     );
+  }
+  takeAgentId() {
+    this.app.post("/agents-data", async (req: Request, res: Response) => {
+      try {
+        const { agentIds }: { agentIds: string[] } = req.body;
+
+        if (!agentIds || !Array.isArray(agentIds) || agentIds.length === 0) {
+          return res
+            .status(400)
+            .json({
+              error: "agentIds is required and should be a non-empty array",
+            });
+        }
+
+        // Find users where any agentId matches the provided array
+        const usersWithAgents = await userModel
+          .find({
+            "agents.agentId": { $in: agentIds },
+          })
+          .select("agents");
+
+        // Extract matching agents for each user
+        const result = usersWithAgents.flatMap((user: any) =>
+          user.agents.filter((agent: any) => agentIds.includes(agent.agentId)),
+        );
+
+        res.json({  result });
+      } catch (error) {
+        console.error("Error fetching agent data:", error);
+        res
+          .status(500)
+          .json({ error: "An error occurred while fetching agent data" });
+      }
+    });
   }
 }
