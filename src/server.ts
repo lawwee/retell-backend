@@ -881,6 +881,7 @@ export class Server {
           direction: direction || null,
           agentName: agentNameEnum,
           date: todayString,
+          address: retell_llm_dynamic_variables?.user_address || null
         };
         await callHistoryModel.findOneAndUpdate(
           { callId: call_id, agentId: agent_id },
