@@ -149,6 +149,7 @@ export class Server {
     this.deleteAll();
     //this.dummy()
     this.adminSideLogsToCsv();
+    this.getAllDbTagsClient()
     this.statsForAgent();
     this.clientSideToCsv();
     this.createPhoneCall2();
@@ -2138,6 +2139,47 @@ export class Server {
   }
   getAllDbTags() {
     this.app.post("/get-tags", async (req: Request, res: Response) => {
+      const { agentId } = req.body;
+
+      try {
+        // Validate the input
+        // if (!Array.isArray(agentIds) || agentIds.length === 0) {
+        //   return res
+        //     .status(400)
+        //     .send({ error: "agentIds must be a non-empty array." });
+        // }
+
+        // Fetch users with matching agent IDs
+        const users = await userModel.find(
+          { "agents.agentId": agentId },
+          { agents: 1 }, // Only fetch the `agents` field
+        );
+
+        // Aggregate all tags into a single array
+        const allTags = new Set<string>(); // Use a Set to ensure uniqueness
+
+        users.forEach((user) => {
+          user.agents.forEach((agent) => {
+            if (agentId.includes(agent.agentId)) {
+              agent.tag.forEach((tag: string) => allTags.add(tag)); // Add tags to the Set
+            }
+          });
+        });
+
+        // Convert Set to an array for the response
+        const uniqueTagsArray = Array.from(allTags);
+
+        // Send the response
+        res.send({ tags: uniqueTagsArray });
+      } catch (error) {
+        console.error("Error fetching tags:", error);
+        return res.status(500).send({ error: "Error fetching tags" });
+      }
+    });
+  }
+
+  getAllDbTagsClient() {
+    this.app.post("/get-tags-client", async (req: Request, res: Response) => {
       const { agentIds } = req.body;
 
       try {
