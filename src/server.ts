@@ -200,7 +200,7 @@ export class Server {
     this.app.post(
       "/create-llm-phone-call",
       async (req: Request, res: Response) => {
-        const { fromNumber, toNumber, userId, agentId } = req.body;
+        const { fromNumber, toNumber, userId, agentId , address} = req.body;
         const result = await contactModel.findById(userId);
         try {
           if (!result.lastname || result.lastname.trim() === "") {
@@ -223,6 +223,7 @@ export class Server {
               retell_llm_dynamic_variables: {
                 user_firstname: result.firstname,
                 user_email: result.email,
+                user_address : address
               },
             });
 

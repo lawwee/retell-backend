@@ -149,7 +149,7 @@ export const scheduleCronJob = async (
                 user_email: contact.email,
                 user_lastname: contact.lastname,
                 job_id: jobId,
-                user_address:address
+                user_address:contact.address
               },
             });
 
