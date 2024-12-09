@@ -19,6 +19,7 @@ export const createContact = async (
   agentId: string,
   lowerCaseTags: string,
   dayToBeProcessed?: string,
+  address?:string
 ): Promise<IContact | string> => {
   try {
     if (!firstname || !email || !phone) {
@@ -41,6 +42,7 @@ export const createContact = async (
       agentId,
       tags: lowerCaseTags,
       dayToBeProcessed,
+      address
     });
     return createdContact;
   } catch (error) {

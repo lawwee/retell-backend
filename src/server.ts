@@ -271,6 +271,7 @@ export class Server {
           agentId,
           tag,
           dayToBeProcessed,
+          address
         } = req.body;
 
         const lowerCaseTags = typeof tag === "string" ? tag.toLowerCase() : "";
@@ -283,6 +284,7 @@ export class Server {
             agentId,
             lowerCaseTags,
             dayToBeProcessed,
+            address
           );
           res.json({ result });
         } catch (error) {
