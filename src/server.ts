@@ -440,6 +440,7 @@ export class Server {
                 ...user,
                 agentId: agentId,
                 tag,
+                address: user.address || ""
               }));
 
               // Batch query to find existing users
