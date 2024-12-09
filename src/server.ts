@@ -1002,7 +1002,6 @@ export class Server {
         retellCallSummary: payload.data.call_analysis.call_summary,
         analyzedTranscript: sentimentStatus,
         userSentiment: sentimentStatus,
-        address:addressStat
       };
       const results = await EventModel.findOneAndUpdate(
         { callId: payload.call.call_id, agentId: payload.call.agent_id },
@@ -1442,7 +1441,8 @@ export class Server {
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
           status: history.referenceToCallId.retellCallStatus || "",
-          recordingUrl:history.referenceToCallId.recordingUrl || ""
+          recordingUrl:history.referenceToCallId.recordingUrl || "", 
+          address: history.address || ""
         }));
   
         res.json({
@@ -1582,7 +1582,8 @@ export class Server {
           timestamp: history.referenceToCallId.timestamp || "",
           duration: history.referenceToCallId.duration || "",
           status: history.referenceToCallId.retellCallStatus || "",
-          recordingUrl:history.referenceToCallId.recordingUrl || ""
+          recordingUrl:history.referenceToCallId.recordingUrl || "",
+          address: history.address || ""
         }));
   
         res.json({
