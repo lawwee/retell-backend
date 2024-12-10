@@ -13,6 +13,7 @@ import {
   deleteOneContact,
   getAllContact,
   updateContactAndTranscript,
+  updateContactAndTranscriptForClient,
   updateOneContact,
 } from "./contacts/contact_controller";
 
@@ -135,6 +136,7 @@ export class Server {
     this.handlecontactGet();
     this.secondscript();
     // this.createPhoneCall();
+    this.updateUserTagForClient()
     this.handleContactUpdate();
     this.uploadcsvToDb();
     this.schedulemycall();
@@ -2305,6 +2307,18 @@ export class Server {
       try {
         const { updates } = req.body;
         const result = await updateContactAndTranscript(updates);
+        res.json({ message: result });
+      } catch (error) {
+        console.error("Error updating events:", error);
+        res.status(500).json({ error: "Internal server error." });
+      }
+    });
+  }
+  updateUserTagForClient() {
+    this.app.post("/update/metadata-client", async (req: Request, res: Response) => {
+      try {
+        const { updates } = req.body;
+        const result = await updateContactAndTranscriptForClient(updates);
         res.json({ message: result });
       } catch (error) {
         console.error("Error updating events:", error);

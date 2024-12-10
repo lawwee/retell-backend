@@ -6,6 +6,7 @@ import Retell from "retell-sdk";
 import { subDays, startOfMonth, startOfWeek } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import { DailyStatsModel } from "./call_log";
+import callHistoryModel from "./history_model";
 
 const retell = new Retell({
   apiKey: process.env.RETELL_API_KEY,
@@ -286,6 +287,64 @@ export const updateContactAndTranscript = async (
           },
           { $set: update.updateFields.referencetocallid.updateFields },
           { new: true },
+        );
+      }
+    }
+
+    return "Update successful";
+  } catch (error) {
+    console.error("Error updating contact and transcript:", error);
+    return "Could not update contact and transcript";
+  }
+};
+
+
+export const updateContactAndTranscriptForClient = async (
+  updates: any,
+): Promise<any> => {
+  try {
+    for (const update of updates) {
+
+      // Filter out undefined fields for contactModel
+      const dataForContactModel = Object.fromEntries(
+        Object.entries({
+          firstname: update.firstname,
+          lastname: update.lastname,
+          email: update.email,
+          phone: update.phone,
+          agentId: update.agentId,
+        }).filter(([_, value]) => value !== undefined) // Exclude undefined values
+      );
+
+      // Filter out undefined fields for callHistoryModel
+      const dataForHistoryModel = Object.fromEntries(
+        Object.entries({
+          transcript: update.transcript,
+          callSummary: update.summary,
+          userSentiment: update.sentiment,
+          endTimestamp: update.timestamp,
+          durationMs: update.duration,
+          callStatus: update.status,
+          recordingUrl: update.recordingUrl,
+          address: update.address,
+        }).filter(([_, value]) => value !== undefined) // Exclude undefined values
+      );
+
+      // Update the contactModel if there are fields to update
+      if (Object.keys(dataForContactModel).length > 0) {
+        await contactModel.findOneAndUpdate(
+          { callId: update.callId },
+          { $set: dataForContactModel },
+          { new: true }
+        );
+      }
+
+      // Update the callHistoryModel if there are fields to update
+      if (Object.keys(dataForHistoryModel).length > 0) {
+        await callHistoryModel.findOneAndUpdate(
+          { callId: update.callId },
+          { $set: dataForHistoryModel },
+          { new: true }
         );
       }
     }
