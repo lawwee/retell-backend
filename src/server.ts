@@ -3521,15 +3521,15 @@ export class Server {
                 entry.y = aggregatedCalls[entry.x];
               }
             });
-          } else if (selectedDateOption === DateOption.ThisWeek) {
+          }else if (selectedDateOption === DateOption.ThisWeek) {
             const selectedDay = DateTime.now()
               .setZone("America/Los_Angeles")
-              .startOf("day"); // Adjust to get specific day if provided
+              .startOf("day"); // Get the current day at the start of the day
           
             // Create an array of the last 7 days, including the selected day
             const weekDays: string[] = Array.from({ length: 7 }, (_, index) =>
               selectedDay.minus({ days: index }).toISODate()
-            ).reverse(); // Reverse to get them in chronological order
+            ).reverse(); // Reverse to get them in chronological order (today to 6 days ago)
           
             // Query for stats in the last 7 days
             stats = await dailyGraphModel.find({
@@ -3541,14 +3541,16 @@ export class Server {
             const weeklyData = weekDays.map((day) => {
               const dayName = DateTime.fromISO(day, {
                 zone: "America/Los_Angeles",
-              }).toLocaleString({ weekday: "long" });
+              }).toLocaleString({ weekday: "long" }); // Get the localized weekday name
           
+              // Find the stats for the current day
               const dailyStats = stats.filter((s) => s.date === day);
           
               // Sum up hourly calls for the day
               const dailySum = dailyStats.reduce((sum, stat) => {
                 const hourlyCalls = stat.hourlyCalls as Map<string, number>;
           
+                // Filter and sum hourly calls between 9 AM and 3 PM
                 const hourlySum = Array.from(hourlyCalls.entries())
                   .filter(([hour]) => {
                     const hourInt = parseInt(hour.split(":")[0], 10);
