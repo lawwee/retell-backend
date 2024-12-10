@@ -1439,12 +1439,28 @@ export class Server {
         }
 
 
+        
+        const data = results.map((history) => ({
+          firstname: history.firstname || "",
+          lastname: history.lastname || "",
+          email: history.email || "",
+          phone: history.phone || "",
+          agentId: history.referenceToCallId?.agentName || "",
+          transcript: history.referenceToCallId?.transcript || "",
+          summary: history.referenceToCallId?.retellCallSummary || "",
+          sentiment: history.referenceToCallId?.analyzedTranscript || "",
+          timestamp: history.referenceToCallId?.timestamp || "",
+          duration: history.referenceToCallId?.duration || "",
+          status: history.referenceToCallId?.retellCallStatus || "",
+          recordingUrl: history.referenceToCallId?.recordingUrl || "",
+          address: history.address || "",
+        }));
         res.json({
           page,
           limit,
           totalRecords,
           totalPages,
-          results,
+          results: data,
         });
       } catch (error) {
         console.error("Error in searchForAdmin:", error);
@@ -1567,28 +1583,12 @@ export class Server {
             .sort();
         }
 
-        const data = results.map((history) => ({
-          firstname: history.firstname || "",
-          lastname: history.lastname || "",
-          email: history.email || "",
-          phone: history.phone || "",
-          agentId: history.referenceToCallId?.agentName || "",
-          transcript: history.referenceToCallId?.transcript || "",
-          summary: history.referenceToCallId?.retellCallSummary || "",
-          sentiment: history.referenceToCallId?.analyzedTranscript || "",
-          timestamp: history.referenceToCallId?.timestamp || "",
-          duration: history.referenceToCallId?.duration || "",
-          status: history.referenceToCallId?.retellCallStatus || "",
-          recordingUrl: history.referenceToCallId?.recordingUrl || "",
-          address: history.address || "",
-        }));
-
         res.json({
           page,
           limit,
           totalRecords,
           totalPages,
-          results: data,
+          results,
         });
       } catch (error) {
         console.error("Error in searchForAdmin:", error);
