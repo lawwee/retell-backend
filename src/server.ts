@@ -2807,6 +2807,7 @@ export class Server {
             status: history.callStatus || "",
             recordingUrl: history.recordingUrl || "",
             address: history.address || "",
+            callId: history.callId
           }));
 
           const totalCount = await callHistoryModel.countDocuments({

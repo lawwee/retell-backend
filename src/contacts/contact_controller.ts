@@ -331,7 +331,7 @@ export const updateContactAndTranscriptForClient = async (
       address: update.address,
     });
 
-    // Initialize an object to collect all updated fields
+    
     const updatedData: any = {};
 
     // Update contactModel and merge updated fields
@@ -341,7 +341,7 @@ export const updateContactAndTranscriptForClient = async (
         { $set: dataForContactModel },
         { new: true }
       );
-      Object.assign(updatedData, dataForContactModel); // Merge updated fields
+      Object.assign(updatedData, dataForContactModel); 
     }
 
     // Update callHistoryModel and merge updated fields
@@ -351,12 +351,12 @@ export const updateContactAndTranscriptForClient = async (
         { $set: dataForHistoryModel },
         { new: true }
       );
-      Object.assign(updatedData, dataForHistoryModel); // Merge updated fields
+      Object.assign(updatedData, dataForHistoryModel);
     }
 
     return {
       message: "Update successful",
-      updatedData, // Flattened object with all updated fields
+      updatedData,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
