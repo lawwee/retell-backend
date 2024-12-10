@@ -1361,10 +1361,20 @@ export class Server {
           return `${year}-${month}-${day}`;
         };
 
+        const escapeRegex = (text: string): string => {
+          return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        };
+        
+ 
+        // const searchTerms = searchTerm
+        //   .split(",")
+        //   .map((term: string) => term.trim())
+        //   .filter((term: any) => term.length > 0);
         const searchTerms = searchTerm
-          .split(",")
-          .map((term: string) => term.trim())
-          .filter((term: any) => term.length > 0);
+        .split(",")
+        .map((term: string) => term.trim())
+        .filter((term: string) => term.length > 0)
+        .map(escapeRegex); // Escape special characters`
 
         const query: any = {
           agentId: { $in: agentIds },
@@ -1505,24 +1515,42 @@ export class Server {
           return `${year}-${month}-${day}`;
         };
 
-        const searchTerms = searchTerm
-          .split(",")
-          .map((term: string) => term.trim())
-          .filter((term: any) => term.length > 0);
+        // const searchTerms = searchTerm
+        //   .split(",")
+        //   .map((term: string) => term.trim())
+        //   .filter((term: any) => term.length > 0);
 
         const query: any = {
           agentId,
           isDeleted: false,
         };
 
+        const escapeRegex = (text: string): string => {
+          return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        };
+        
+        const searchTerms = searchTerm
+          .split(",")
+          .map((term: string) => term.trim())
+          .filter((term: string) => term.length > 0)
+          .map(escapeRegex); // Escape special characters`
+        // if (searchTerms.length > 0) {
+        //   query.$or = searchTerms.flatMap((term: any) => [
+        //     { firstname: { $regex: term, $options: "i" } },
+        //     { lastname: { $regex: term, $options: "i" } },
+        //     { phone: { $regex: term, $options: "i" } },
+        //     { email: { $regex: term, $options: "i" } },
+        //   ]);
+        // }
         if (searchTerms.length > 0) {
-          query.$or = searchTerms.flatMap((term: any) => [
+          query.$or = searchTerms.flatMap((term: string) => [
             { firstname: { $regex: term, $options: "i" } },
             { lastname: { $regex: term, $options: "i" } },
             { phone: { $regex: term, $options: "i" } },
             { email: { $regex: term, $options: "i" } },
           ]);
         }
+
 
         if (startDate || endDate) {
           query["datesCalled"] = {};
