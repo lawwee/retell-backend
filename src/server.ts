@@ -2788,7 +2788,7 @@ export class Server {
           }
           console.log(dateFilter);
           const callHistory = await callHistoryModel
-            .find({ agentId: { $in: agentIds }, ...dateFilter }, { callId: 0 })
+            .find({ agentId: { $in: agentIds }, ...dateFilter })
             .sort({ startTimestamp: -1 })
             .skip(skip)
             .limit(pageSize);
