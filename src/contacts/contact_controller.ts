@@ -303,54 +303,70 @@ export const updateContactAndTranscriptForClient = async (
   update: any,
 ): Promise<any> => {
   try {
+    if (!update.callId) {
+      throw new Error("callId is required for updating records");
+    }
 
-      // Filter out undefined fields for contactModel
-      const dataForContactModel = Object.fromEntries(
-        Object.entries({
-          firstname: update.firstname,
-          lastname: update.lastname,
-          email: update.email,
-          phone: update.phone,
-          agentId: update.agentId,
-        }).filter(([_, value]) => value !== undefined) // Exclude undefined values
+    // Helper function to filter out undefined values
+    const filterFields = (fields: any) =>
+      Object.fromEntries(Object.entries(fields).filter(([_, value]) => value !== undefined));
+
+    // Data for each model
+    const dataForContactModel = filterFields({
+      firstname: update.firstname,
+      lastname: update.lastname,
+      email: update.email,
+      phone: update.phone,
+      agentId: update.agentId,
+    });
+
+    const dataForHistoryModel = filterFields({
+      transcript: update.transcript,
+      callSummary: update.summary,
+      userSentiment: update.sentiment,
+      endTimestamp: update.timestamp,
+      durationMs: update.duration,
+      callStatus: update.status,
+      recordingUrl: update.recordingUrl,
+      address: update.address,
+    });
+
+    // Initialize an object to collect all updated fields
+    const updatedData: any = {};
+
+    // Update contactModel and merge updated fields
+    if (Object.keys(dataForContactModel).length > 0) {
+      await contactModel.findOneAndUpdate(
+        { callId: update.callId },
+        { $set: dataForContactModel },
+        { new: true }
       );
+      Object.assign(updatedData, dataForContactModel); // Merge updated fields
+    }
 
-      // Filter out undefined fields for callHistoryModel
-      const dataForHistoryModel = Object.fromEntries(
-        Object.entries({
-          transcript: update.transcript,
-          callSummary: update.summary,
-          userSentiment: update.sentiment,
-          endTimestamp: update.timestamp,
-          durationMs: update.duration,
-          callStatus: update.status,
-          recordingUrl: update.recordingUrl,
-          address: update.address,
-        }).filter(([_, value]) => value !== undefined) // Exclude undefined values
+    // Update callHistoryModel and merge updated fields
+    if (Object.keys(dataForHistoryModel).length > 0) {
+      await callHistoryModel.findOneAndUpdate(
+        { callId: update.callId },
+        { $set: dataForHistoryModel },
+        { new: true }
       );
+      Object.assign(updatedData, dataForHistoryModel); // Merge updated fields
+    }
 
-      // Update the contactModel if there are fields to update
-      if (Object.keys(dataForContactModel).length > 0) {
-        await contactModel.findOneAndUpdate(
-          { callId: update.callId },
-          { $set: dataForContactModel },
-          { new: true }
-        );
-      }
-
-      // Update the callHistoryModel if there are fields to update
-      if (Object.keys(dataForHistoryModel).length > 0) {
-        await callHistoryModel.findOneAndUpdate(
-          { callId: update.callId },
-          { $set: dataForHistoryModel },
-          { new: true }
-        );
-      }
-    
-
-    return "Update successful";
+    return {
+      message: "Update successful",
+      updatedData, // Flattened object with all updated fields
+    };
   } catch (error) {
-    console.error("Error updating contact and transcript:", error);
-    return "Could not update contact and transcript";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Error updating contact and transcript:", {
+      error: errorMessage,
+      callId: update.callId,
+    });
+    return {
+      message: "Could not update contact and transcript",
+      error: errorMessage,
+    };
   }
 };
