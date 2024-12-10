@@ -2892,22 +2892,6 @@ export class Server {
             .skip(skip)
             .limit(pageSize);
 
-          const callHistories = callHistory.map((history) => ({
-            firstname: history.userFirstname || "",
-            lastname: history.userLastname || "",
-            email: history.userEmail || "",
-            phone: history.toNumber || "",
-            agentId: history.agentName || "",
-            transcript: history.transcript || "",
-            summary: history.callSummary || "",
-            sentiment: history.userSentiment || "",
-            timestamp: history.endTimestamp || "",
-            duration: history.durationMs || "",
-            status: history.callStatus || "",
-            recordingUrl: history.recordingUrl || "",
-            address: history.address || "",
-          }));
-
           const totalCount = await callHistoryModel.countDocuments({
             agentId,
             ...dateFilter,
@@ -2919,7 +2903,7 @@ export class Server {
             page,
             totalPages,
             totalCount,
-            callHistories,
+            callHistory
           });
         } catch (error) {
           console.error("Error fetching call history:", error);
