@@ -300,10 +300,9 @@ export const updateContactAndTranscript = async (
 
 
 export const updateContactAndTranscriptForClient = async (
-  updates: any,
+  update: any,
 ): Promise<any> => {
   try {
-    for (const update of updates) {
 
       // Filter out undefined fields for contactModel
       const dataForContactModel = Object.fromEntries(
@@ -347,7 +346,7 @@ export const updateContactAndTranscriptForClient = async (
           { new: true }
         );
       }
-    }
+    
 
     return "Update successful";
   } catch (error) {
