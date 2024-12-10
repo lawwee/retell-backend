@@ -1,4 +1,3 @@
-
 import { DateOption, IContact, Ijob, callstatusenum } from "../utils/types";
 import { contactModel, EventModel, jobModel } from "./contact_model";
 import mongoose, { Document } from "mongoose";
@@ -19,7 +18,7 @@ export const createContact = async (
   agentId: string,
   lowerCaseTags: string,
   dayToBeProcessed?: string,
-  address?:string
+  address?: string,
 ): Promise<IContact | string> => {
   try {
     if (!firstname || !email || !phone) {
@@ -42,7 +41,7 @@ export const createContact = async (
       agentId,
       tags: lowerCaseTags,
       dayToBeProcessed,
-      address
+      address,
     });
     return createdContact;
   } catch (error) {
@@ -76,13 +75,12 @@ export const getAllContact = async (
       if (job && job.createdAt) {
         const createdAtDate = new Date(job.createdAt)
           .toISOString()
-          .split("T")[0]; 
+          .split("T")[0];
         dateFilter = { datesCalled: createdAtDate };
         dateFilter1 = { day: createdAtDate };
         tag = { tag: job.tagProcessedFor };
       }
     } else if (dateOption) {
-      
       switch (dateOption) {
         case DateOption.Today:
           dateFilter = { datesCalled: today };
@@ -123,7 +121,7 @@ export const getAllContact = async (
 
           if (recentJob) {
             const dateToCheck = recentJob.scheduledTime.split("T")[0];
-            
+
             dateFilter = { datesCalled: dateToCheck };
             dateFilter1 = { day: dateToCheck };
           } else {
@@ -136,7 +134,7 @@ export const getAllContact = async (
           dateFilter1 = {};
           break;
       }
-    } 
+    }
     const foundContacts = await contactModel
       .find({ agentId, isDeleted: false, ...dateFilter, ...tag })
       .sort({ createdAt: "desc" })
@@ -144,10 +142,14 @@ export const getAllContact = async (
       .skip(skip)
       .limit(limit);
 
-      console.log({agentId, dateFilter, tag})
-   
-    const totalCount = await contactModel
-      .countDocuments({ agentId, isDeleted: false, ...dateFilter, ...tag })
+    console.log({ agentId, dateFilter, tag });
+
+    const totalCount = await contactModel.countDocuments({
+      agentId,
+      isDeleted: false,
+      ...dateFilter,
+      ...tag,
+    });
 
     const totalContactForAgent = await contactModel.countDocuments({
       agentId,
@@ -263,10 +265,10 @@ export const updateContactAndTranscript = async (
 ): Promise<any> => {
   try {
     for (const update of updates) {
-      if (update.id) {
+      if (update.callId) {
         await contactModel.findOneAndUpdate(
           {
-            _id: new mongoose.Types.ObjectId(update.id),
+            callId: update.callId,
             isDeleted: { $ne: true },
           },
           { $set: update.updateFields },
@@ -276,13 +278,11 @@ export const updateContactAndTranscript = async (
 
       if (
         update.updateFields.referencetocallid &&
-        update.updateFields.referencetocallid.id
+        update.updateFields.referencetocallid.callId
       ) {
         await EventModel.findOneAndUpdate(
           {
-            _id: new mongoose.Types.ObjectId(
-              update.updateFields.referencetocallid.id,
-            ),
+            callId: update.updateFields.referencetocallid.callId,
           },
           { $set: update.updateFields.referencetocallid.updateFields },
           { new: true },

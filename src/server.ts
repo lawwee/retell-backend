@@ -3271,50 +3271,45 @@ export class Server {
         } else if (selectedDateOption === DateOption.ThisWeek) {
           const weekDays: string[] = [];
           const currentDay = DateTime.now().setZone("America/Los_Angeles");
-
-          // Set currentDay to the most recent Monday
-          const startOfWeek = currentDay.minus({
-            days: currentDay.weekday % 7,
-          });
-
-          // Collect Monday to Friday
-          for (let i = 0; i < 5; i++) {
-            weekDays.push(startOfWeek.plus({ days: i }).toISODate());
+        
+          // Generate the rolling 7-day period starting from the current day
+          for (let i = 0; i < 7; i++) {
+            const day = currentDay.minus({ days: i }).toISODate();
+            weekDays.push(day);
           }
-
+        
           // Fetch stats for the collected weekDays
           stats = await dailyGraphModel.find({
             agentId,
             date: { $in: weekDays },
           });
-
-          // Predefined structure for the response
-          const predefinedStructure = [
-            { x: "Monday", y: 0 },
-            { x: "Tuesday", y: 0 },
-            { x: "Wednesday", y: 0 },
-            { x: "Thursday", y: 0 },
-            { x: "Friday", y: 0 },
-          ];
-
+        
+          // Predefined structure for the rolling 7 days
+          const predefinedStructure = weekDays.map((day) => {
+            const dayName = DateTime.fromISO(day, {
+              zone: "America/Los_Angeles",
+            }).toLocaleString({ weekday: "long" });
+            return { x: dayName, y: 0 }; // Initialize with 0
+          });
+        
           // Populate the predefined structure with actual data
           weekDays.forEach((day) => {
             const dayName = DateTime.fromISO(day, {
               zone: "America/Los_Angeles",
             }).toLocaleString({ weekday: "long" });
-
+        
             const dayStats = stats.find((s: any) => s.date === day);
             const hourlyCalls: Map<string, number> = dayStats
               ? dayStats.hourlyCalls
               : new Map();
-
+        
             const hourlySum = Array.from(hourlyCalls.entries())
               .filter(([hour]: [string, number]) => {
                 const hourInt = parseInt(hour.split(":")[0], 10);
                 return hourInt >= 9 && hourInt < 15; // Only count calls between 9 AM and 3 PM
               })
               .reduce((sum, [, count]: [string, number]) => sum + count, 0);
-
+        
             // Update the corresponding day in the predefined structure
             const dayEntry = predefinedStructure.find(
               (entry) => entry.x === dayName,
@@ -3323,8 +3318,8 @@ export class Server {
               dayEntry.y = hourlySum; // Update the count
             }
           });
-
-          response = predefinedStructure; // Set the response to the populated structure
+        
+          response = predefinedStructure.reverse(); // Reverse to display from today to 7 days ago
         } else if (selectedDateOption === DateOption.ThisMonth) {
           stats = await dailyGraphModel.find({ agentId });
 
@@ -3527,44 +3522,46 @@ export class Server {
               }
             });
           } else if (selectedDateOption === DateOption.ThisWeek) {
-            const todays = DateTime.now()
+            const selectedDay = DateTime.now()
               .setZone("America/Los_Angeles")
-              .startOf("day");
-
-            const weekDays: string[] = [];
-            const startOfWeek = todays.minus({ days: todays.weekday - 1 }); // Start from Monday
-            for (let i = 0; i < 5; i++) {
-              weekDays.push(startOfWeek.plus({ days: i }).toISODate());
-            }
-
+              .startOf("day"); // Adjust to get specific day if provided
+          
+            // Create an array of the last 7 days, including the selected day
+            const weekDays: string[] = Array.from({ length: 7 }, (_, index) =>
+              selectedDay.minus({ days: index }).toISODate()
+            ).reverse(); // Reverse to get them in chronological order
+          
+            // Query for stats in the last 7 days
             stats = await dailyGraphModel.find({
               agentId: { $in: agentIds },
               date: { $in: weekDays },
             });
-
+          
+            // Initialize response with all 7 days having y = 0
             const weeklyData = weekDays.map((day) => {
               const dayName = DateTime.fromISO(day, {
                 zone: "America/Los_Angeles",
               }).toLocaleString({ weekday: "long" });
-
+          
               const dailyStats = stats.filter((s) => s.date === day);
-
+          
+              // Sum up hourly calls for the day
               const dailySum = dailyStats.reduce((sum, stat) => {
                 const hourlyCalls = stat.hourlyCalls as Map<string, number>;
-
+          
                 const hourlySum = Array.from(hourlyCalls.entries())
                   .filter(([hour]) => {
                     const hourInt = parseInt(hour.split(":")[0], 10);
                     return hourInt >= 9 && hourInt < 15;
                   })
                   .reduce((sum, [, count]) => sum + count, 0);
-
+          
                 return sum + hourlySum;
               }, 0);
-
-              return { x: dayName, y: dailySum };
+          
+              return { x: dayName, y: dailySum || 0 }; // Ensure 0 for missing stats
             });
-
+          
             response = weeklyData;
           } else if (selectedDateOption === DateOption.ThisMonth) {
             stats = await dailyGraphModel.find({
