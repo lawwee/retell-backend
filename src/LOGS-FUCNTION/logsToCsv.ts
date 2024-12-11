@@ -19,8 +19,10 @@ export const logsToCsv = async (
     | "neutral"
     | "positive"
     | "negative"
+    | "dnc"
     | "all",
   dateOption?: string,
+  tag?:string
 ) => {
   try {
     const validSentimentOptions = [
@@ -30,6 +32,7 @@ export const logsToCsv = async (
        "neutral",
        "positive",
        "negative",
+       "dnc",
        "all",
     ];
 
@@ -159,6 +162,9 @@ export const logsToCsv = async (
       query["datesCalled"] = formattedStartDate;
     }
 
+    if(tag){
+      query.tag = tag
+    }
     let contactQuery = contactModel
       .find(query)
       .sort({ createdAt: "desc" })

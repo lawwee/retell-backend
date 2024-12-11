@@ -84,7 +84,8 @@ export enum callSentimentenum{
   NEUTRAL = "neutral",
   UNKNOWN = "unknown",
   SCHEDULED = "scheduled",
-  CALLBACK= "call-back"
+  CALLBACK= "call-back",
+  DNC = "dnc"
 }
 export interface Itranscript {
   transcript: string;

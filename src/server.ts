@@ -562,8 +562,6 @@ export class Server {
   schedulemycall() {
     this.app.post(
       "/schedule",
-      isAdmin,
-      authmiddleware,
       async (req: Request, res: Response) => {
         const { hour, minute, agentId, limit, fromNumber, tag, address } =
           req.body;
@@ -980,6 +978,7 @@ export class Server {
       );
       const isScheduled =
         analyzedTranscriptForSentiment.message.content === "scheduled";
+      const isDNC =  analyzedTranscriptForSentiment.message.content === "dnc";
       const isCall_Back =
         analyzedTranscriptForSentiment.message.content === "call-back";
       const isNeutral = payload.data.call_analysis.user_sentiment === "Neutral";
@@ -998,7 +997,9 @@ export class Server {
         sentimentStatus = callSentimentenum.SCHEDULED;
       } else if (isCall_Back) {
         sentimentStatus = callSentimentenum.CALLBACK;
-      } else if (isNeutral) {
+      }else if (isDNC) {
+        sentimentStatus = callSentimentenum.DNC;
+      }else if (isNeutral) {
         sentimentStatus = callSentimentenum.NEUTRAL;
       } else if (isPositive) {
         sentimentStatus = callSentimentenum.POSITIVE;
@@ -1058,6 +1059,7 @@ export class Server {
           statusOption,
           sentimentOption,
           dateOption,
+          tag
         } = req.body;
 
         const newlimit = parseInt(limit);
@@ -1069,6 +1071,7 @@ export class Server {
           statusOption,
           sentimentOption,
           dateOption,
+          tag
         );
 
         if (typeof result === "object" && result.error) {
@@ -1411,6 +1414,7 @@ export class Server {
           scheduled: callSentimentenum.SCHEDULED,
           neutral: callSentimentenum.NEUTRAL,
           unknown: callSentimentenum.UNKNOWN,
+          dnc:callSentimentenum.DNC
         };
 
         const sentimentStatus = sentimentOption
@@ -1573,6 +1577,7 @@ export class Server {
           scheduled: callSentimentenum.SCHEDULED,
           neutral: callSentimentenum.NEUTRAL,
           unknown: callSentimentenum.UNKNOWN,
+          dnc: callSentimentenum.DNC
         };
 
         const sentimentStatus = sentimentOption
