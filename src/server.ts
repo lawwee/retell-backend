@@ -1403,6 +1403,29 @@ export class Server {
           }
         }
 
+        let statusOptions
+        if(statusOption === "called"){
+          statusOptions = callstatusenum.CALLED
+        }else if (statusOption === "not-called"){
+          statusOptions =callstatusenum.NOT_CALLED
+        }
+        else if (statusOption === "voicemail"){
+          statusOptions =callstatusenum.VOICEMAIL
+        }else if (statusOption === "failed"){
+          statusOptions =callstatusenum.FAILED
+        }else if (statusOption === "transffered"){
+          statusOptions =callstatusenum.TRANSFERRED
+        }else if (statusOption === "scheduled"){
+          statusOptions =callstatusenum.SCHEDULED
+        }else if (statusOption === "ivr"){
+          statusOptions =callstatusenum.IVR
+        }else if (statusOption === "inactivity"){
+          statusOptions =callstatusenum.INACTIVITY
+        }
+
+        if(statusOption){
+          query.status = statusOptions
+        }
         if (tag) {
           query["tag"] = tag.toLowerCase();
         }
@@ -1565,7 +1588,29 @@ export class Server {
             query["datesCalled"]["$lte"] = formatDateToDB(endDate);
           }
         }
+        let statusOptions
+        if(statusOption === "called"){
+          statusOptions = callstatusenum.CALLED
+        }else if (statusOption === "not-called"){
+          statusOptions =callstatusenum.NOT_CALLED
+        }
+        else if (statusOption === "voicemail"){
+          statusOptions =callstatusenum.VOICEMAIL
+        }else if (statusOption === "failed"){
+          statusOptions =callstatusenum.FAILED
+        }else if (statusOption === "transffered"){
+          statusOptions =callstatusenum.TRANSFERRED
+        }else if (statusOption === "scheduled"){
+          statusOptions =callstatusenum.SCHEDULED
+        }else if (statusOption === "ivr"){
+          statusOptions =callstatusenum.IVR
+        }else if (statusOption === "inactivity"){
+          statusOptions =callstatusenum.INACTIVITY
+        }
 
+        if(statusOption){
+          query.status = statusOptions
+        }
         if (tag) {
           query["tag"] = tag.toLowerCase();
         }
