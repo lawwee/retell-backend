@@ -22,18 +22,18 @@ export const logsToCsv = async (
     | "dnc"
     | "all",
   dateOption?: string,
-  tag?:string
+  tag?: string,
 ) => {
   try {
     const validSentimentOptions = [
-       "unknown",
-       "scheduled",
-       "call-back",
-       "neutral",
-       "positive",
-       "negative",
-       "dnc",
-       "all",
+      "unknown",
+      "scheduled",
+      "call-back",
+      "neutral",
+      "positive",
+      "negative",
+      "dnc",
+      "all",
     ];
 
     if (sentimentOption && !validSentimentOptions.includes(sentimentOption)) {
@@ -110,8 +110,7 @@ export const logsToCsv = async (
 
     let query: any = {
       isDeleted: false,
-       ...dateFilter1
-      
+      ...dateFilter1,
     };
 
     if (agentId) {
@@ -162,8 +161,8 @@ export const logsToCsv = async (
       query["datesCalled"] = formattedStartDate;
     }
 
-    if(tag){
-      query.tag = tag
+    if (tag) {
+      query.tag = tag;
     }
     let contactQuery = contactModel
       .find(query)
@@ -206,6 +205,8 @@ export const logsToCsv = async (
     let callSentimentStatus: string;
     if (sentimentOption === "unknown") {
       callSentimentStatus = callSentimentenum.UNKNOWN;
+    } else if (sentimentOption === "dnc") {
+      callSentimentStatus === callSentimentenum.DNC;
     } else if (sentimentOption === "scheduled") {
       callSentimentStatus = callSentimentenum.SCHEDULED;
     } else if (sentimentOption === "call-back") {
@@ -219,6 +220,7 @@ export const logsToCsv = async (
     } else if (sentimentOption === "all") {
       callSentimentStatus == "";
     }
+    console.log(callSentimentStatus);
     const contactsData = foundContacts
       .map((contact) => ({
         firstname: contact.firstname,
@@ -232,10 +234,8 @@ export const logsToCsv = async (
         last_date_called: contact.datesCalled,
       }))
       .filter((contact) => {
-       
         return (
-          !sentimentOption || 
-          contact.analyzedTranscript === callSentimentStatus
+          !sentimentOption || contact.analyzedTranscript === callSentimentStatus
         );
       });
 

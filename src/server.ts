@@ -65,7 +65,7 @@ import {
 } from "./helper-fuction/zoom";
 import callHistoryModel from "./contacts/history_model";
 import { formatPhoneNumber } from "./helper-fuction/formatter";
-import { script } from "./script";
+
 import {
   getAllLLM,
   getOneLLM,
@@ -1190,6 +1190,7 @@ export class Server {
         } = req.body;
 
         const newlimit = parseInt(limit);
+        console.log(sentimentOption,"second")
         const result = await logsToCsv(
           agentId,
           newlimit,
@@ -3136,7 +3137,7 @@ export class Server {
   }
   secondscript() {
     this.app.post("/script1", async (req: Request, res: Response) => {
-      const result = await script();
+      const result = "";
       res.send(result);
     });
   }

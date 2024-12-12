@@ -109,19 +109,19 @@ export const scheduleCronJob = async (
           const now = moment().tz("America/Los_Angeles");
 
           // Time cutoff check
-          // if (
-          //   now.hour() > CUTOFF_HOUR ||
-          //   (now.hour() === CUTOFF_HOUR && now.minute() >= CUTOFF_MINUTE)
-          // ) {
-          //   console.log(
-          //     "Job processing stopped due to time cutoff (9:45 PST).",
-          //   );
-          //   await jobModel.updateOne(
-          //     { jobId },
-          //     { callstatus: "cancelled", shouldContinueProcessing: false },
-          //   );
-          //   break;
-          // }
+          if (
+            now.hour() > CUTOFF_HOUR ||
+            (now.hour() === CUTOFF_HOUR && now.minute() >= CUTOFF_MINUTE)
+          ) {
+            console.log(
+              "Job processing stopped due to time cutoff (9:45 PST).",
+            );
+            await jobModel.updateOne(
+              { jobId },
+              { callstatus: "cancelled", shouldContinueProcessing: false },
+            );
+            break;
+          }
 
           if (!currentJob || currentJob.shouldContinueProcessing === false) {
             console.log("Job processing stopped by user flag.");
