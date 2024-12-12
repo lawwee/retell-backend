@@ -372,6 +372,143 @@ export class Server {
     );
   }
 
+  // uploadcsvToDb() {
+  //   this.app.post(
+  //     "/upload/:agentId",
+  //     this.upload.single("csvFile"),
+  //     async (req: Request, res: Response) => {
+  //       try {
+  //         if (!req.file) {
+  //           return res.status(400).json({ message: "No file uploaded" });
+  //         }
+  //         const csvFile = req.file;
+  //         const day: any = req.query.day;
+  //         const tag = req.query.tag;
+  //         const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
+  //         const csvData = fs.readFileSync(csvFile.path, "utf8");
+
+  //         Papa.parse(csvData, {
+  //           header: true,
+  //           complete: async (results: any) => {
+  //             const jsonArrayObj: IContact[] = results.data as IContact[];
+  //             const headers = results.meta.fields.map((header: string) =>
+  //               header.trim(),
+  //             );
+  //             const requiredHeaders = [
+  //               "firstname",
+  //               "lastname",
+  //               "phone",
+  //               "email",
+  //             ];
+  //             const missingHeaders = requiredHeaders.filter(
+  //               (header) => !headers.includes(header),
+  //             );
+
+  //             if (missingHeaders.length > 0) {
+  //               return res.status(400).json({
+  //                 message: `CSV must contain the following headers: ${missingHeaders.join(
+  //                   ", ",
+  //                 )}`,
+  //               });
+  //             }
+
+  //             const agentId = req.params.agentId;
+  //             console.log("agentId:", agentId);
+
+  //             const uniqueRecordsMap = new Map<string, IContact>();
+  //             const duplicateKeys = new Set<string>();
+  //             const failedContacts = [];
+
+  //             for (const user of jsonArrayObj) {
+  //               if (user.firstname && user.phone) {
+  //                 const formattedPhone = formatPhoneNumber(user.phone);
+  //                 user.phone = formattedPhone;
+
+  //                 if (uniqueRecordsMap.has(formattedPhone)) {
+  //                   duplicateKeys.add(formattedPhone);
+  //                   failedContacts.push({ user, reason: "duplicate" });
+  //                 } else {
+  //                   uniqueRecordsMap.set(formattedPhone, user);
+  //                 }
+  //               } else {
+  //                 failedContacts.push({
+  //                   user,
+  //                   reason: "missing required fields",
+  //                 });
+  //               }
+  //             }
+
+  //             const uniqueUsersToInsert = Array.from(
+  //               uniqueRecordsMap.values(),
+  //             ).filter((user) => !duplicateKeys.has(user.phone));
+
+  //             const usersWithAgentId = uniqueUsersToInsert.map((user) => ({
+  //               ...user,
+  //               agentId: agentId,
+  //               tag,
+  //               address: user.address || ""
+  //             }));
+
+  //             // Batch query to find existing users
+  //             const phoneNumbersToCheck = usersWithAgentId.map(
+  //               (user) => user.phone,
+  //             );
+  //             const existingUsers = await contactModel.find({
+  //               isDeleted: false,
+  //               phone: { $in: phoneNumbersToCheck },
+  //             });
+
+  //             const dbDuplicates = existingUsers;
+
+  //             const existingPhoneNumbers = new Set(
+  //               existingUsers.map((user) => user.phone),
+  //             );
+
+  //             const finalUsersToInsert = usersWithAgentId.filter(
+  //               (user) => !existingPhoneNumbers.has(user.phone),
+  //             );
+
+  //             if (dbDuplicates.length > 0) {
+  //               dbDuplicates.forEach((existingUser) => {
+  //                 failedContacts.push({
+  //                   user: existingUser,
+  //                   reason: "already exists in the database",
+  //                 });
+  //               });
+  //             }
+
+  //             if (finalUsersToInsert.length > 0) {
+  //               await contactModel.insertMany(finalUsersToInsert);
+  //               await userModel.updateOne(
+  //                 { "agents.agentId": agentId },
+  //                 { $addToSet: { "agents.$.tag": lowerCaseTag } },
+  //               );
+  //             }
+
+  //             if (failedContacts.length > 0) {
+  //               console.log("Failed Contacts:", failedContacts);
+  //             }
+
+  //             res.status(200).json({
+  //               message: `Upload successful, contacts uploaded: ${finalUsersToInsert.length}, duplicates found: ${dbDuplicates.length}`,
+  //               duplicates: dbDuplicates,
+  //               failedContacts: failedContacts,
+  //             });
+  //           },
+  //           error: async (err: Error) => {
+  //             console.error("Error parsing CSV:", err);
+  //             res.status(500).json({ message: "Failed to parse CSV data" });
+  //           },
+  //         });
+  //       } catch (err) {
+  //         console.error("Error:", err);
+  //         res
+  //           .status(500)
+  //           .json({ message: "Failed to upload CSV data to database" });
+  //       }
+  //     },
+  //   );
+  // }
   uploadcsvToDb() {
     this.app.post(
       "/upload/:agentId",
@@ -381,49 +518,39 @@ export class Server {
           if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
           }
+  
           const csvFile = req.file;
-          const day: any = req.query.day;
           const tag = req.query.tag;
           const lowerCaseTag = typeof tag === "string" ? tag.toLowerCase() : "";
           const csvData = fs.readFileSync(csvFile.path, "utf8");
-
+  
           Papa.parse(csvData, {
             header: true,
             complete: async (results: any) => {
               const jsonArrayObj: IContact[] = results.data as IContact[];
-              const headers = results.meta.fields.map((header: string) =>
-                header.trim(),
-              );
-              const requiredHeaders = [
-                "firstname",
-                "lastname",
-                "phone",
-                "email",
-              ];
-              const missingHeaders = requiredHeaders.filter(
-                (header) => !headers.includes(header),
-              );
-
+              const headers = results.meta.fields.map((header: string) => header.trim());
+              const requiredHeaders = ["firstname", "lastname", "phone", "email"];
+              const missingHeaders = requiredHeaders.filter((header) => !headers.includes(header));
+  
               if (missingHeaders.length > 0) {
                 return res.status(400).json({
-                  message: `CSV must contain the following headers: ${missingHeaders.join(
-                    ", ",
-                  )}`,
+                  message: `CSV must contain the following headers: ${missingHeaders.join(", ")}`,
                 });
               }
-
+  
               const agentId = req.params.agentId;
               console.log("agentId:", agentId);
-
+  
               const uniqueRecordsMap = new Map<string, IContact>();
               const duplicateKeys = new Set<string>();
               const failedContacts = [];
-
+  
+              // Process each user from the CSV
               for (const user of jsonArrayObj) {
                 if (user.firstname && user.phone) {
                   const formattedPhone = formatPhoneNumber(user.phone);
                   user.phone = formattedPhone;
-
+  
                   if (uniqueRecordsMap.has(formattedPhone)) {
                     duplicateKeys.add(formattedPhone);
                     failedContacts.push({ user, reason: "duplicate" });
@@ -437,37 +564,35 @@ export class Server {
                   });
                 }
               }
-
-              const uniqueUsersToInsert = Array.from(
-                uniqueRecordsMap.values(),
-              ).filter((user) => !duplicateKeys.has(user.phone));
-
+  
+              const uniqueUsersToInsert = Array.from(uniqueRecordsMap.values()).filter(
+                (user) => !duplicateKeys.has(user.phone)
+              );
+  
+              const dncList:string[] = [""]
+              // Check against the DNC list and prepare users for insertion
               const usersWithAgentId = uniqueUsersToInsert.map((user) => ({
                 ...user,
                 agentId: agentId,
                 tag,
-                address: user.address || ""
+                address: user.address || "",
+                isOnDNCList: dncList.includes(user.phone), // Set based on DNC list
               }));
-
+  
               // Batch query to find existing users
-              const phoneNumbersToCheck = usersWithAgentId.map(
-                (user) => user.phone,
-              );
+              const phoneNumbersToCheck = usersWithAgentId.map((user) => user.phone);
               const existingUsers = await contactModel.find({
                 isDeleted: false,
                 phone: { $in: phoneNumbersToCheck },
               });
-
+  
               const dbDuplicates = existingUsers;
-
-              const existingPhoneNumbers = new Set(
-                existingUsers.map((user) => user.phone),
-              );
-
+              const existingPhoneNumbers = new Set(existingUsers.map((user) => user.phone));
+  
               const finalUsersToInsert = usersWithAgentId.filter(
                 (user) => !existingPhoneNumbers.has(user.phone),
               );
-
+  
               if (dbDuplicates.length > 0) {
                 dbDuplicates.forEach((existingUser) => {
                   failedContacts.push({
@@ -476,19 +601,23 @@ export class Server {
                   });
                 });
               }
-
+  
               if (finalUsersToInsert.length > 0) {
-                await contactModel.insertMany(finalUsersToInsert);
+                await contactModel.bulkWrite(
+                  finalUsersToInsert.map(user => ({
+                    insertOne: { document: user },
+                  }))
+                );
                 await userModel.updateOne(
                   { "agents.agentId": agentId },
                   { $addToSet: { "agents.$.tag": lowerCaseTag } },
                 );
               }
-
+  
               if (failedContacts.length > 0) {
                 console.log("Failed Contacts:", failedContacts);
               }
-
+  
               res.status(200).json({
                 message: `Upload successful, contacts uploaded: ${finalUsersToInsert.length}, duplicates found: ${dbDuplicates.length}`,
                 duplicates: dbDuplicates,
@@ -502,9 +631,7 @@ export class Server {
           });
         } catch (err) {
           console.error("Error:", err);
-          res
-            .status(500)
-            .json({ message: "Failed to upload CSV data to database" });
+          res.status(500).json({ message: "Failed to upload CSV data to database" });
         }
       },
     );

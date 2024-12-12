@@ -7,7 +7,8 @@ import {
   callstatusenum,
   jobstatus,
 } from "../utils/types";
-
+// Define your DNC list
+const dncList: string[] = [];
 const ContactSchema = new Schema<IContact>(
   {
     firstname: {
@@ -76,9 +77,9 @@ const ContactSchema = new Schema<IContact>(
       default: false,
     },
     timesCalled: {
-      type: String
+      type: String,
     },
-    address:{type:String}
+    address: { type: String },
   },
   { timestamps: true },
 );
@@ -107,8 +108,8 @@ const jobschema = new Schema<Ijob>(
     scheduledTime: { type: String },
     shouldContinueProcessing: { type: Boolean, default: true },
     tagProcessedFor: { type: String },
-    completedPercent:{type:String},
-    totalContactToProcess:{type: Number}
+    completedPercent: { type: String },
+    totalContactToProcess: { type: Number },
   },
   { timestamps: true },
 );
@@ -128,14 +129,22 @@ const transcriptSchema = new Schema(
     agentId: { type: String },
     callBackDate: { type: String },
     callDuration: { type: String },
-    retellCallStatus:{type: String},
-    timestamp:{type:String},
-    duration:{type:String},
-    agentName:{type:String}
+    retellCallStatus: { type: String },
+    timestamp: { type: String },
+    duration: { type: String },
+    agentName: { type: String },
   },
   { timestamps: true },
 );
 
+ContactSchema.pre("save", function (next) {
+  if (dncList.includes(this.phone)) {
+    this.isOnDNCList = true; // Set isOnDNCList to true if phone is in DNC list
+  } else {
+    this.isOnDNCList = false; // Optionally reset if not in DNC list
+  }
+  next();
+});
 export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);
 export const jobModel = model<Ijob>("RetellJOb", jobschema);
