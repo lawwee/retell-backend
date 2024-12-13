@@ -137,14 +137,7 @@ const transcriptSchema = new Schema(
   { timestamps: true },
 );
 
-ContactSchema.pre("save", function (next) {
-  if (dncList.includes(this.phone)) {
-    this.isOnDNCList = true; // Set isOnDNCList to true if phone is in DNC list
-  } else {
-    this.isOnDNCList = false; // Optionally reset if not in DNC list
-  }
-  next();
-});
+
 export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);
 export const jobModel = model<Ijob>("RetellJOb", jobschema);
