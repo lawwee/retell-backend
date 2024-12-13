@@ -128,7 +128,7 @@ export const logsToCsv = async (
       } else if (statusOption === "failed") {
         callStatus = callstatusenum.FAILED;
       }
-      query.status = callStatus;
+      query.dial_status = callStatus;
     }
 
     const formattedStartDate = startDate
@@ -164,6 +164,7 @@ export const logsToCsv = async (
     if (tag) {
       query.tag = tag;
     }
+
     let contactQuery = contactModel
       .find(query)
       .sort({ createdAt: "desc" })
@@ -220,7 +221,6 @@ export const logsToCsv = async (
     } else if (sentimentOption === "all") {
       callSentimentStatus == "";
     }
-    console.log(callSentimentStatus);
     const contactsData = foundContacts
       .map((contact) => ({
         firstname: contact.firstname,
