@@ -81,6 +81,7 @@ import {
   reviewCallback,
   reviewTranscript,
 } from "./helper-fuction/transcript-review";
+import { stat } from "fs/promises";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -900,7 +901,10 @@ export class Server {
         const jobidfromretell = retell_llm_dynamic_variables.job_id
           ? retell_llm_dynamic_variables.job_id
           : null;
-        const statsResults = await DailyStatsModel.findOneAndUpdate(
+          const resultforcheck = await contactModel.findOne({callId: payload.call.call_id, agentId: payload.call.agent_id})
+          let statsResults
+        if(resultforcheck.calledTimes < 0){
+         statsResults = await DailyStatsModel.findOneAndUpdate(
           {
             day: todayString,
             agentId: agent_id,
@@ -908,22 +912,32 @@ export class Server {
           },
           statsUpdate,
           { upsert: true, returnOriginal: false },
-        );
-
-        const linkToCallLogModelId = statsResults ? statsResults._id : null;
-        const resultForUserUpdate = await contactModel.findOneAndUpdate(
-          { callId: call_id, agentId: payload.call.agent_id },
-          {
-            dial_status: callStatus,
-            $push: { datesCalled: todaysDateForDatesCalled },
-            referenceToCallId: results._id,
-            timesCalled: time,
-            linktocallLogModel: linkToCallLogModelId,
-            $inc:{calledTimes: 1}
-          },
-        );
+        )
         const timestamp = new Date();
         await updateStatsByHour(agent_id, todayString, timestamp);
+      }
+
+        //const linkToCallLogModelId = statsResults ? statsResults._id : null;
+        const updateData: any = {
+          dial_status: callStatus,
+          $push: { datesCalled: todaysDateForDatesCalled },
+          referenceToCallId: results._id,
+          timesCalled: time,
+          $inc: { calledTimes: 1 },
+        };
+        
+        // Conditionally include linkToCallLogModel if it exists
+        if (statsResults) {
+          updateData.linktocallLogModel = statsResults._id;
+        }
+        
+        const resultForUserUpdate = await contactModel.findOneAndUpdate(
+          { callId: call_id, agentId: payload.call.agent_id },
+          updateData,
+        );
+        
+
+        
         // if (analyzedTranscript.message.content === "Scheduled") {
         //   const data = {
         //     firstname: resultForUserUpdate.firstname,
@@ -955,6 +969,168 @@ export class Server {
       console.error("Error in handleCallAnalyyzedOrEnded:", error);
     }
   }
+
+  // async handleCallEnded(
+  //   payload: any,
+  //   todayString: string,
+  //   todaysDateForDatesCalled: string,
+  //   time: number,
+  // ) {
+  //   try {
+  //     const {
+  //       call_id,
+  //       agent_id,
+  //       disconnection_reason,
+  //       start_timestamp,
+  //       end_timestamp,
+  //       transcript,
+  //       recording_url,
+  //       public_log_url,
+  //       retell_llm_dynamic_variables = {},
+  //       call_analysis,
+  //       call_status,
+  //       from_number,
+  //       to_number,
+  //       direction,
+  //     } = payload.data;
+  
+  //     // Helper Functions
+  //     const convertMsToHourMinSec = (ms: number): string => {
+  //       const totalSeconds = Math.floor(ms / 1000);
+  //       const hours = Math.floor(totalSeconds / 3600);
+  //       const minutes = Math.floor((totalSeconds % 3600) / 60);
+  //       const seconds = totalSeconds % 60;
+  //       return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  //     };
+  
+  //     const getAgentNameEnum = (agentId: string): string => {
+  //       const agentMap: Record<string, string> = {
+  //         agent_1852d8aa89c3999f70ecba92b8: "ARS",
+  //         agent_6beffabb9adf0ef5bbab8e0bb2: "LQR",
+  //         agent_155d747175559aa33eee83a976: "SDR",
+  //         "214e92da684138edf44368d371da764c": "TVAG",
+  //       };
+  //       return agentMap[agentId] || "UNKNOWN";
+  //     };
+  
+  //     const updateStatsForCallStatus = (reason: string, statsUpdate: any) => {
+  //       const callStatusMap: Record<string, { statKey: string; status: string }> = {
+  //         dial_failed: { statKey: "totalFailed", status: callstatusenum.FAILED },
+  //         call_transfer: { statKey: "totalTransferred", status: callstatusenum.TRANSFERRED },
+  //         dial_no_answer: { statKey: "totalDialNoAnswer", status: callstatusenum.NO_ANSWER },
+  //         inactivity: { statKey: "totalCallInactivity", status: callstatusenum.INACTIVITY },
+  //         user_hangup: { statKey: "totalCallAnswered", status: callstatusenum.CALLED },
+  //         agent_hangup: { statKey: "totalCallAnswered", status: callstatusenum.CALLED },
+  //       };
+  //       const match = callStatusMap[reason];
+  //       if (match) {
+  //         statsUpdate.$inc[match.statKey] = 1;
+  //         return match.status;
+  //       }
+  //       return null;
+  //     };
+  
+  //     // Initialize variables
+  //     const agentNameEnum = getAgentNameEnum(agent_id);
+  //     let statsUpdate: any = { $inc: { totalCalls: 1, totalCallDuration: payload.call.duration_ms } };
+  
+  //     // Review transcript and determine statuses
+  //     const analyzedTranscriptForStatus = await reviewTranscript(transcript);
+  //     const callStatus = updateStatsForCallStatus(disconnection_reason, statsUpdate);
+  
+  //     if (analyzedTranscriptForStatus.message.content === "scheduled") {
+  //       statsUpdate.$inc.totalAppointment = 1;
+  //     } else if (analyzedTranscriptForStatus.message.content === "voicemail") {
+  //       statsUpdate.$inc.totalAnsweredByVm = 1;
+  //     } else if (analyzedTranscriptForStatus.message.content === "ivr") {
+  //       statsUpdate.$inc.totalAnsweredByIVR = 1;
+  //     }
+  
+  //     const callbackDate = await reviewCallback(transcript);
+  //     const newDuration = convertMsToHourMinSec(payload.call.duration_ms);
+  
+  //     // EventModel Update
+  //     const callEndedUpdateData = {
+  //       callId: call_id,
+  //       agentId: agent_id,
+  //       recordingUrl: recording_url,
+  //       callDuration: newDuration,
+  //       disconnectionReason: disconnection_reason,
+  //       callBackDate: callbackDate,
+  //       retellCallStatus: call_status,
+  //       agentName: agentNameEnum,
+  //       duration: convertMsToHourMinSec(end_timestamp - start_timestamp) || 0,
+  //       timestamp: end_timestamp,
+  //       ...(transcript && { transcript }),
+  //     };
+  
+  //     const results = await EventModel.findOneAndUpdate(
+  //       { callId: call_id, agentId: agent_id },
+  //       { $set: callEndedUpdateData },
+  //       { upsert: true, returnOriginal: false },
+  //     );
+  
+  //     // Call History Update
+  //     const callData = {
+  //       callId: call_id,
+  //       agentId: agent_id,
+  //       recordingUrl: recording_url || null,
+  //       disconnectionReason: disconnection_reason || null,
+  //       callStatus,
+  //       startTimestamp: start_timestamp || null,
+  //       endTimestamp: end_timestamp || null,
+  //       durationMs: newDuration,
+  //       transcript: transcript || null,
+  //       publicLogUrl: public_log_url || null,
+  //       agentName: agentNameEnum,
+  //       date: todayString,
+  //     };
+  
+  //     await callHistoryModel.findOneAndUpdate(
+  //       { callId: call_id, agentId: agent_id },
+  //       { $set: callData },
+  //       { upsert: true, returnOriginal: false },
+  //     );
+  
+  //     // Daily Stats Update
+  //     const resultForCheck = await contactModel.findOne({
+  //       callId: call_id,
+  //       agentId: agent_id,
+  //     });
+  
+  //     let statsResults;
+  //     if (resultForCheck?.calledTimes < 0) {
+  //       statsResults = await DailyStatsModel.findOneAndUpdate(
+  //         { day: todayString, agentId: agent_id, jobProcessedBy: retell_llm_dynamic_variables.job_id || null },
+  //         statsUpdate,
+  //         { upsert: true, returnOriginal: false },
+  //       );
+  
+  //       await updateStatsByHour(agent_id, todayString, new Date());
+  //     }
+  
+  //     // Contact Model Update
+  //     const updateData: any = {
+  //       dial_status: callStatus,
+  //       $push: { datesCalled: todaysDateForDatesCalled },
+  //       referenceToCallId: results._id,
+  //       timesCalled: time,
+  //       $inc: { calledTimes: 1 },
+  //     };
+  
+  //     if (statsResults) {
+  //       updateData.linktocallLogModel = statsResults._id;
+  //     }
+  
+  //     await contactModel.findOneAndUpdate(
+  //       { callId: call_id, agentId: agent_id },
+  //       updateData,
+  //     );
+  //   } catch (error) {
+  //     console.error("Error in handleCallEnded:", error.message, error.stack);
+  //   }
+  // }
+  
   async handleCallAnalyzed(payload: any) {
     try {
       const url = process.env.CAN_URL;
