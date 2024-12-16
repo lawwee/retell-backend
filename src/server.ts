@@ -901,9 +901,9 @@ export class Server {
         const jobidfromretell = retell_llm_dynamic_variables.job_id
           ? retell_llm_dynamic_variables.job_id
           : null;
-          const resultforcheck = await contactModel.findOne({callId: payload.call.call_id, agentId: payload.call.agent_id})
+         // const resultforcheck = await contactModel.findOne({callId: payload.call.call_id, agentId: payload.call.agent_id})
           let statsResults
-        if(resultforcheck.calledTimes < 0){
+       // if(resultforcheck.calledTimes < 0){
          statsResults = await DailyStatsModel.findOneAndUpdate(
           {
             day: todayString,
@@ -915,7 +915,7 @@ export class Server {
         )
         const timestamp = new Date();
         await updateStatsByHour(agent_id, todayString, timestamp);
-      }
+     // }
 
         //const linkToCallLogModelId = statsResults ? statsResults._id : null;
         const updateData: any = {
@@ -1217,41 +1217,53 @@ export class Server {
         const result = await contactModel.findOne({callId: payload.call.call_id, agentId: payload.call.agent_id})
         if (
           payload.data.call_analysis.call_successful === false &&
-          analyzedTranscriptForSentiment.message.content === "interested" &&
-          result.calledTimes < 2
+          analyzedTranscriptForSentiment.message.content === "interested"
         ) {
-          await this.retellClient.call.registerPhoneCall({
-            agent_id: payload.data.agent_id,
-            from_number: payload.call.from_number,
-            to_number: payload.call.to_number,
-            retell_llm_dynamic_variables: {
-              user_firstname: payload.data.retell_llm_dynamic_variables.user_firstname,
-              user_email: payload.data.retell_llm_dynamic_variables.user_email,
-              user_lastname: payload.data.retell_llm_dynamic_variables.user_lastname,
-              job_id: payload.data.retell_llm_dynamic_variables.job_id,
-              user_address: payload.data.retell_llm_dynamic_variables.user_address,
+          // await this.retellClient.call.registerPhoneCall({
+          //   agent_id: payload.data.agent_id,
+          //   from_number: payload.call.from_number,
+          //   to_number: payload.call.to_number,
+          //   retell_llm_dynamic_variables: {
+          //     user_firstname: payload.data.retell_llm_dynamic_variables.user_firstname,
+          //     user_email: payload.data.retell_llm_dynamic_variables.user_email,
+          //     user_lastname: payload.data.retell_llm_dynamic_variables.user_lastname,
+          //     job_id: payload.data.retell_llm_dynamic_variables.job_id,
+          //     user_address: payload.data.retell_llm_dynamic_variables.user_address,
+          //   },
+          // });
+
+          // const registerCallResponse = await this.retellClient.call.createPhoneCall({
+          //   from_number: payload.call.from_number,
+          //   to_number: payload.call.to_number,
+          //   override_agent_id:payload.data.agent_id ,
+          //   retell_llm_dynamic_variables: {
+          //     user_firstname: payload.data.retell_llm_dynamic_variables.user_firstname,
+          //     user_email: payload.data.retell_llm_dynamic_variables.user_email,
+          //     user_lastname: payload.data.retell_llm_dynamic_variables.user_lastname,
+          //     job_id: payload.data.retell_llm_dynamic_variables.job_id,
+          //     user_address: payload.data.retell_llm_dynamic_variables.user_address,
+          //   },
+          // });
+
+          // await contactModel.findOne({callId: payload.data.call_id, agentId:payload.data.agent_id}, {callId:payload.data.call_id
+
+          // })
+
+          const result = await axios.post(
+            process.env.MAKE_URL,
+            {
+              firstname:payload.data.retell_llm_dynamic_variables.user_firstname ,
+              lastname:payload.data.retell_llm_dynamic_variables.user_lastname ,
+              email: payload.data.retell_llm_dynamic_variables.user_email,
+              phone: payload.call.to_number,
+              summary: payload.data.call_analysis.call_summary,
+              url: payload.data?.recording_url || null,
+              transcript: payload.data.transcript
             },
-          });
-
-          const registerCallResponse = await this.retellClient.call.createPhoneCall({
-            from_number: payload.call.from_number,
-            to_number: payload.call.to_number,
-            override_agent_id:payload.data.agent_id ,
-            retell_llm_dynamic_variables: {
-              user_firstname: payload.data.retell_llm_dynamic_variables.user_firstname,
-              user_email: payload.data.retell_llm_dynamic_variables.user_email,
-              user_lastname: payload.data.retell_llm_dynamic_variables.user_lastname,
-              job_id: payload.data.retell_llm_dynamic_variables.job_id,
-              user_address: payload.data.retell_llm_dynamic_variables.user_address,
-            },
-          });
-
-          await contactModel.findOne({callId: payload.data.call_id, agentId:payload.data.agent_id}, {callId:payload.data.call_id
-
-          })
+          );
         }
       } catch (error) {
-        console.log("errror recalling");
+        console.log("errror recalling", error);
       }
     } catch (error) {
       console.log(error);
@@ -1705,6 +1717,7 @@ export class Server {
           lastname: history.lastname || "",
           email: history.email || "",
           phone: history.phone || "",
+          dial_status: history.dial_status || "",
           agentId: history.referenceToCallId?.agentName || "",
           transcript: history.referenceToCallId?.transcript || "",
           summary: history.referenceToCallId?.retellCallSummary || "",
@@ -3084,6 +3097,7 @@ export class Server {
             .sort({ startTimestamp: -1 })
             .skip(skip)
             .limit(pageSize);
+          
 
           const callHistories = callHistory.map((history) => ({
             firstname: history.userFirstname || "",
@@ -3100,6 +3114,8 @@ export class Server {
             recordingUrl: history.recordingUrl || "",
             address: history.address || "",
             callId: history.callId || "",
+            dial_status: history.dial_status || ""
+            
           }));
 
           const totalCount = await callHistoryModel.countDocuments({
@@ -3121,6 +3137,7 @@ export class Server {
             .status(500)
             .json({ success: false, message: "Internal Server Error" });
         }
+      
       },
     );
   }
