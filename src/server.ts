@@ -82,6 +82,7 @@ import {
   reviewTranscript,
 } from "./helper-fuction/transcript-review";
 import { stat } from "fs/promises";
+import { script } from "./script";
 
 connectDb();
 // const smee = new SmeeClient({
@@ -1659,7 +1660,7 @@ export class Server {
         }
 
         if (statusOption) {
-          query.status = statusOptions;
+          query.dial_status = statusOptions;
         }
         if (tag) {
           query["tag"] = tag.toLowerCase();
@@ -1841,7 +1842,7 @@ export class Server {
         }
 
         if (statusOption) {
-          query.status = statusOptions;
+          query.dial_status = statusOptions;
         }
         if (tag) {
           query["tag"] = tag.toLowerCase();
@@ -1887,6 +1888,7 @@ export class Server {
           totalRecords = await contactModel.countDocuments(query);
           totalPages = Math.ceil(totalRecords / limit);
 
+          console.log(query)
           results = await contactModel
             .find(query)
             .populate("referenceToCallId")
@@ -1895,6 +1897,7 @@ export class Server {
             .sort();
         }
 
+ 
         res.json({
           page,
           limit,
@@ -3243,7 +3246,7 @@ export class Server {
   }
   secondscript() {
     this.app.post("/script1", async (req: Request, res: Response) => {
-      const result = "";
+      const result = await script();
       res.send(result);
     });
   }
