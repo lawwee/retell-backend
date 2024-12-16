@@ -187,6 +187,7 @@ export const logsToCsv = async (
 
     const foundContacts = await contactQuery.exec();
 
+    console.log(foundContacts.length)
     const filePath = path.join(__dirname, "..", "..", "public", "logs.csv");
 
     const csvWriter = createObjectCsvWriter({
@@ -207,7 +208,7 @@ export const logsToCsv = async (
     if (sentimentOption === "unknown") {
       callSentimentStatus = callSentimentenum.UNKNOWN;
     } else if (sentimentOption === "dnc") {
-      callSentimentStatus === callSentimentenum.DNC;
+      callSentimentStatus = callSentimentenum.DNC;
     } else if (sentimentOption === "scheduled") {
       callSentimentStatus = callSentimentenum.SCHEDULED;
     } else if (sentimentOption === "call-back") {
@@ -219,8 +220,9 @@ export const logsToCsv = async (
     } else if (sentimentOption === "negative") {
       callSentimentStatus = callSentimentenum.NEGATIVE;
     } else if (sentimentOption === "all") {
-      callSentimentStatus == "";
+      callSentimentStatus ="";
     }
+    console.log(callSentimentStatus)
     const contactsData = foundContacts
       .map((contact) => ({
         firstname: contact.firstname,

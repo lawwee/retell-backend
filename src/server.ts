@@ -1706,6 +1706,7 @@ export class Server {
           totalRecords = await contactModel.countDocuments(query);
           totalPages = Math.ceil(totalRecords / limit);
 
+          console.log(query)
           results = await contactModel
             .find(query)
             .populate("referenceToCallId")
@@ -2226,7 +2227,7 @@ export class Server {
   testingMake() {
     this.app.post("/make", async (req: Request, res: Response) => {
       const result = await axios.post(
-        process.env.MAKE_URL,
+        process.env.MAKE_URL_FOR_GHL,
         {
           firstname: "Nick",
           lastname:"Bernadini",
