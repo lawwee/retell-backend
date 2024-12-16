@@ -1218,7 +1218,7 @@ export class Server {
         if (
           payload.data.call_analysis.call_successful === false &&
           analyzedTranscriptForSentiment.message.content === "interested" &&
-          result.calledTimes < 1
+          result.calledTimes < 2
         ) {
           await this.retellClient.call.registerPhoneCall({
             agent_id: payload.data.agent_id,
