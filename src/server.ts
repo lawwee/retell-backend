@@ -2223,13 +2223,16 @@ export class Server {
   testingMake() {
     this.app.post("/make", async (req: Request, res: Response) => {
       const result = await axios.post(
-        "https://hook.us1.make.com/ygtjngd7ta8bj2mm4sopqk5nmmjazrqr",
+        process.env.MAKE_URL,
         {
-          firstname: "nick",
+          firstname: "Nick",
+          lastname:"Bernadini",
           email: "nick@email.com",
           phone: +12343343232,
-          summary: "a call wa made",
-          url: "http:snwincwcje cai ak ",
+          summary: "a call was made",
+          url: "http:url.com",
+          transcript:"Testing",
+
         },
       );
       console.log(result);
