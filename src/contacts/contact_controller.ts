@@ -342,6 +342,7 @@ export const updateContactAndTranscriptForClient = async (
       retellCallStatus: update.status,
       recordingUrl: update.recordingUrl,
       address: update.address,
+      analyzedTranscript:update.sentiment
     });
 
     
