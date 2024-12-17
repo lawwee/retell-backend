@@ -302,11 +302,13 @@ export const updateContactAndTranscript = async (
 export const updateContactAndTranscriptForClient = async (
   update: any,
 ): Promise<any> => {
+  console.log(update,"hr")
   try {
     if (!update.callId) {
       throw new Error("callId is required for updating records");
     }
 
+    console.log(update)
     // Helper function to filter out undefined values
     const filterFields = (fields: any) =>
       Object.fromEntries(Object.entries(fields).filter(([_, value]) => value !== undefined));
@@ -331,11 +333,24 @@ export const updateContactAndTranscriptForClient = async (
       address: update.address,
     });
 
+
+    const dataForTranscriptModel = filterFields({
+      transcript: update.transcript,
+      retellCallSummary: update.summary,
+      userSentiment: update.sentiment,
+      duration: update.duration,
+      retellCallStatus: update.status,
+      recordingUrl: update.recordingUrl,
+      address: update.address,
+    });
+
     
+
     const updatedData: any = {};
 
     // Update contactModel and merge updated fields
     if (Object.keys(dataForContactModel).length > 0) {
+      console.log(dataForContactModel)
       await contactModel.findOneAndUpdate(
         { callId: update.callId },
         { $set: dataForContactModel },
@@ -346,6 +361,7 @@ export const updateContactAndTranscriptForClient = async (
 
     // Update callHistoryModel and merge updated fields
     if (Object.keys(dataForHistoryModel).length > 0) {
+      console.log(dataForHistoryModel)
       await callHistoryModel.findOneAndUpdate(
         { callId: update.callId },
         { $set: dataForHistoryModel },
@@ -353,6 +369,18 @@ export const updateContactAndTranscriptForClient = async (
       );
       Object.assign(updatedData, dataForHistoryModel);
     }
+
+    // Update callHistoryModel and merge updated fields
+    if (Object.keys(dataForTranscriptModel).length > 0) {
+      console.log(dataForTranscriptModel)
+      await EventModel.findOneAndUpdate(
+        { callId: update.callId },
+        { $set: dataForTranscriptModel },
+        { new: true }
+      );
+      Object.assign(updatedData, dataForTranscriptModel);
+    }
+
 
     return {
       message: "Update successful",
