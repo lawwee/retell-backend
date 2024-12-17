@@ -1729,6 +1729,7 @@ export class Server {
           status: history.referenceToCallId?.retellCallStatus || "",
           recordingUrl: history.referenceToCallId?.recordingUrl || "",
           address: history.address || "",
+          callId: history.callId || ""
         }));
         res.json({
           page,
