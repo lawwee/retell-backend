@@ -893,11 +893,14 @@ export class Server {
           agentName: agentNameEnum,
           date: todayString,
           address: retell_llm_dynamic_variables?.user_address || null,
+          dial_status: callStatus
+          
         };
         await callHistoryModel.findOneAndUpdate(
           { callId: call_id, agentId: agent_id },
           { $set: callData },
           { upsert: true, returnOriginal: false },
+
         );
         const jobidfromretell = retell_llm_dynamic_variables.job_id
           ? retell_llm_dynamic_variables.job_id
