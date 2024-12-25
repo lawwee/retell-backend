@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { Ilogs } from "../types";
+import { Ilogs } from "../utils/types";
 const dailyStatsSchema = new Schema<Ilogs>(
   {
     day: { type: String },
@@ -11,7 +11,10 @@ const dailyStatsSchema = new Schema<Ilogs>(
     totalCallAnswered:{type:Number},
     agentId:{type:String},
     jobProcessedBy:{type:String},
-    totalDialNoAnswer:{type: Number}
+    totalDialNoAnswer:{type: Number},
+    totalAnsweredByIVR:{type:Number},
+    totalCallInactivity:{type:Number},
+    totalCallDuration:{type: Number}
 
   },
   { timestamps: true },

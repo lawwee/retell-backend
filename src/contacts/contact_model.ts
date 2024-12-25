@@ -6,8 +6,9 @@ import {
   Ijob,
   callstatusenum,
   jobstatus,
-} from "../types";
-
+} from "../utils/types";
+// Define your DNC list
+const dncList: string[] = [];
 const ContactSchema = new Schema<IContact>(
   {
     firstname: {
@@ -16,7 +17,6 @@ const ContactSchema = new Schema<IContact>(
     },
     email: {
       type: String,
-      required: true,
     },
     lastname: {
       type: String,
@@ -40,7 +40,7 @@ const ContactSchema = new Schema<IContact>(
       type: String,
       required: true,
     },
-    status: {
+    dial_status: {
       type: String,
       enum: Object.values(callstatusenum),
       default: callstatusenum.NOT_CALLED,
@@ -72,6 +72,18 @@ const ContactSchema = new Schema<IContact>(
       type: [String],
       default: [],
     },
+    isOnDNCList: {
+      type: Boolean,
+      default: false,
+    },
+    timesCalled: {
+      type: String,
+    },
+    calledTimes:{
+      default: 0,
+      type:Number
+    },
+    address: { type: String },
   },
   { timestamps: true },
 );
@@ -99,7 +111,9 @@ const jobschema = new Schema<Ijob>(
     },
     scheduledTime: { type: String },
     shouldContinueProcessing: { type: Boolean, default: true },
-    tagProcessedFor:{type:String}
+    tagProcessedFor: { type: String },
+    completedPercent: { type: String },
+    totalContactToProcess: { type: Number },
   },
   { timestamps: true },
 );
@@ -116,10 +130,17 @@ const transcriptSchema = new Schema(
     agentSemtiment: { type: String },
     disconnectionReason: { type: String },
     analyzedTranscript: { type: String },
-    agentId:{type:String}
+    agentId: { type: String },
+    callBackDate: { type: String },
+    callDuration: { type: String },
+    retellCallStatus: { type: String },
+    timestamp: { type: String },
+    duration: { type: String },
+    agentName: { type: String },
   },
   { timestamps: true },
 );
+
 
 export const EventModel = model("transcript", transcriptSchema);
 export const contactModel = model<IContact>("Retell", ContactSchema);

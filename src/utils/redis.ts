@@ -8,6 +8,7 @@ export const redisClient = createClient({
     }
 });
 
+
 export const redisConnection = async () => {
     redisClient.on('error', (err: any) => {
       console.log('Redis Client Error', err);

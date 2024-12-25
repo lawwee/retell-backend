@@ -24,7 +24,7 @@ export interface IContact {
   isusercalled: boolean;
   isDeleted: boolean;
   callId: String;
-  status: string;
+  dial_status: string;
   agentId: string;
   referenceToCallId: any;
   linktocallLogModel: any;
@@ -33,6 +33,11 @@ export interface IContact {
   dayToBeProcessed: string
   tag: string
   jobProcessedWithId: string[]
+  callBackDate:string
+  isOnDNCList: boolean
+  timesCalled: string
+  address:string
+  calledTimes: number
 }
 
 export enum DaysToBeProcessedEnum{
@@ -58,9 +63,31 @@ export enum callstatusenum {
   NOT_CALLED = "not-called",
   TRANSFERRED = "connected-transferred",
   SCHEDULED = "appt-scheduled",
-  NO_ANSWER = "not-answered"
+  NO_ANSWER = "not-answered",
+  IVR = "connected-ivr",
+  INACTIVITY = "inactivity"
 }
 
+// export enum callSentimentenum{
+//   NOT_INTERESTED = "not-interested",
+//   SCHEDULED = "scheduled",
+//   CALL_BACK = "call-back",
+//   INCOMPLETE_CALL = "incomplete",
+//   VOICEMAIL = "voicemail",
+//   INTERESTED = "interested",
+//   DO_NOT_CALL = "dnc",
+//   IVR = "ivr"
+// }
+
+export enum callSentimentenum{
+  POSITIVE = "positive",
+  NEGATIVE= "negative",
+  NEUTRAL = "neutral",
+  UNKNOWN = "unknown",
+  SCHEDULED = "scheduled",
+  CALLBACK= "call-back",
+  DNC = "dnc"
+}
 export interface Itranscript {
   transcript: string;
 }
@@ -80,7 +107,10 @@ export interface Ijob {
   agentId: string;
   scheduledTime: string;
   shouldContinueProcessing: boolean;
-  tagProcessedFor:string
+  tagProcessedFor:string,
+  createdAt:Date,
+  completedPercent: string
+  totalContactToProcess: number
 }
 
 export interface Ilogs {
@@ -94,6 +124,10 @@ export interface Ilogs {
   totalCallAnswered: number
   jobProcessedBy:String
   totalDialNoAnswer:number
+  totalAnsweredByIVR:number
+  totalCallInactivity:number
+  totalCallDuration: number ,
+  
 }
 
 // Retell -> Your Server Events

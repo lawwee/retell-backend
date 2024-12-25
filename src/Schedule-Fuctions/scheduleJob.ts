@@ -1,10 +1,10 @@
+
 import { contactModel, jobModel } from "../contacts/contact_model";
 import { v4 as uuidv4 } from "uuid";
-import { jobstatus } from "../types";
+import { callstatusenum, jobstatus } from "../utils/types";
 import schedule from "node-schedule";
 import Retell from "retell-sdk";
 import moment from "moment-timezone";
-import { searchAndRecallContacts } from "./searchAndRecallContact";
 import { DailyStatsModel } from "../contacts/call_log";
 import { formatPhoneNumber } from "../helper-fuction/formatter";
 
@@ -18,46 +18,54 @@ export const scheduleCronJob = async (
   limit: string,
   fromNumber: string,
   formattedDate: string,
-  lowerCaseTag?: string,
+  lowerCaseTag: string,
+  address:string
 ) => {
   const jobId = uuidv4();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayString = today.toISOString().split("T")[0];
+  const todayString = new Date().toISOString().split("T")[0];
 
   try {
     await DailyStatsModel.create({
       day: todayString,
-      agentId: agentId,
+      agentId,
       jobProcessedBy: jobId,
     });
+
     const existingJob = await jobModel.findOne({
       agentId,
       tagProcessedFor: lowerCaseTag,
       callstatus: { $in: [jobstatus.ON_CALL, jobstatus.QUEUED] },
       shouldContinueProcessing: true,
     });
-  
+
     if (existingJob) {
-      console.log(`A job is already running for agent: ${agentId} and tag: ${lowerCaseTag}.`);
+      console.log(
+        `A job is already running for agent: ${agentId} and tag: ${lowerCaseTag}.`,
+      );
       return { message: "Job already running", jobId: existingJob.jobId };
     }
+
+    const CUTOFF_HOUR = 14;
+    const CUTOFF_MINUTE = 10;
+
     await jobModel.create({
       callstatus: jobstatus.QUEUED,
       jobId,
       agentId,
       scheduledTime: formattedDate,
       shouldContinueProcessing: true,
-      tagProcessedFor:lowerCaseTag
+      tagProcessedFor: lowerCaseTag,
     });
 
-    const contactLimit = parseInt(limit);
+    
+    const contactLimit = limit ? parseInt(limit) : null;
     const contacts = await contactModel
       .find({
         agentId,
-        status: "not-called",
-        isDeleted: { $ne: true },
+        dial_status: callstatusenum.NOT_CALLED,
+        isDeleted: false,
         ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
+        isOnDNCList: false,
       })
       .limit(contactLimit)
       .sort({ createdAt: "desc" });
@@ -70,127 +78,121 @@ export const scheduleCronJob = async (
           { new: true },
         );
 
-        const currentDate = moment().tz("America/Los_Angeles");
-        const currentHour = currentDate.hours();
+        const totalContacts = await contactModel
+          .countDocuments({
+            agentId,
+            dial_status: callstatusenum.NOT_CALLED,
+            isDeleted: false,
+            ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
+            isOnDNCList: false,
+          })
+          .limit(contactLimit);
+
+        // Log the query and the result
+        console.log("Query for total contacts:", {
+          agentId,
+          dial_status: callstatusenum.NOT_CALLED,
+          isDeleted: false,
+          ...(lowerCaseTag ? { tag: lowerCaseTag } : {}),
+          isOnDNCList: false,
+        });
+        console.log("Total contacts found:", totalContacts);
+
+        await jobModel.findOneAndUpdate(
+          { jobId },
+          { totalContactToProcess: totalContacts },
+        );
 
         for (const contact of contacts) {
-          // Fetch the latest job state in each iteration
+          
           currentJob = await jobModel.findOne({ jobId });
+          const now = moment().tz("America/Los_Angeles");
 
-          // Time constraint check
-          if (currentHour < 8 || currentHour >= 15) {
-            await jobModel.findOneAndUpdate(
-              { jobId },
-              { callstatus: "cancelled", shouldContinueProcessing: false },
-            );
-            console.log("Job processing stopped due to time constraints.");
-            break;
-          }
+          // Time cutoff check
+          // if (
+          //   now.hour() > CUTOFF_HOUR ||
+          //   (now.hour() === CUTOFF_HOUR && now.minute() >= CUTOFF_MINUTE)
+          // ) {
+          //   console.log(
+          //     "Job processing stopped due to time cutoff (9:45 PST).",
+          //   );
+          //   await jobModel.updateOne(
+          //     { jobId },
+          //     { callstatus: "cancelled", shouldContinueProcessing: false },
+          //   );
+          //   break;
+          // }
 
-          // Check if the job should stop processing
           if (!currentJob || currentJob.shouldContinueProcessing === false) {
             console.log("Job processing stopped by user flag.");
-            await jobModel.findOneAndUpdate(
+            await jobModel.updateOne(
               { jobId },
               { callstatus: "cancelled", shouldContinueProcessing: false },
             );
             break;
           }
 
-          const postdata = {
-            fromNumber,
-            toNumber: contact.phone,
-            userId: contact._id.toString(),
-            agentId,
-          };
-
           try {
-            // const newToNumber = formatPhoneNumber(postdata.toNumber);
-            const callRegister = await retellClient.call.register({
-              agent_id: agentId,
-              audio_encoding: "s16le",
-              audio_websocket_protocol: "twilio",
-              sample_rate: 24000,
-              end_call_after_silence_ms: 15000,
-            });
+            const postdata = {
+              fromNumber,
+              toNumber: contact.phone,
+              userId: contact._id.toString(),
+              agentId,
+            };
 
-            const registerCallResponse2 = await retellClient.call.create({
+             await retellClient.call.registerPhoneCall({
+              agent_id: agentId,
               from_number: fromNumber,
               to_number: formatPhoneNumber(postdata.toNumber),
-              override_agent_id: agentId,
-              drop_call_if_machine_detected: true,
               retell_llm_dynamic_variables: {
                 user_firstname: contact.firstname,
                 user_email: contact.email,
-                user_lasname: contact.lastname,
+                user_lastname: contact.lastname,
                 job_id: jobId,
+                user_address:contact.address
+              },
+            });
+
+            const registerCallResponse = await retellClient.call.createPhoneCall({
+              from_number: fromNumber,
+              to_number: formatPhoneNumber(postdata.toNumber),
+              override_agent_id: agentId,
+              retell_llm_dynamic_variables: {
+                user_firstname: contact.firstname,
+                user_email: contact.email,
+                user_lastname: contact.lastname,
+                job_id: jobId,
+                user_address:contact.address
               },
             });
 
             await contactModel.findByIdAndUpdate(contact._id, {
-              callId: registerCallResponse2.call_id,
+              callId: registerCallResponse.call_id,
               $push: { jobProcessedWithId: jobId },
               isusercalled: true,
             });
 
+            const updatedProcessedContacts = currentJob.processedContacts + 1;
+            const currentPercentage =
+              (updatedProcessedContacts / totalContacts) * 100;
+
             await jobModel.findOneAndUpdate(
               { jobId },
-              { $inc: { processedContacts: 1 } },
+              {
+                $inc: { processedContacts: 1 },
+                completedPercent: currentPercentage,
+              },
             );
             console.log(`Call successful for contact: ${contact.firstname}`);
-
-            // Wait for 2 seconds between calls
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            const updatedContact = await contactModel.findOne({
-              $or: [
-                { callId: registerCallResponse2.call_id },
-                { _id: contact._id.toString() },
-              ],
-            });
-            if (updatedContact?.status === "dial_no_answer") {
-              console.log(
-                `User ${contact.firstname} didn't answer, calling again...`,
-              );
-
-              const retryCallResponse = await retellClient.call.create({
-                from_number: fromNumber,
-                to_number: formatPhoneNumber(postdata.toNumber),
-                override_agent_id: agentId,
-                drop_call_if_machine_detected: true,
-                retell_llm_dynamic_variables: {
-                  user_firstname: contact.firstname,
-                  user_email: contact.email,
-                },
-              });
-
-              await contactModel.findByIdAndUpdate(contact._id, {
-                callId: retryCallResponse.call_id,
-              });
-
-              console.log(
-                `Retry call initiated for contact: ${contact.firstname}`,
-              );
-            } else {
-              console.log(
-                `User ${contact.firstname} answered or the status changed, skipping recall.`,
-              );
-            }
           } catch (error) {
             console.log("Error during call processing:", error);
           }
-
-        
           await new Promise((resolve) => setTimeout(resolve, 4000));
         }
 
-        console.log("Contacts processed, starting recall...");
-        await searchAndRecallContacts(
-          contactLimit,
-          agentId,
-          fromNumber,
-          jobId,
-          lowerCaseTag,
+        await jobModel.findOneAndUpdate(
+          { jobId },
+          { callstatus: jobstatus.CALLED, shouldContinueProcessing: false },
         );
       } catch (error) {
         console.error("Error in job processing:", error);

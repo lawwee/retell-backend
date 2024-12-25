@@ -1,25 +1,21 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 interface ICallData extends Document {
   callId: string;
   agentId: string;
-  retellLLMDynamicVariables: {
-    userFirstname: string;
-    userEmail: string;
-    userLastname: string;
-  };
+  userFirstname: string;
+  userEmail: string;
+  userLastname: string;
   callStatus: string;
   startTimestamp: number;
   endTimestamp: number;
-  durationMs: number;
+  durationMs: string;
   transcript: string;
   publicLogUrl: string;
   disconnectionReason: string;
-  costMetadata: {
-    telecommunication: string;
-    llmModel: string;
-    voiceProvider: string;
-  };
+  telecommunication: string;
+  llmModel: string;
+  voiceProvider: string;
   callCost: {
     productCosts: any[];
     totalDurationUnitPrice: number;
@@ -31,63 +27,62 @@ interface ICallData extends Document {
   fromNumber: string;
   toNumber: string;
   direction: string;
-  callEndedData?: {
-    
-    endReason?: string; 
-  };
-  callAnalyzedData?: {
-    callAnalysis: {
-      callSummary: string;
-      inVoicemail: boolean;
-      userSentiment: string;
-      callSuccessful: boolean;
-      agentTaskCompletionRating: string;
-      callCompletionRating: string;
-      customAnalysisData: object;
-    };
-  };
+  endReason?: string;
+  callSummary: string;
+  inVoicemail: boolean;
+  userSentiment: string;
+  callSuccessful: boolean;
+  agentTaskCompletionRating: string;
+  callCompletionRating: string;
+  customAnalysisData: object;
+  recordingUrl: { type: string };
+  agentName: { type: string };
+  date: { type: string };
+  address:{type:string},
+  dial_status:{type:string}
 }
 
-const CallDataSchema = new Schema<ICallData>({
-  callId: { type: String, required: true },
-  agentId: { type: String, required: true },
-  retellLLMDynamicVariables: {
-    userFirstname: { type: String, required: true },
-    userEmail: { type: String, required: true },
-    userLastname: { type: String, required: true },
+const CallDataSchema = new Schema<ICallData>(
+  {
+    callId: { type: String },
+    agentId: { type: String },
+    userFirstname: { type: String },
+    userEmail: { type: String },
+    userLastname: { type: String },
+    callStatus: { type: String },
+    startTimestamp: { type: Number },
+    endTimestamp: { type: Number },
+    durationMs: { type: String },
+    transcript: { type: String },
+    publicLogUrl: { type: String },
+    disconnectionReason: { type: String },
+    telecommunication: { type: String },
+    llmModel: { type: String },
+    voiceProvider: { type: String },
+    callType: { type: String },
+    fromNumber: { type: String },
+    toNumber: { type: String },
+    direction: { type: String },
+    endReason: { type: String },
+    callSummary: { type: String },
+    inVoicemail: { type: Boolean },
+    userSentiment: { type: String },
+    callSuccessful: { type: Boolean },
+    agentTaskCompletionRating: { type: String },
+    callCompletionRating: { type: String },
+    customAnalysisData: { type: Object },
+    recordingUrl: { type: String },
+    agentName: { type: String },
+    date: { type: String },
+    address:{type: String},
+    dial_status:{type : String}
   },
-  callStatus: { type: String, required: true },
-  startTimestamp: { type: Number, required: true },
-  endTimestamp: { type: Number, required: true },
-  durationMs: { type: Number, required: true },
-  transcript: { type: String, required: true },
-  publicLogUrl: { type: String, required: true },
-  disconnectionReason: { type: String, required: true },
-  costMetadata: {
-    telecommunication: { type: String, required: true },
-    llmModel: { type: String, required: true },
-    voiceProvider: { type: String, required: true },
-  },
-  callType: { type: String, required: true },
-  fromNumber: { type: String, required: true },
-  toNumber: { type: String, required: true },
-  direction: { type: String, },
-  callEndedData: {
-    endReason: { type: String }, 
-  },
-  callAnalyzedData: {
-    callAnalysis: {
-      callSummary: { type: String },
-      inVoicemail: { type: Boolean },
-      userSentiment: { type: String },
-      callSuccessful: { type: Boolean },
-      agentTaskCompletionRating: { type: String },
-      callCompletionRating: { type: String },
-      customAnalysisData: { type: Object },
-    },
-  },
-});
+  { timestamps: true },
+);
 
-const callHistoryModel = mongoose.model<ICallData>('callHistory', CallDataSchema);
+const callHistoryModel = mongoose.model<ICallData>(
+  "callHistory",
+  CallDataSchema,
+);
 
 export default callHistoryModel;

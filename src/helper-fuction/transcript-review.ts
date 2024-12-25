@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -14,27 +15,23 @@ export const reviewTranscript = async (transcript: string) => {
           content: `You are an expert data analyst specializing in sentiment analysis of call transcripts between AI agents and leads. Your task is to accurately categorize each conversation based on the lead's responses. Please use one of the following categories:
 
 Categories:
+interested: The lead either clearly expresses interest—agreeing to book an appointment or actively discussing next steps—or requests a follow-up, suggesting the agent call back later or follow up in the future.
+not-interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
+scheduled: The lead confirms a specific time for an appointment or meeting.
+incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
+voicemail: Based on the content of this call transcript, identify whether this is an AM/VM (Answering Machine/Voice Mail)
+dnc: The lead explicitly says they never want to be called back again or ask to be removed from the list and not be called again
+ivr: Based on the content of this call transcript, identify whether this is an IVR (Interactive Voice Response) system.
+Instructions
 
-Interested: The lead clearly expresses interest, agrees to book an appointment, or continues discussing next steps.
-
-Not-Interested: The lead explicitly says they are no longer interested, have found a solution, or expresses disinterest.
-
-Scheduled: The lead confirms a specific time for an appointment or meeting.
-
-Call-Back: The lead requests the agent to call back later or suggests following up in the future.
-
-Incomplete: The call ends abruptly, or the lead cannot be reached before answering any key questions.
-
-Voicemail: The call results in leaving a voicemail or the agent reaches the lead's voicemail system.
-
-Instructions:
-1. Analyze the transcript below and assign it the most fitting category based on the lead's responses.
-2. If the transcript is empty or missing, respond with N/A.
-Transcript: ${transcript}`,
+Analyze the transcript below and assign it the most fitting category based on the lead's responses.
+If the transcript is empty or missing, respond with N/A.
+Respond only with the appropriate category without any additional explanation.
+Transcript: ${transcript}`,
         },
       ],
       // model: "gpt-4-turbo-preview",
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini", 
     });
 
     return completion.choices[0];
@@ -43,35 +40,40 @@ Transcript: ${transcript}`,
     throw new Error("Failed to analyze transcript");
   }
 };
-export const reviewCallback = async (transcript: string) => {
-  try {
-    const currentDate = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    };
-    const formattedCurrentDate = new Intl.DateTimeFormat(
-      "en-US",
-      options,
-    ).format(currentDate);
 
+
+
+export const reviewCallback = async (transcript: string): Promise<string> => {
+  try {
     const completion = await client.chat.completions.create({
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         {
           role: "user",
-          content: `Review and return only the time the client wishes to be called back at in this transcript. The current date is ${formattedCurrentDate}. If a callback date or time is mentioned. if no date or time is mentioned, return the next immediate Monday. All date should be in the format of the current date format.Return only the call back date. Transcript: ${transcript}`,
+          content: `Extract only the callback date mentioned in this transcript. If the client explicitly mentions a callback date or time, return it in the format YYYY-MM-DD. If no callback date or time is mentioned, return the date of the Monday two weeks from today, in the same format YYYY-MM-DD. Transcript: ${transcript}`,
         },
       ],
-      // model: "gpt-4-turbo-preview",
       model: "gpt-4o-mini",
     });
 
-    return completion.choices[0].message.content.trim();
+    const extractedDate = completion.choices[0].message.content.trim();
+
+    // If no date is found, calculate the Monday two weeks from today
+    if (!extractedDate) {
+      const currentDate = new Date();
+      const nextMonday = new Date(
+        currentDate.setDate(
+          currentDate.getDate() + ((1 - currentDate.getDay() + 7) % 7 || 7) + 14
+        )
+      );
+      return format(nextMonday, "yyyy-MM-dd");
+    }
+
+    // Ensure the date is in the correct format and return it
+    return extractedDate;
   } catch (error) {
     console.error("Error analyzing transcript:", error);
     throw new Error("Failed to analyze transcript");
   }
 };
+
